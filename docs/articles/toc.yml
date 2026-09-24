@@ -1,4 +1,6 @@
 - name: Overview
   href: index.md
+- name: The Evaluation Graph (AcDbEvalGraph)
+  href: evaluation-graph.md
 - name: Samples
   href: samples/toc.yml
