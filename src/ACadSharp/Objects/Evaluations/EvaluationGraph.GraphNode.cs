@@ -1,4 +1,5 @@
 using ACadSharp.Attributes;
+using System.Collections.Generic;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -86,6 +87,11 @@ public partial class EvaluationGraph
 		[DxfCodeValue(91)]
 		public int Index { get; set; }
 
+		/// <summary>
+		/// Gets the <see cref="EvaluationGraph"/> that owns this <see cref="Node"/>.
+		/// </summary>
+		public EvaluationGraph Graph => this._evaluationGraph;
+
 		private EvaluationExpression _expression;
 
 		private EvaluationGraph _evaluationGraph;
@@ -93,6 +99,46 @@ public partial class EvaluationGraph
 		public Node(EvaluationGraph evaluationGraph)
 		{
 			this._evaluationGraph = evaluationGraph;
+		}
+
+		/// <summary>
+		/// Gets the incoming edges of this node (the edges whose <see cref="Edge.ToNodeIndex"/>
+		/// is this node) — the node's <em>inputs</em>: the values it reads from other nodes.
+		/// </summary>
+		public IEnumerable<Edge> GetIncomingEdges()
+		{
+			if (this.FirstInEdge < 0)
+			{
+				yield break;
+			}
+
+			int index = this.FirstInEdge;
+			while (index >= 0)
+			{
+				Edge edge = this._evaluationGraph.Edges[index];
+				yield return edge;
+				index = edge.NextInEdge;
+			}
+		}
+
+		/// <summary>
+		/// Gets the outgoing edges of this node (the edges whose <see cref="Edge.FromNodeIndex"/>
+		/// is this node) — the node's <em>outputs</em>: the values it writes for other nodes.
+		/// </summary>
+		public IEnumerable<Edge> GetOutgoingEdges()
+		{
+			if (this.FirstOutEdge < 0)
+			{
+				yield break;
+			}
+
+			int index = this.FirstOutEdge;
+			while (index >= 0)
+			{
+				Edge edge = this._evaluationGraph.Edges[index];
+				yield return edge;
+				index = edge.NextOutEdge;
+			}
 		}
 
 		/// <summary>

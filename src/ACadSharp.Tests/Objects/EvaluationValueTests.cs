@@ -567,4 +567,98 @@ public class EvaluationValueTests
 		Assert.NotNull(resultHandle);
 		Assert.Equal(1234567L, resultHandle.Value);
 	}
+
+	// ------------------------------------------------------------------
+	// Node input/output derivation from the directed graph edges.
+	// ------------------------------------------------------------------
+
+	[Fact]
+	public void NodeEdgeWalkingTest()
+	{
+		EvaluationGraph graph = new();
+
+		EvaluationGraph.Node n0 = graph.CreateNode();
+		EvaluationGraph.Node n1 = graph.CreateNode();
+		EvaluationGraph.Node n2 = graph.CreateNode();
+		n0.Index = 0;
+		n1.Index = 1;
+		n2.Index = 2;
+
+		// Edge 0: n0 -> n1.  Edge 1: n1 -> n2.
+		EvaluationGraph.Edge e0 = new()
+		{
+			Index = 0, FromNodeIndex = 0, ToNodeIndex = 1,
+			PrevInEdge = -1, NextInEdge = -1, PrevOutEdge = -1, NextOutEdge = -1,
+		};
+		EvaluationGraph.Edge e1 = new()
+		{
+			Index = 1, FromNodeIndex = 1, ToNodeIndex = 2,
+			PrevInEdge = -1, NextInEdge = -1, PrevOutEdge = -1, NextOutEdge = -1,
+		};
+		graph.Edges.Add(e0);
+		graph.Edges.Add(e1);
+
+		// n1: one incoming (e0), one outgoing (e1).
+		n1.FirstInEdge = 0;
+		n1.LastInEdge = 0;
+		n1.FirstOutEdge = 1;
+		n1.LastOutEdge = 1;
+
+		// n0: one outgoing (e0), no incoming.  n2: one incoming (e1), no outgoing.
+		// (The edge-list indices default to 0, so set -1 explicitly for the empty lists.)
+		n0.FirstInEdge = -1;
+		n0.LastInEdge = -1;
+		n0.FirstOutEdge = 0;
+		n0.LastOutEdge = 0;
+		n2.FirstInEdge = 1;
+		n2.LastInEdge = 1;
+		n2.FirstOutEdge = -1;
+		n2.LastOutEdge = -1;
+
+		// Inputs = incoming edges; outputs = outgoing edges.
+		List<EvaluationGraph.Edge> n1In = n1.GetIncomingEdges().ToList();
+		Assert.Single(n1In);
+		Assert.Same(e0, n1In[0]);
+
+		List<EvaluationGraph.Edge> n1Out = n1.GetOutgoingEdges().ToList();
+		Assert.Single(n1Out);
+		Assert.Same(e1, n1Out[0]);
+
+		Assert.Empty(n0.GetIncomingEdges());
+		Assert.Empty(n2.GetOutgoingEdges());
+
+		// Display name resolution.
+		n0.Expression = new BlockTextParameter { Id = 0 };
+		Assert.Equal("BlockTextParameter", graph.GetNodeDisplayName(0));
+		Assert.Equal("?", graph.GetNodeDisplayName(99));
+	}
+
+	[Fact]
+	public void NodeMultiEdgeWalkingTest()
+	{
+		EvaluationGraph graph = new();
+
+		EvaluationGraph.Node n0 = graph.CreateNode();
+		EvaluationGraph.Node n1 = graph.CreateNode();
+		EvaluationGraph.Node n2 = graph.CreateNode();
+		n0.Index = 0;
+		n1.Index = 1;
+		n2.Index = 2;
+
+		// Three edges all feeding into n2 (the incoming chain: 0 -> 1 -> 2).
+		EvaluationGraph.Edge e0 = new() { Index = 0, FromNodeIndex = 0, ToNodeIndex = 2, PrevInEdge = -1, NextInEdge = 1, PrevOutEdge = -1, NextOutEdge = -1 };
+		EvaluationGraph.Edge e1 = new() { Index = 1, FromNodeIndex = 1, ToNodeIndex = 2, PrevInEdge = 0, NextInEdge = 2, PrevOutEdge = -1, NextOutEdge = -1 };
+		EvaluationGraph.Edge e2 = new() { Index = 2, FromNodeIndex = 0, ToNodeIndex = 2, PrevInEdge = 1, NextInEdge = -1, PrevOutEdge = -1, NextOutEdge = -1 };
+		graph.Edges.Add(e0);
+		graph.Edges.Add(e1);
+		graph.Edges.Add(e2);
+
+		// n2's incoming-edge list: first = e0, last = e2, linked e0 -> e1 -> e2.
+		n2.FirstInEdge = 0;
+		n2.LastInEdge = 2;
+
+		List<EvaluationGraph.Edge> n2In = n2.GetIncomingEdges().ToList();
+		Assert.Equal(3, n2In.Count);
+		Assert.Equal(new[] { e0, e1, e2 }, n2In);
+	}
 }

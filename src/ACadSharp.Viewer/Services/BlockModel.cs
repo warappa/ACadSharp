@@ -21,6 +21,18 @@ public class PropertyItem
     public int NodeIndex { get; }
     public EvaluationExpression Expression { get; }
 
+    /// <summary>
+    /// The nodes this node reads from (its <em>inputs</em>: the source of each incoming
+    /// edge), as a comma-separated list; empty when the node has no incoming edges.
+    /// </summary>
+    public string InputsText { get; }
+
+    /// <summary>
+    /// The nodes this node writes to (its <em>outputs</em>: the target of each outgoing
+    /// edge), as a comma-separated list; empty when the node has no outgoing edges.
+    /// </summary>
+    public string OutputsText { get; }
+
     public PropertyItem(EvaluationGraph.Node node, BlockParameter parameter)
     {
         (string name, string description) = GetLabelAndDescription(parameter);
@@ -31,6 +43,25 @@ public class PropertyItem
         HasValue = node.Expression.CurrentValue.Type != EvaluationValueType.None;
         NodeIndex = node.Index;
         Expression = node.Expression;
+        InputsText = JoinNodeNames(node.GetIncomingEdges(), edge => edge.FromNodeIndex, node.Graph);
+        OutputsText = JoinNodeNames(node.GetOutgoingEdges(), edge => edge.ToNodeIndex, node.Graph);
+    }
+
+    /// <summary>
+    /// Resolves each edge's connected node to its display name and joins them with commas.
+    /// </summary>
+    private static string JoinNodeNames(
+        IEnumerable<EvaluationGraph.Edge> edges,
+        Func<EvaluationGraph.Edge, int> nodeIndexSelector,
+        EvaluationGraph graph)
+    {
+        List<string> names = new();
+        foreach (EvaluationGraph.Edge edge in edges)
+        {
+            names.Add(graph.GetNodeDisplayName(nodeIndexSelector(edge)));
+        }
+
+        return string.Join(", ", names);
     }
 
     /// <summary>

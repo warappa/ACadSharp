@@ -114,6 +114,8 @@
                                 <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="160" />
                                 <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
                                 <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="90" />
+                                <DataGridTextColumn Header="Inputs" Binding="{Binding InputsText}" Width="140" />
+                                <DataGridTextColumn Header="Outputs" Binding="{Binding OutputsText}" Width="140" />
                                 <DataGridTemplateColumn Header="Value" Width="140">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate x:DataType="svc:PropertyItem">

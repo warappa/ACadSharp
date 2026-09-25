@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 using System.Collections.Generic;
 using System.Linq;
@@ -97,6 +97,25 @@ public partial class EvaluationGraph : NonGraphicalObject, IDxfClassDefined
 			ProxyFlags = ACadSharp.Classes.ProxyFlags.EraseAllowed | ACadSharp.Classes.ProxyFlags.CloningAllowed | ACadSharp.Classes.ProxyFlags.DisablesProxyWarningDialog,
 			WasZombie = false,
 		};
+	}
+
+	/// <summary>
+	/// Gets a short display name for the node at the given index (the class name of the
+	/// node's <see cref="EvaluationExpression"/>), used to label the connected nodes in a
+	/// node's input/output lists.
+	/// </summary>
+	/// <param name="nodeIndex">The index of the node in the node list.</param>
+	/// <returns>The node's display name, or "?" when the index is out of range or the node
+	/// has no expression.</returns>
+	public string GetNodeDisplayName(int nodeIndex)
+	{
+		if (nodeIndex < 0 || nodeIndex >= this._nodes.Count)
+		{
+			return "?";
+		}
+
+		EvaluationExpression expression = this._nodes[nodeIndex].Expression;
+		return expression == null ? "?" : expression.GetType().Name;
 	}
 
 	/// <summary>
