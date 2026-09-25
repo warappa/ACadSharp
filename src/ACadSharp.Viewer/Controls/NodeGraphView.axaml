@@ -2,7 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ACadSharp.Viewer.Controls.NodeGraphView">
     <Grid>
-        <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+        <!-- Scrollbars are disabled: zoom and pan are driven by a manual
+             scale+translate transform on the canvas (see ApplyScale), which
+             works at any window size. The viewer still clips the canvas to
+             the viewport. -->
+        <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled">
             <!-- Opaque background = the window background color (verified
                  identical in both themes), so the canvas fills the whole
                  viewport seamlessly and the edge-label mask blends in. -->

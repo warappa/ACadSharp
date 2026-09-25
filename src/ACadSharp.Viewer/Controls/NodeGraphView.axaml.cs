@@ -40,16 +40,17 @@ public partial class NodeGraphView : UserControl
     private double _naturalWidth;
     private double _naturalHeight;
 
-    // Zoom anchor offset, applied once the scroll extent has caught up with
-    // the new canvas size (see ZoomAt): the ScrollViewer clamps Offset
-    // against its current Extent, which is only refreshed by the layout
-    // pass, so the anchor must not be set before that pass has run.
-    private Vector? _pendingZoomOffset;
+    // Content translation in viewport coordinates. Zoom and pan are driven
+    // by a scale+translate transform on the canvas (see ApplyScale) rather
+    // than the ScrollViewer's offset, so the anchor works at any window
+    // size (the canvas is always the viewport size and never scrolls).
+    private double _panX;
+    private double _panY;
 
-    // Interaction state: _panStartOffset is null while not panning; a box
+    // Interaction state: _panStartPan is null while not panning; a box
     // press first parks in _pendingSelectBox and becomes a pan once the
     // pointer moves past the drag threshold.
-    private Vector? _panStartOffset;
+    private Vector? _panStartPan;
     private Point _panStartPos;
     private Border? _pendingSelectBox;
     private Point _pressPos;
@@ -100,21 +101,6 @@ public partial class NodeGraphView : UserControl
             if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
             {
                 ApplyScale();
-            }
-
-            // Apply the deferred zoom anchor (from ZoomAt) now that this
-            // layout pass has refreshed the scroll extent to match the new
-            // canvas size, so the ScrollViewer's offset clamp sees the
-            // current extent. Clear it first so the layout pass triggered
-            // by the offset change does not re-apply it.
-            if (_pendingZoomOffset.HasValue)
-            {
-                Vector anchor = _pendingZoomOffset.Value;
-                _pendingZoomOffset = null;
-                if (anchor != Scroll.Offset)
-                {
-                    Scroll.Offset = anchor;
-                }
             }
 
             PositionPendingLabels();
@@ -178,18 +164,20 @@ public partial class NodeGraphView : UserControl
             return;
         }
 
-        // Allow ~16px for the scrollbars on each axis.
-        double availableWidth = Scroll.Bounds.Width - 16;
-        double availableHeight = Scroll.Bounds.Height - 16;
-        if (availableWidth <= 0 || availableHeight <= 0)
+        if (Scroll.Bounds.Width <= 0 || Scroll.Bounds.Height <= 0)
         {
             return; // not measured yet
         }
 
         double factor = Math.Min(
             1.0,
-            Math.Min(availableWidth / _naturalWidth, availableHeight / _naturalHeight));
-        Scale = Math.Max(MinScale, factor);
+            Math.Min(Scroll.Bounds.Width / _naturalWidth, Scroll.Bounds.Height / _naturalHeight));
+        _scale = Math.Max(MinScale, factor);
+
+        // Center the graph in the viewport.
+        _panX = (Scroll.Bounds.Width - _naturalWidth * _scale) / 2;
+        _panY = (Scroll.Bounds.Height - _naturalHeight * _scale) / 2;
+        ApplyScale();
     }
 
     /// <summary>
@@ -209,19 +197,14 @@ public partial class NodeGraphView : UserControl
             return;
         }
 
-        Vector oldOffset = Scroll.Offset;
+        // Keep the point under the cursor fixed: a content point c appears at
+        // c*scale + pan, so after scaling by ratio the pan must become
+        // pan' = at - (at - pan) * ratio to keep c at the same viewport point.
         double ratio = newScale / _scale;
+        _panX = at.X - (at.X - _panX) * ratio;
+        _panY = at.Y - (at.Y - _panY) * ratio;
         _scale = newScale;
         ApplyScale();
-
-        // The anchor offset is applied from the LayoutUpdated handler, once
-        // the layout pass has refreshed the scroll extent to match the new
-        // canvas size: ScrollViewer clamps Offset against its current
-        // Extent, which is still the pre-zoom value here, and setting the
-        // anchor now would clamp it to the stale extent and lose the anchor.
-        _pendingZoomOffset = new Vector(
-            (at.X + oldOffset.X) * ratio - at.X,
-            (at.Y + oldOffset.Y) * ratio - at.Y);
     }
 
     private void OnWheelZoom(object? sender, PointerWheelEventArgs e)
@@ -238,34 +221,34 @@ public partial class NodeGraphView : UserControl
         }
 
         e.Pointer.Capture(GraphCanvas);
-        _panStartOffset = Scroll.Offset;
+        _panStartPan = new Vector(_panX, _panY);
         _panStartPos = e.GetPosition(Scroll);
         GraphCanvas.Cursor = new Cursor(StandardCursorType.Hand);
     }
 
     private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (_panStartOffset is not Vector start)
+        if (_panStartPan is not Vector start)
         {
             return;
         }
 
         Point pos = e.GetPosition(Scroll);
-        Scroll.Offset = new Vector(
-            start.X + pos.X - _panStartPos.X,
-            start.Y + pos.Y - _panStartPos.Y);
+        _panX = start.X + pos.X - _panStartPos.X;
+        _panY = start.Y + pos.Y - _panStartPos.Y;
+        UpdateTransform();
     }
 
     private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        _panStartOffset = null;
+        _panStartPan = null;
         GraphCanvas.Cursor = null;
         e.Pointer.Capture(null);
     }
 
     private void OnCanvasPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
-        _panStartOffset = null;
+        _panStartPan = null;
         _pendingSelectBox = null;
         GraphCanvas.Cursor = null;
     }
@@ -317,26 +300,30 @@ public partial class NodeGraphView : UserControl
 
     /// <summary>
     /// Verification helper (used by the --screenshot interact mode):
-    /// the current scroll offset.
+    /// the current content pan (the graph is positioned by a scale+translate
+    /// transform, not the scroll offset).
     /// </summary>
-    public Vector ScrollOffsetForVerification => Scroll.Offset;
+    public Vector ScrollOffsetForVerification => new Vector(_panX, _panY);
 
     /// <summary>
     /// Verification helper (used by the --screenshot interact mode):
-    /// a one-line snapshot of the scroll state for diagnostics.
+    /// a one-line snapshot of the zoom/pan state for diagnostics.
     /// </summary>
     public string ScrollStateForVerification =>
-        $"scroll bounds={Scroll.Bounds} extent={Scroll.Extent} viewport={Scroll.Viewport} " +
-        $"offset={Scroll.Offset} canvas={GraphCanvas.Bounds}";
+        $"scale={_scale:0.###} pan=({_panX:0.##},{_panY:0.##}) " +
+        $"canvas={GraphCanvas.Bounds} natural={_naturalWidth:0}x{_naturalHeight:0}";
 
     /// <summary>
-    /// Verification helper (used by the --screenshot zoombug mode): scroll
-    /// the content to the top-left corner (offset 0,0), as the user would
-    /// by dragging both scrollbars to their start.
+    /// Verification helper (used by the --screenshot zoombug mode): reset
+    /// the view to the natural size at the top-left (scale 1, pan 0), as
+    /// the user would by fitting the graph back into the viewport.
     /// </summary>
     public void ScrollToOriginForVerification()
     {
-        Scroll.Offset = new Vector(0, 0);
+        _scale = 1.0;
+        _panX = 0;
+        _panY = 0;
+        ApplyScale();
     }
 
     /// <summary>
@@ -411,23 +398,27 @@ public partial class NodeGraphView : UserControl
             return;
         }
 
-        // Scale the rendered content and the layout extent together: the
-        // canvas's layout size drives the scroll extent, and the
-        // RenderTransform scales the drawing within it. The canvas also
-        // fills the whole scroll viewport, so the empty space around the
-        // graph is part of the canvas too: the pointer handlers (wheel
-        // zoom, drag pan) run on the canvas before the scroll viewer's
-        // default wheel handler, and work anywhere in the viewport.
-        double width = _naturalWidth * _scale;
-        double height = _naturalHeight * _scale;
+        // The canvas is always the viewport size (it never scrolls): the
+        // graph is positioned inside it by a scale+translate transform, so
+        // the empty space around the graph is part of the canvas too and
+        // the pointer handlers (wheel zoom, drag pan) work anywhere in the
+        // viewport.
         if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
         {
-            width = Math.Max(width, Scroll.Bounds.Width);
-            height = Math.Max(height, Scroll.Bounds.Height);
+            GraphCanvas.Width = Scroll.Bounds.Width;
+            GraphCanvas.Height = Scroll.Bounds.Height;
         }
-        GraphCanvas.Width = width;
-        GraphCanvas.Height = height;
-        GraphCanvas.RenderTransform = new ScaleTransform(_scale, _scale);
+        UpdateTransform();
+    }
+
+    // Scales the graph about the canvas origin and translates it by the
+    // current pan, so a content point c appears at c*scale + pan.
+    private void UpdateTransform()
+    {
+        var group = new TransformGroup();
+        group.Children.Add(new ScaleTransform(_scale, _scale));
+        group.Children.Add(new TranslateTransform(_panX, _panY));
+        GraphCanvas.RenderTransform = group;
     }
 
     public void SetGraph(GraphModel.Result model)
@@ -436,7 +427,9 @@ public partial class NodeGraphView : UserControl
         _selectedIsTarget = false;
         _hoverBox = null;
         _pendingSelectBox = null;
-        _panStartOffset = null;
+        _panStartPan = null;
+        _panX = 0;
+        _panY = 0;
         _pendingLabels.Clear();
         GraphCanvas.Children.Clear();
 
@@ -564,7 +557,7 @@ public partial class NodeGraphView : UserControl
                 // The press became a drag: drop the pending selection and
                 // clear the (possibly stale) hover state, then start panning.
                 _pendingSelectBox = null;
-                _panStartOffset = Scroll.Offset;
+                _panStartPan = new Vector(_panX, _panY);
                 _panStartPos = pos;
                 if (_hoverBox == border)
                 {
@@ -574,14 +567,14 @@ public partial class NodeGraphView : UserControl
                 HoverTip.IsVisible = false;
             }
 
-            if (_panStartOffset is not Vector start)
+            if (_panStartPan is not Vector start)
             {
                 return;
             }
 
-            Scroll.Offset = new Vector(
-                start.X + pos.X - _panStartPos.X,
-                start.Y + pos.Y - _panStartPos.Y);
+            _panX = start.X + pos.X - _panStartPos.X;
+            _panY = start.Y + pos.Y - _panStartPos.Y;
+            UpdateTransform();
         };
         border.PointerReleased += (_, e) =>
         {
@@ -591,7 +584,7 @@ public partial class NodeGraphView : UserControl
                 SelectNode(border, node, isTarget);
             }
 
-            _panStartOffset = null;
+            _panStartPan = null;
             border.Cursor = null;
             e.Pointer.Capture(null);
 
@@ -614,12 +607,12 @@ public partial class NodeGraphView : UserControl
         border.PointerCaptureLost += (_, _) =>
         {
             _pendingSelectBox = null;
-            _panStartOffset = null;
+            _panStartPan = null;
             border.Cursor = null;
         };
         border.PointerEntered += (_, e) =>
         {
-            if (_panStartOffset != null)
+            if (_panStartPan != null)
             {
                 return; // the box is moving under the pointer while panning
             }
@@ -630,7 +623,7 @@ public partial class NodeGraphView : UserControl
         };
         border.PointerExited += (_, _) =>
         {
-            if (_panStartOffset != null)
+            if (_panStartPan != null)
             {
                 return;
             }
