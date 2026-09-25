@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svc="using:ACadSharp.Viewer.Services"
         x:Class="ACadSharp.Viewer.MainWindow"
         Title="ACadSharp Viewer"
         Width="1100" Height="700"
@@ -15,8 +16,19 @@
         <Border DockPanel.Dock="Bottom" Padding="10,5">
             <TextBlock x:Name="StatusText" Foreground="{DynamicResource TextFillColorTertiary}" Text="Open a .dwg or .dxf file to begin." />
         </Border>
-        <Grid x:Name="ContentRoot">
-            <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
+        <Grid x:Name="ContentRoot" ColumnDefinitions="360,*">
+            <Border Grid.Column="0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,1,0">
+                <TreeView x:Name="BlockTree" Margin="4" SelectionChanged="OnTreeSelectionChanged">
+                    <TreeView.ItemTemplate>
+                        <TreeDataTemplate DataType="svc:BlockTreeNode" ItemsSource="{Binding Children}">
+                            <TextBlock Text="{Binding DisplayName}" />
+                        </TreeDataTemplate>
+                    </TreeView.ItemTemplate>
+                </TreeView>
+            </Border>
+            <Grid Grid.Column="1">
+                <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
+            </Grid>
         </Grid>
     </DockPanel>
 </Window>
