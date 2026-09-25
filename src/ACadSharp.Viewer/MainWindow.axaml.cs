@@ -3,11 +3,14 @@ using ACadSharp.Viewer.Controls;
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using MediaColor = Avalonia.Media.Color;
 using Avalonia.Styling;
+using FluentAvalonia.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,13 +30,36 @@ public partial class MainWindow : Window
     private BlockTreeNode? _selectedNode;
     private bool _isBusy;
     private Timer? _infoBarAutoClose;
+    private string? _lastPath;
 
     public MainWindow()
     {
         InitializeComponent();
+
+        // Window icon — Avalonia 12's Window.Icon is WindowIcon? (not IImage?), and the
+        // string ctor routes through the platform icon loader, so load the embedded
+        // asset as a stream (deterministic on all platforms).
+        using var iconStream = AssetLoader.Open(new Uri("avares://ACadSharp.Viewer/Assets/icon.png", UriKind.Absolute));
+        Icon = new WindowIcon(iconStream);
+
+        // Drag & drop — Avalonia 12 removed AllowDrop/DragOver/Drop from TopLevel;
+        // the API is now the static DragDrop class (attached property + attached events).
+        DragDrop.SetAllowDrop(this, true);
+        DragDrop.AddDragOverHandler(this, OnDragOver);
+        DragDrop.AddDropHandler(this, OnDrop);
     }
 
     private async void OnOpenClick(object? sender, RoutedEventArgs e)
+    {
+        _ = OpenFileAsync();
+    }
+
+    private async void OnReloadClick(object? sender, RoutedEventArgs e)
+    {
+        _ = ReloadAsync();
+    }
+
+    private async Task OpenFileAsync()
     {
         if (_isBusy)
         {
@@ -41,8 +67,61 @@ public partial class MainWindow : Window
         }
 
         string? path = await PickFileAsync();
-        if (path == null)
+        if (path != null)
         {
+            await LoadFileAsync(path);
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (_isBusy || _lastPath is null)
+        {
+            return;
+        }
+
+        await LoadFileAsync(_lastPath);
+    }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.O)
+        {
+            _ = OpenFileAsync();
+            e.Handled = true;
+        }
+        else if (e.Key == Key.F5)
+        {
+            _ = ReloadAsync();
+            e.Handled = true;
+        }
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.DataTransfer.Contains(DataFormat.File)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        IStorageItem? item = e.DataTransfer.TryGetFile();
+        string? path = item?.TryGetLocalPath();
+        if (path is null)
+        {
+            return;
+        }
+
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        if (ext is not (".dwg" or ".dxf"))
+        {
+            SetStatus($"Unsupported file type: {Path.GetFileName(path)} (expected .dwg or .dxf)", StatusKind.Error);
             return;
         }
 
@@ -52,6 +131,8 @@ public partial class MainWindow : Window
     private async Task LoadFileAsync(string path)
     {
         _isBusy = true;
+        _lastPath = path;
+        ReloadButton.IsEnabled = true;
         LoadingRing.IsVisible = true;
         FileNameText.Text = path;
         SetStatus($"Loading {Path.GetFileName(path)}…", StatusKind.Neutral);
@@ -72,7 +153,7 @@ public partial class MainWindow : Window
 
             SetStatus($"Loaded {Path.GetFileName(path)}: {document.BlockRecords.Count} block record(s), {tree.Count} root(s).", StatusKind.Success);
             ShowInfoBar(
-                FluentAvalonia.UI.Controls.FAInfoBarSeverity.Success,
+                FAInfoBarSeverity.Success,
                 "File loaded",
                 $"{Path.GetFileName(path)} — {document.BlockRecords.Count} block record(s).");
         }
@@ -81,7 +162,7 @@ public partial class MainWindow : Window
             _document = null;
             SetStatus($"Failed to load {Path.GetFileName(path)}: {ex.Message}", StatusKind.Error);
             ShowInfoBar(
-                FluentAvalonia.UI.Controls.FAInfoBarSeverity.Error,
+                FAInfoBarSeverity.Error,
                 "Load failed",
                 ex.Message);
         }
@@ -161,12 +242,14 @@ public partial class MainWindow : Window
 
     private void OnThemeToggleClick(object? sender, RoutedEventArgs e)
     {
+        bool isDark = DarkThemeToggle.IsChecked == true;
         if (Application.Current is not null)
         {
-            Application.Current.RequestedThemeVariant = DarkThemeToggle.IsChecked == true
-                ? ThemeVariant.Dark
-                : ThemeVariant.Light;
+            Application.Current.RequestedThemeVariant = isDark ? ThemeVariant.Dark : ThemeVariant.Light;
         }
+
+        ThemeIcon.Symbol = isDark ? FASymbol.DarkTheme : FASymbol.WeatherSunny;
+        ThemeLabel.Text = isDark ? "Dark" : "Light";
     }
 
     private void SetStatus(string text, StatusKind kind)
@@ -180,7 +263,7 @@ public partial class MainWindow : Window
         };
     }
 
-    private void ShowInfoBar(FluentAvalonia.UI.Controls.FAInfoBarSeverity severity, string title, string message)
+    private void ShowInfoBar(FAInfoBarSeverity severity, string title, string message)
     {
         _infoBarAutoClose?.Dispose();
         _infoBarAutoClose = null;
@@ -191,8 +274,8 @@ public partial class MainWindow : Window
         InfoBar.IsOpen = true;
 
         // Success/info bars auto-dismiss; errors stay until dismissed.
-        if (severity == FluentAvalonia.UI.Controls.FAInfoBarSeverity.Success
-            || severity == FluentAvalonia.UI.Controls.FAInfoBarSeverity.Informational)
+        if (severity == FAInfoBarSeverity.Success
+            || severity == FAInfoBarSeverity.Informational)
         {
             _infoBarAutoClose = new Timer(4000) { AutoReset = false };
             _infoBarAutoClose.Elapsed += (_, _) =>

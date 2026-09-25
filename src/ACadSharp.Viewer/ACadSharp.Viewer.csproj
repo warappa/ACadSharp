@@ -10,6 +10,12 @@
     <ProjectReference Include="..\ACadSharp\ACadSharp.csproj" />
   </ItemGroup>
 
+  <!-- Avalonia 12 does NOT auto-glob project files as AvaloniaResource (11 did);
+       non-XAML assets must be listed explicitly. -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\icon.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.3" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
