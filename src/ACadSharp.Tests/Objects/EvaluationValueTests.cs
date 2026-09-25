@@ -367,8 +367,69 @@ public class EvaluationValueTests
 
 	private static void assertRow(int expected, BlockLookupAction action)
 	{
-		EvaluationValue<double> value = action.CurrentValue;
-		Assert.True(value.IsSet, "The lookup action's value is not set.");
-		Assert.True(Math.Abs(value.Value - expected) < 1e-6, $"Expected row {expected}, got {value.Value}.");
+		// The test table has no output column (IsLookupProperty = false), so the result is
+		// the matched row index as a scalar.
+		EvaluationValue value = action.CurrentValue;
+		Assert.Equal(EvaluationValueType.Double, value.Type);
+		Assert.True(value.DoubleValue.HasValue, "The lookup action's value is not a scalar.");
+		Assert.True(Math.Abs(value.DoubleValue.Value - expected) < 1e-6, $"Expected row {expected}, got {value}.");
+	}
+
+	[Fact]
+	public void LookupTextOutputResultTest()
+	{
+		// A table with a text output column (IsLookupProperty = true): the result is the
+		// matched cell as a string (a string for a text column — the kString shape).
+		BlockLookupAction.ColumnData input = new() { NodeId = 1, ValueType = 40, Type = 2, ConnectionName = "value" };
+		BlockLookupAction.ColumnData output = new() { NodeId = 2, ValueType = 1, Type = 0, IsLookupProperty = true, ConnectionName = "lookupString", UnmatchedName = "Custom" };
+		input.Rows.Add("5");
+		input.Rows.Add("6");
+		output.Rows.Add("Size 5");
+		output.Rows.Add("Size 6");
+
+		BlockLookupAction action = new();
+		action.Columns = new List<BlockLookupAction.ColumnData> { input, output };
+
+		EvaluationContext context = new();
+		context.SetValue(1, "value", 5.0);
+
+		// Match: the result is the matched text cell.
+		Assert.True(action.Evaluate(context));
+		Assert.Equal(EvaluationValueType.String, action.CurrentValue.Type);
+		Assert.Equal("Size 5", action.CurrentValue.StringValue);
+
+		// No match: the result is the UnmatchedName (a string).
+		context.SetValue(1, "value", 99.0);
+		Assert.True(action.Evaluate(context));
+		Assert.Equal(EvaluationValueType.String, action.CurrentValue.Type);
+		Assert.Equal("Custom", action.CurrentValue.StringValue);
+	}
+
+	[Fact]
+	public void LookupNumericOutputResultTest()
+	{
+		// A table with a numeric output column (IsLookupProperty = true): the result is the
+		// matched cell as a scalar.
+		BlockLookupAction.ColumnData input = new() { NodeId = 1, ValueType = 40, Type = 2, ConnectionName = "value" };
+		BlockLookupAction.ColumnData output = new() { NodeId = 2, ValueType = 40, Type = 2, IsLookupProperty = true, ConnectionName = "result" };
+		input.Rows.Add("5");
+		output.Rows.Add("2.5");
+
+		BlockLookupAction action = new();
+		action.Columns = new List<BlockLookupAction.ColumnData> { input, output };
+
+		EvaluationContext context = new();
+		context.SetValue(1, "value", 5.0);
+
+		// Match: the result is the matched numeric cell.
+		Assert.True(action.Evaluate(context));
+		Assert.Equal(EvaluationValueType.Double, action.CurrentValue.Type);
+		Assert.True(Math.Abs(action.CurrentValue.DoubleValue.Value - 2.5) < 1e-6, $"Expected 2.5, got {action.CurrentValue}.");
+
+		// No match: the result is -1.
+		context.SetValue(1, "value", 99.0);
+		Assert.True(action.Evaluate(context));
+		Assert.Equal(EvaluationValueType.Double, action.CurrentValue.Type);
+		Assert.True(Math.Abs(action.CurrentValue.DoubleValue.Value - (-1)) < 1e-6, $"Expected -1, got {action.CurrentValue}.");
 	}
 }

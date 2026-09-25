@@ -31,21 +31,21 @@ public partial class BlockLookupAction : BlockAction, IDxfClassDefined
 	/// <summary>
 	/// Evaluates the lookup action: reads each column's input value (the column's
 	/// <see cref="ColumnData.NodeId"/> and <see cref="ColumnData.ConnectionName"/>) from the
-	/// context, finds the row where all input values match, and stores the matched row
-	/// index (or -1 when no row matches) as the action's current value.
+	/// context, finds the row where all input values match, and stores the matched output
+	/// value as the action's current value.
 	/// <para>
 	/// Columns are matched by their data type: numeric columns (<see cref="ColumnData.IsText"/> = false)
 	/// compare scalars within a tolerance; text columns (<see cref="ColumnData.IsText"/> = true)
 	/// compare strings case-insensitively (a missing or non-string input never matches).
-	/// The full AutoCAD semantics (chained lookups, default values on no match) are not implemented.
+	/// The result is the matched cell of the first output (<see cref="ColumnData.IsLookupProperty"/>)
+	/// column, shaped like that column (a string for a text column, a scalar for a numeric column);
+	/// when no row matches, it is the column's <see cref="ColumnData.UnmatchedName"/> (a string for
+	/// a text column, -1 for a numeric column); when the table has no output column, it is the
+	/// matched row index (-1 when no row matches).
+	/// The full AutoCAD semantics (writing the matched cells back to the connected parameters)
+	/// are not implemented.
 	/// </para>
 	/// </summary>
-	/// <summary>
-	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
-	/// a computed read of it). For a lookup action this is the matched row index (-1 when no row matches).
-	/// </summary>
-	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
-
 	public override bool Evaluate(EvaluationContext context)
 	{
 		if (this.Columns.Count == 0)
@@ -54,51 +54,143 @@ public partial class BlockLookupAction : BlockAction, IDxfClassDefined
 			return true;
 		}
 
-		// Read each column's input value: a scalar for numeric columns, a string for text columns.
-		object[] inputValues = new object[this.Columns.Count];
+		// Read the input (non-output) columns' values: a scalar for numeric columns, a string for
+		// text columns. The output columns (IsLookupProperty) are the lookup's own property columns
+		// (written back to the connected parameters), so they are not read as inputs.
+		int inputCount = 0;
+		for (int col = 0; col < this.Columns.Count; col++)
+		{
+			if (!this.Columns[col].IsLookupProperty)
+			{
+				inputCount++;
+			}
+		}
+
+		object[] inputValues = new object[inputCount];
+		int inputIndex = 0;
 		for (int col = 0; col < this.Columns.Count; col++)
 		{
 			ColumnData column = this.Columns[col];
-			EvalConnection connection = new() { Id = column.NodeId, Name = column.ConnectionName };
+			if (column.IsLookupProperty)
+			{
+				continue;
+			}
 
+			EvalConnection connection = new() { Id = column.NodeId, Name = column.ConnectionName };
 			if (column.IsText)
 			{
 				string text = null;
 				ReadConnectionValue(connection, context, out text);
-				inputValues[col] = text; // null when the port is missing or not a string
+				inputValues[inputIndex] = text; // null when the port is missing or not a string
 			}
 			else
 			{
 				double number = 0;
 				ReadConnectionValue(connection, context, out number);
-				inputValues[col] = number;
+				inputValues[inputIndex] = number;
 			}
+			inputIndex++;
 		}
 
-		// Find the row where all input values match.
+		// Find the row where all input values match. With no input columns there is nothing to
+		// match, so no row matches.
 		int matchedRow = -1;
-		int rowCount = this.Columns[0].Rows.Count;
-		for (int row = 0; row < rowCount; row++)
+		if (inputCount > 0)
 		{
-			bool allMatch = true;
-			for (int col = 0; col < this.Columns.Count; col++)
+			int rowCount = this.Columns[0].Rows.Count;
+			for (int row = 0; row < rowCount; row++)
 			{
-				if (!Matches(inputValues[col], this.Columns[col].Rows[row], this.Columns[col].IsText))
+				bool allMatch = true;
+				int index = 0;
+				for (int col = 0; col < this.Columns.Count; col++)
 				{
-					allMatch = false;
+					ColumnData column = this.Columns[col];
+					if (column.IsLookupProperty)
+					{
+						continue;
+					}
+
+					if (!Matches(inputValues[index], column.Rows[row], column.IsText))
+					{
+						allMatch = false;
+						break;
+					}
+					index++;
+				}
+
+				if (allMatch)
+				{
+					matchedRow = row;
 					break;
 				}
 			}
+		}
 
-			if (allMatch)
+		// Write the matched cells back to the output columns' ports (the real AutoCAD behavior:
+		// the lookup updates the connected parameters' text). A missing match writes the
+		// UnmatchedName.
+		for (int col = 0; col < this.Columns.Count; col++)
+		{
+			ColumnData column = this.Columns[col];
+			if (!column.IsLookupProperty)
 			{
-				matchedRow = row;
+				continue;
+			}
+
+			string cell = matchedRow >= 0 ? column.Rows[matchedRow] : column.UnmatchedName;
+			EvalConnection connection = new() { Id = column.NodeId, Name = column.ConnectionName };
+			if (column.IsText)
+			{
+				context.SetValue(connection.Id, connection.Name, cell);
+			}
+			else if (double.TryParse(cell, out double value))
+			{
+				context.SetValue(connection.Id, connection.Name, value);
+			}
+		}
+
+		base.CurrentValue = this.GetResult(matchedRow);
+		return true;
+	}
+
+	/// <summary>
+	/// Computes the lookup result for a matched row index.
+	/// <para>
+	/// The result is the matched cell of the first output (<see cref="ColumnData.IsLookupProperty"/>)
+	/// column, shaped like that column: a string for a text column, a scalar for a numeric column.
+	/// When no row matches (<paramref name="matchedRow"/> &lt; 0), the result is the column's
+	/// <see cref="ColumnData.UnmatchedName"/> (a string for a text column, -1 for a numeric column).
+	/// When the table has no output column, the result is the matched row index as a scalar.
+	/// </para>
+	/// </summary>
+	private EvaluationValue GetResult(int matchedRow)
+	{
+		ColumnData output = null;
+		for (int col = 0; col < this.Columns.Count; col++)
+		{
+			if (this.Columns[col].IsLookupProperty)
+			{
+				output = this.Columns[col];
 				break;
 			}
 		}
 
-		base.CurrentValue = EvaluationValue.FromDouble(matchedRow);
-		return true;
+		if (output == null)
+		{
+			return EvaluationValue.FromDouble(matchedRow);
+		}
+
+		if (matchedRow < 0)
+		{
+			return output.IsText
+				? EvaluationValue.FromString(output.UnmatchedName)
+				: EvaluationValue.FromDouble(-1);
+		}
+
+		string cell = output.Rows[matchedRow];
+		return output.IsText
+			? EvaluationValue.FromString(cell)
+			: EvaluationValue.FromDouble(double.TryParse(cell, out double value) ? value : 0);
 	}
 
 	/// <summary>
