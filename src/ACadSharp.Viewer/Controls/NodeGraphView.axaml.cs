@@ -45,6 +45,8 @@ public partial class NodeGraphView : UserControl
     private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
     private static readonly IBrush EdgeLabelBrush = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80));
     private static readonly IBrush EdgeHoverBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
+    private static readonly IBrush FeedbackBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
+    private static readonly IBrush FeedbackLabelBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
 
     private double _scale = 1.0;
     private double _naturalWidth;
@@ -713,6 +715,12 @@ public partial class NodeGraphView : UserControl
         GraphNodeInfo? fromNode,
         GraphNodeInfo? toNode)
     {
+        if (edge.IsFeedback)
+        {
+            AddFeedbackEdge(from, fromHeight, to, toHeight, edge, fromNode, toNode);
+            return;
+        }
+
         // From the right-middle of the source box to the left-middle of the target box.
         Point start = new Point(from.X + BoxWidth, from.Y + fromHeight / 2);
         Point end = new Point(to.X, to.Y + toHeight / 2);
@@ -847,6 +855,110 @@ public partial class NodeGraphView : UserControl
         };
     }
 
+    /// <summary>
+    /// Draws a feedback edge: a dashed arc arcing above the boxes, from the
+    /// top-center of the source to the top-center of the target, in a
+    /// distinct orange color. The arrowhead points along the curve tangent
+    /// at the target end.
+    /// </summary>
+    private void AddFeedbackEdge(
+        Point from,
+        double fromHeight,
+        Point to,
+        double toHeight,
+        GraphEdgeInfo edge,
+        GraphNodeInfo? fromNode,
+        GraphNodeInfo? toNode)
+    {
+        // Arc from the top-center of the source to the top-center of the target.
+        Point start = new Point(from.X + BoxWidth / 2, from.Y);
+        Point end = new Point(to.X + BoxWidth / 2, to.Y);
+
+        double arcHeight = Math.Max(50, Math.Abs(end.X - start.X) * 0.25);
+        Point c1 = new Point(start.X, start.Y - arcHeight);
+        Point c2 = new Point(end.X, end.Y - arcHeight);
+
+        var geometry = new PathGeometry();
+        var figure = new PathFigure
+        {
+            StartPoint = start,
+            IsClosed = false,
+        };
+        figure.Segments.Add(new BezierSegment
+        {
+            Point1 = c1,
+            Point2 = c2,
+            Point3 = end,
+        });
+        geometry.Figures.Add(figure);
+
+        var line = new Path
+        {
+            Data = geometry,
+            Stroke = FeedbackBrush,
+            StrokeThickness = 1.5,
+            StrokeDashArray = new AvaloniaList<double> { 6, 4 },
+        };
+        GraphCanvas.Children.Add(line);
+
+        // Arrowhead at the target end, pointing along the curve tangent
+        // (the direction from the last control point toward the endpoint).
+        Vector dir = end - c2;
+        if (dir.SquaredLength > 0.01)
+        {
+            dir = dir.Normalize();
+            AddArrowhead(end, dir, FeedbackBrush);
+        }
+
+        // Label at the arc apex (bezier midpoint, t = 0.5).
+        if (edge.Label.Length > 0)
+        {
+            double apexX = 0.125 * start.X + 0.375 * c1.X + 0.375 * c2.X + 0.125 * end.X;
+            double apexY = 0.125 * start.Y + 0.375 * c1.Y + 0.375 * c2.Y + 0.125 * end.Y;
+
+            var label = new TextBlock
+            {
+                FontSize = 11,
+                Foreground = FeedbackLabelBrush,
+                Text = edge.Label,
+            };
+            var labelMask = new Border
+            {
+                Background = GetCanvasBackgroundBrush(),
+                CornerRadius = new CornerRadius(2),
+                Padding = new Thickness(2, 1),
+                Child = label,
+                IsHitTestVisible = false,
+            };
+            // Position the label at the apex, centered horizontally.
+            double labelWidth = edge.Label.Length * 7; // rough estimate
+            Canvas.SetLeft(labelMask, apexX - labelWidth / 2);
+            Canvas.SetTop(labelMask, apexY - 12);
+            GraphCanvas.Children.Add(labelMask);
+        }
+
+        // Hover: thicken the arc and show a tooltip.
+        line.PointerEntered += (_, e) =>
+        {
+            line.StrokeThickness = 3;
+            ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+        };
+        line.PointerExited += (_, _) =>
+        {
+            line.StrokeThickness = 1.5;
+            HoverTip.IsVisible = false;
+        };
+        line.PointerMoved += (_, e) =>
+        {
+            if (HoverTip.IsVisible)
+            {
+                Point p = e.GetPosition(Overlay);
+                Canvas.SetLeft(HoverTip, p.X + 14);
+                Canvas.SetTop(HoverTip, p.Y + 14);
+            }
+        };
+    }
+
     private void ShowNodeTip(GraphNodeInfo node, Point at)
     {
         SetHoverTip(BuildTooltip(node), at);
@@ -887,7 +999,9 @@ public partial class NodeGraphView : UserControl
         Canvas.SetTop(HoverTip, at.Y + 14);
     }
 
-    private Path AddArrowhead(Point at, Vector direction)
+    private Path AddArrowhead(Point at, Vector direction) => AddArrowhead(at, direction, EdgeLineBrush);
+
+    private Path AddArrowhead(Point at, Vector direction, IBrush brush)
     {
         double size = 8;
         Vector normal = new Vector(-direction.Y, direction.X);
@@ -908,7 +1022,7 @@ public partial class NodeGraphView : UserControl
         var arrowhead = new Path
         {
             Data = geometry,
-            Fill = EdgeLineBrush,
+            Fill = brush,
         };
         GraphCanvas.Children.Add(arrowhead);
         return arrowhead;

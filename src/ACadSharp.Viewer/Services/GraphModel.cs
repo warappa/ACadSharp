@@ -53,21 +53,32 @@ public class GraphEdgeInfo
     /// </summary>
     public bool IsDashed { get; }
 
-    public GraphEdgeInfo(int fromIndex, int toIndex, string label, bool isDashed)
+    /// <summary>
+    /// True when the edge goes right-to-left (the source sits in a
+    /// lower-depth column than the target), drawn as a distinct feedback
+    /// arc arcing above the boxes.
+    /// </summary>
+    public bool IsFeedback { get; }
+
+    public GraphEdgeInfo(int fromIndex, int toIndex, string label, bool isDashed, bool isFeedback = false)
     {
         FromIndex = fromIndex;
         ToIndex = toIndex;
         Label = label;
         IsDashed = isDashed;
+        IsFeedback = isFeedback;
     }
 }
 
 /// <summary>
 /// Builds the ancestor subgraph of a target node: the target plus the
 /// transitive closure of its incoming edges (value sources). Layout is
-/// layered — the column is the first-visit BFS depth from the target
-/// (safe for lookup 2-cycles), the target sits in the rightmost column
-/// and values flow left to right.
+/// layered — the column is the first-visit BFS depth from the target,
+/// the target sits in the rightmost column and values flow left to right.
+/// Lookup actions are co-located with their parameters (reassigned to the
+/// mode depth of their flag-4-connected neighbors) so the 2-cycle stays
+/// within one column; the residual target→action edge is marked as feedback
+/// and drawn as a distinct arc.
 /// </summary>
 public static class GraphModel
 {
@@ -104,6 +115,50 @@ public static class GraphModel
             }
         }
 
+        // Co-locate lookup actions with their parameters: reassign each
+        // BlockLookupAction's depth to the mode depth of its flag-4-connected
+        // neighbors. This keeps the action↔parameter 2-cycle within one
+        // column and leaves only the target→action edge going right-to-left
+        // (drawn as a feedback arc).
+        foreach (KeyValuePair<int, int> kv in depth.ToList())
+        {
+            int nodeIndex = kv.Key;
+            if (!byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node)
+                || node.Expression is not BlockLookupAction)
+            {
+                continue;
+            }
+
+            List<int> neighborDepths = new();
+            foreach (int edgeIdx in graph.GetOutgoingEdges(nodeIndex))
+            {
+                EvaluationGraph.Edge e = graph.Edges[edgeIdx];
+                if ((e.Flags & 4) != 0 && depth.ContainsKey(e.ToNodeIndex))
+                {
+                    neighborDepths.Add(depth[e.ToNodeIndex]);
+                }
+            }
+            foreach (int edgeIdx in graph.GetIncomingEdges(nodeIndex))
+            {
+                EvaluationGraph.Edge e = graph.Edges[edgeIdx];
+                if ((e.Flags & 4) != 0 && depth.ContainsKey(e.FromNodeIndex))
+                {
+                    neighborDepths.Add(depth[e.FromNodeIndex]);
+                }
+            }
+
+            if (neighborDepths.Count == 0)
+            {
+                continue;
+            }
+
+            depth[nodeIndex] = neighborDepths
+                .GroupBy(d => d)
+                .OrderByDescending(g => g.Count())
+                .ThenBy(g => g.Key)
+                .First().Key;
+        }
+
         // Rows: within each column, order by node index.
         var byDepth = depth
             .GroupBy(kv => kv.Value)
@@ -134,7 +189,10 @@ public static class GraphModel
                 continue;
             }
 
-            result.Edges.Add(BuildEdgeLabel(graph, edge));
+            // An edge goes right-to-left when the source is in a lower-depth
+            // column (more to the right) than the target.
+            bool isFeedback = depth[edge.FromNodeIndex] < depth[edge.ToNodeIndex];
+            result.Edges.Add(BuildEdgeLabel(graph, edge, isFeedback));
         }
 
         return result;
@@ -146,7 +204,7 @@ public static class GraphModel
     /// connections. Lookup edges (flag 4 or a lookup action/parameter) get a
     /// "lookup ×N" label and are drawn dashed.
     /// </summary>
-    private static GraphEdgeInfo BuildEdgeLabel(EvaluationGraph graph, EvaluationGraph.Edge edge)
+    private static GraphEdgeInfo BuildEdgeLabel(EvaluationGraph graph, EvaluationGraph.Edge edge, bool isFeedback)
     {
         EvaluationExpression? toExpr = GetExpression(graph, edge.ToNodeIndex);
         EvaluationExpression? fromExpr = GetExpression(graph, edge.FromNodeIndex);
@@ -187,7 +245,7 @@ public static class GraphModel
             label = label.Length == 0 ? $"×{edge.TrackedCount}" : $"{label} ×{edge.TrackedCount}";
         }
 
-        return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup);
+        return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup, isFeedback);
     }
 
     private static EvaluationExpression? GetExpression(EvaluationGraph graph, int nodeIndex)
