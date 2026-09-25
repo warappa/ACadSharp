@@ -48,6 +48,12 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 	/// Evaluates the XY parameter: reads the connected grips' displacements and computes the
 	/// X and Y values (the X and Y offsets from the base position).
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For an XY parameter this is the full (X, Y) offset.
+	/// </summary>
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
@@ -61,7 +67,7 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 		context.SetValue(this.Id, "XScale", x);
 		context.SetValue(this.Id, "YScale", y);
 		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
-		this.CurrentValue = x;
+		base.CurrentValue = EvaluationValue.FromPoint(new XYZ(x, y, 0));
 
 		return true;
 	}

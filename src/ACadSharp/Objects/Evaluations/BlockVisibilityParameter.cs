@@ -88,10 +88,16 @@ public partial class BlockVisibilityParameter : Block1PtParameter, IDxfClassDefi
 
 		context.SetValue(this.Id, "Value", stateIndex);
 		this.WriteUpdatedLocation(context, updatedLocation);
-		this.CurrentValue = stateIndex;
+		base.CurrentValue = EvaluationValue.FromDouble(stateIndex);
 
 		return true;
 	}
+
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a visibility parameter this is the selected state index.
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
 	public override CadObject Clone()

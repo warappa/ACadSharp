@@ -40,11 +40,17 @@ public class BlockArrayAction : BlockAction, IDxfClassDefined
 	/// the connected parameter) from the context and stores it as the action's current
 	/// value.
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For an array action this is the driving value.
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		double value = 0;
 		ReadConnectionValue(this.BaseConnection, context, out value);
-		this.CurrentValue = value;
+		base.CurrentValue = EvaluationValue.FromDouble(value);
 		return true;
 	}
 

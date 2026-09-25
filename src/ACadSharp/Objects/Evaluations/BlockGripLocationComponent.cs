@@ -29,6 +29,12 @@ public class BlockGripLocationComponent : EvaluationExpression, IDxfClassDefined
 	/// is rendered at that position.
 	/// </para>
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a location component this is a single coordinate.
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		if (this.Connection == null || this.Connection.Id == 0)
@@ -45,7 +51,7 @@ public class BlockGripLocationComponent : EvaluationExpression, IDxfClassDefined
 		if (context.TryGetValue(this.Connection.Id, port, out double value))
 		{
 			this.EvaluatedValue = new DxfValuePair(DxfCode.Real, value);
-			this.CurrentValue = value;
+			base.CurrentValue = EvaluationValue.FromDouble(value);
 		}
 
 		return true;

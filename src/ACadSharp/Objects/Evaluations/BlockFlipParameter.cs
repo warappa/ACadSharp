@@ -78,10 +78,16 @@ public class BlockFlipParameter : Block2PtParameter, IDxfClassDefined
 
 		context.SetValue(this.Id, "UpdatedFlip", flip);
 		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
-		this.CurrentValue = flip;
+		base.CurrentValue = EvaluationValue.FromDouble(flip);
 
 		return true;
 	}
+
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a flip parameter this is the flip state (0 = base, 1 = flipped).
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

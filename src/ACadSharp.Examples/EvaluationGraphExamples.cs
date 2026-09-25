@@ -101,7 +101,7 @@ namespace ACadSharp.Examples
 					continue;
 				}
 
-				string value = expr.CurrentValue.HasValue ? expr.CurrentValue.Value.ToString("0.###") : "-";
+				string value = expr.CurrentValue.Type == EvaluationValueType.None ? "-" : expr.CurrentValue.ToString();
 				Console.WriteLine($"  node {node.Index,2} (id {node.Id,2}): {expr.GetType().Name,-28} value={value}");
 			}
 		}

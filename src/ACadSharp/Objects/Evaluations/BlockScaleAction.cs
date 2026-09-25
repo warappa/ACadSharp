@@ -25,11 +25,17 @@ public class BlockScaleAction : BlockActionBasePt, IDxfClassDefined
 	/// Evaluates the scale action: reads the scale factor (the "Scale" port of the connected
 	/// parameter) from the context and stores it as the action's current value.
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a scale action this is the scale factor.
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		double scale = 0;
 		ReadConnectionValue(this.ScaleConnection, context, out scale);
-		this.CurrentValue = scale;
+		base.CurrentValue = EvaluationValue.FromDouble(scale);
 		return true;
 	}
 

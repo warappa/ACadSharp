@@ -33,11 +33,17 @@ public class BlockFlipAction : BlockAction, IDxfClassDefined
 	/// Evaluates the flip action: reads the flip state (the "Flip" port of the connected
 	/// parameter) from the context and stores it as the action's current value.
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a flip action this is the flip state (0 = base, 1 = flipped).
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		double flip = 0;
 		ReadConnectionValue(this.FlipConnection, context, out flip);
-		this.CurrentValue = flip;
+		base.CurrentValue = EvaluationValue.FromDouble(flip);
 		return true;
 	}
 

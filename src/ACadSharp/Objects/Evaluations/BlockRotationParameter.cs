@@ -53,10 +53,16 @@ public class BlockRotationParameter : Block2PtParameter, IDxfClassDefined
 
 		context.SetValue(this.Id, "AngleDelta", angle);
 		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
-		this.CurrentValue = angle;
+		base.CurrentValue = EvaluationValue.FromDouble(angle);
 
 		return true;
 	}
+
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a rotation parameter this is the angle (radians).
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

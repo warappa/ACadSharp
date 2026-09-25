@@ -80,10 +80,16 @@ public class BlockLinearParameter : Block2PtParameter, IDxfClassDefined
 		context.SetValue(this.Id, "XScale", value);
 		context.SetValue(this.Id, "YScale", value);
 		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
-		this.CurrentValue = value;
+		base.CurrentValue = EvaluationValue.FromDouble(value);
 
 		return true;
 	}
+
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a linear parameter this is the signed distance along the axis.
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

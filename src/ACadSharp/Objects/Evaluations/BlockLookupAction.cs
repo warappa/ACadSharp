@@ -39,11 +39,17 @@ public partial class BlockLookupAction : BlockAction, IDxfClassDefined
 	/// no match) are not implemented.
 	/// </para>
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a lookup action this is the matched row index (-1 when no row matches).
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		if (this.Columns.Count == 0)
 		{
-			this.CurrentValue = -1;
+			base.CurrentValue = EvaluationValue.FromDouble(-1);
 			return true;
 		}
 
@@ -83,7 +89,7 @@ public partial class BlockLookupAction : BlockAction, IDxfClassDefined
 			}
 		}
 
-		this.CurrentValue = matchedRow;
+		base.CurrentValue = EvaluationValue.FromDouble(matchedRow);
 		return true;
 	}
 

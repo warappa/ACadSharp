@@ -13,11 +13,17 @@ public class BlockRotationAction : BlockActionBasePt, IDxfClassDefined
 	/// Evaluates the rotation action: reads the angle delta (the "AngleDelta" port of the
 	/// connected parameter) from the context and stores it as the action's current value.
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a rotation action this is the angle delta (radians).
+	/// </summary>
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		double angle = 0;
 		ReadConnectionValue(this.AngleDeltaConnection, context, out angle);
-		this.CurrentValue = angle;
+		base.CurrentValue = EvaluationValue.FromDouble(angle);
 		return true;
 	}
 

@@ -53,6 +53,12 @@ public class BlockLookupParameter : Block1PtParameter, IDxfClassDefined
 	/// implemented; the evaluation only propagates the grip's displacement.
 	/// </para>
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a lookup parameter this is the full (X, Y) displacement.
+	/// </summary>
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.GetDisplacement(context, out XYZ displacement);
@@ -60,7 +66,7 @@ public class BlockLookupParameter : Block1PtParameter, IDxfClassDefined
 		XYZ updatedLocation = this.Location + displacement;
 
 		this.WriteUpdatedLocation(context, updatedLocation);
-		this.CurrentValue = displacement.X;
+		base.CurrentValue = EvaluationValue.FromPoint(displacement);
 
 		return true;
 	}

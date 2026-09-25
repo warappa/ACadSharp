@@ -63,12 +63,29 @@ public class EvaluationTests : IOTestsBase
 	}
 
 	/// <summary>
-	/// Asserts that two doubles are equal within a tolerance.
+	/// Asserts that a raw double is equal to the expected value within a tolerance.
 	/// </summary>
-	private static void assertClose(double expected, double? actual, double tolerance = 1e-3)
+	private static void assertClose(double expected, double actual, double tolerance = 1e-3)
 	{
-		Assert.NotNull(actual);
-		Assert.True(Math.Abs(expected - actual.Value) < tolerance, $"Expected {expected}, got {actual} (tolerance {tolerance}).");
+		Assert.True(Math.Abs(expected - actual) < tolerance, $"Expected {expected}, got {actual} (tolerance {tolerance}).");
+	}
+
+	/// <summary>
+	/// Asserts that a typed <see cref="EvaluationValue{double}"/> holds the expected value within a tolerance.
+	/// </summary>
+	private static void assertCloseEval(double expected, EvaluationValue<double> actual, double tolerance = 1e-3)
+	{
+		Assert.True(actual.IsSet, "The value is not set.");
+		assertClose(expected, actual.Value, tolerance);
+	}
+
+	/// <summary>
+	/// Asserts that a typed <see cref="EvaluationValue{XYZ}"/> holds the expected point within a tolerance.
+	/// </summary>
+	private static void assertPointClose(XYZ expected, EvaluationValue<XYZ> actual, double tolerance = 1e-3)
+	{
+		Assert.True(actual.IsSet, "The value is not set.");
+		Assert.True((actual.Value - expected).GetLength() < tolerance, $"Expected {expected}, got {actual.Value} (tolerance {tolerance}).");
 	}
 
 	/// <summary>
@@ -104,7 +121,7 @@ public class EvaluationTests : IOTestsBase
 		Assert.True(graph.Evaluate(), "The evaluation failed.");
 
 		// The new distance should be 8 (the end point moved by 3 along the axis).
-		assertClose(8.0, param.CurrentValue);
+		assertCloseEval(8.0, param.CurrentValue);
 	}
 
 	/// <summary>
@@ -139,9 +156,11 @@ public class EvaluationTests : IOTestsBase
 		Assert.True(graph.Evaluate(), "The evaluation failed.");
 
 		// The end point moved by (2,0,0): the new distance = sqrt((8.429+2-2.007)^2 + (8.767-2.346)^2).
+		// The polar parameter's CurrentValue is the (distance, angle) pair as a polar-space point
+		// (X = distance, Y = angle), so the distance is the X component.
 		XYZ newEnd = endPoint + new XYZ(2, 0, 0);
 		double newDistance = (newEnd - basePoint).GetLength();
-		assertClose(newDistance, param.CurrentValue, 0.01);
+		assertClose(newDistance, param.CurrentValue.Value.X, 0.01);
 	}
 
 	/// <summary>
@@ -184,7 +203,7 @@ public class EvaluationTests : IOTestsBase
 		Assert.True(graph.Evaluate(), "The evaluation failed.");
 
 		// The new angle should be 135 degrees (2.356 rad).
-		assertClose(2.356, param.CurrentValue);
+		assertCloseEval(2.356, param.CurrentValue);
 	}
 
 	/// <summary>
@@ -214,8 +233,9 @@ public class EvaluationTests : IOTestsBase
 		graph.Activate(new[] { nodeIndex(graph, grip) });
 		Assert.True(graph.Evaluate(), "The evaluation failed.");
 
-		// The point parameter's CurrentValue is the X displacement.
-		assertClose(2.0, param.CurrentValue);
+		// The point parameter's CurrentValue is the full (X, Y) displacement (2, 3, 0) —
+		// not just the X component.
+		assertPointClose(new XYZ(2, 3, 0), param.CurrentValue);
 	}
 
 	/// <summary>
@@ -274,6 +294,7 @@ public class EvaluationTests : IOTestsBase
 		// After evaluation, the component's EvaluatedValue should be the computed value
 		// (the updated end point's X coordinate = 8).
 		Assert.NotNull(component.EvaluatedValue);
-		assertClose(8.0, component.EvaluatedValue.Value as double?);
+		double evalValue = (double)component.EvaluatedValue.Value;
+		assertClose(8.0, evalValue);
 	}
 }

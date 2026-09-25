@@ -307,35 +307,37 @@ The evaluation engine is implemented in `src/ACadSharp/Objects/Evaluations/`, mi
 
 - **`EvaluationContext`** — a value store keyed by `(expression id, port name)`, mirroring `AcDbEvalContext` (the key→value container). `SetValue`/`TryGetValue`/`HasValue`/`Clear`.
 - **`EvaluationGraph.Activate(nodes)` / `IsActivated(node)` / `Evaluate()`** — marks the user-touched nodes and evaluates the **reachable subgraph** (following outgoing edges) in **topological order**, invoking each node's `Evaluate(context)`. Mirrors `AcDbEvalGraph::activate()` + `evaluate()`. A node's failure **aborts** the evaluation (matching ObjectARX); **no activated nodes = a no-op (return true)** (the reachable subgraph is empty, not a cycle).
-- **`EvaluationExpression.Evaluate(context)`** — virtual, **default no-op** (matching `AcDbEvalExpr::evaluate()`). Plus a `CurrentValue` property (the node's value, updated during `evaluate()`, mirroring `AcDbEvalExpr::value()`).
+- **`EvaluationExpression.Evaluate(context)`** — virtual, **default no-op** (matching `AcDbEvalExpr::evaluate()`). Plus a `CurrentValue` property (the node's value, updated during `evaluate()`, mirroring `AcDbEvalExpr::value()`). `CurrentValue` is a shape-agnostic **`EvaluationValue`** ("object") that can hold either a scalar (`double`) or a point (`XYZ`), so a multi-valued expression carries its **whole** value rather than a single representative component. A leaf with a single, well-known value shape exposes a typed `new EvaluationValue<T> CurrentValue` view reading `base.CurrentValue.As<T>()` (same name, correctly typed); the base property is the single storage `Evaluate` writes.
 - **Topological order** (`GetTopologicalOrder`) — a reachability BFS from the activated nodes (skipping `flag=4` lookup/reverse edges to break lookup cycles) + Kahn's algorithm; returns an empty list on a cycle.
 
 ### Per-class `Evaluate` formulas
 
-| Class | `CurrentValue` | Writes to the context |
-|-------|---------------|----------------------|
-| `BlockGrip` | `displacement.X` | `DisplacementX/Y` = `(ActivatedLocation ?? Location) − Location` (zero when not activated) |
-| `BlockGripLocationComponent` | the read value | reads the connected parameter's updated coordinate (the port named by `Connection`, e.g. `UpdatedEndX`) → `EvaluatedValue` (code `40`) |
-| `BlockLinearParameter` | the signed **distance** along the axis | `Scale`/`XScale`/`YScale` = `(updatedSecond − updatedFirst)·axis`; `UpdatedBaseX/Y`, `UpdatedEndX/Y` |
-| `BlockXYParameter` | the **X** offset | `XScale`/`YScale` = `(firstDisp.X, firstDisp.Y)`; updated points |
-| `BlockPolarParameter` | the **distance** (radius) | `Scale`/`AngleDelta` = `(‖delta‖, atan2)`; updated points |
-| `BlockRotationParameter` | the **angle** | `AngleDelta` = `atan2`; updated points |
-| `BlockAlignmentParameter` | the **angle** | `AngleDelta` = `atan2`; updated points |
-| `BlockPointParameter` | `displacement.X` | `XDelta`/`YDelta`; `UpdatedX/Y` |
-| `BlockFlipParameter` | the **flip state** (0/1) | `UpdatedFlip` = 0 (default); updated points |
-| `BlockVisibilityParameter` | the **state index** (0) | `Value` = 0 (default); updated location |
-| `BlockLookupParameter` | `displacement.X` | `UpdatedX/Y` (the table is not decoded, so table-driven selection is not implemented) |
-| `BlockScaleAction` | the **scale** factor | reads the `Scale` port |
-| `BlockMoveAction` | the **X** delta | reads `XDelta`/`YDelta` |
-| `BlockRotationAction` | the **angle** | reads `AngleDelta` |
-| `BlockStretchAction` | the **X** delta | reads `EndXDelta`/`EndYDelta` |
-| `BlockPolarStretchAction` | the **X** delta | reads `BaseXDelta`/`BaseYDelta` |
-| `BlockArrayAction` | the base value | reads the `Base` port |
-| `BlockFlipAction` | the **flip** state | reads the `Flip` port |
-| `BlockLookupAction` | the **matched row** index (−1 = none) | reads each column's input value, finds the matching row (simplified; chained lookups / default-on-no-match not implemented) |
+`CurrentValue` is an `EvaluationValue` (the "object"); the **shape** column is the `T` of the leaf's typed `CurrentValue` view (`EvaluationValue<T>`). **Point** = the whole (X, Y) value; **Scalar** = a single `double`.
+
+| Class | `CurrentValue` (shape) | Writes to the context |
+|-------|------------------------|----------------------|
+| `BlockGrip` | the full (X, Y) **displacement** (Point) | `DisplacementX/Y` = `(ActivatedLocation ?? Location) − Location` (zero when not activated) |
+| `BlockGripLocationComponent` | the read coordinate (Scalar) | reads the connected parameter's updated coordinate (the port named by `Connection`, e.g. `UpdatedEndX`) → `EvaluatedValue` (code `40`) |
+| `BlockLinearParameter` | the signed **distance** along the axis (Scalar) | `Scale`/`XScale`/`YScale` = `(updatedSecond − updatedFirst)·axis`; `UpdatedBaseX/Y`, `UpdatedEndX/Y` |
+| `BlockXYParameter` | the (X, Y) **offset** (Point) | `XScale`/`YScale` = `(firstDisp.X, firstDisp.Y)`; updated points |
+| `BlockPolarParameter` | the (distance, angle) **pair** (Point, polar-space: X = distance, Y = angle) | `Scale`/`AngleDelta` = `(‖delta‖, atan2)`; updated points |
+| `BlockRotationParameter` | the **angle** (Scalar) | `AngleDelta` = `atan2`; updated points |
+| `BlockAlignmentParameter` | the **angle** (Scalar) | `AngleDelta` = `atan2`; updated points |
+| `BlockPointParameter` | the full (X, Y) **displacement** (Point) | `XDelta`/`YDelta`; `UpdatedX/Y` |
+| `BlockFlipParameter` | the **flip state** (0/1, Scalar) | `UpdatedFlip` = 0 (default); updated points |
+| `BlockVisibilityParameter` | the **state index** (0, Scalar) | `Value` = 0 (default); updated location |
+| `BlockLookupParameter` | the full (X, Y) **displacement** (Point) | `UpdatedX/Y` (the table is not decoded, so table-driven selection is not implemented) |
+| `BlockScaleAction` | the **scale** factor (Scalar) | reads the `Scale` port |
+| `BlockMoveAction` | the (X, Y) **displacement** (Point) | reads `XDelta`/`YDelta` |
+| `BlockRotationAction` | the **angle** (Scalar) | reads `AngleDelta` |
+| `BlockStretchAction` | the (X, Y) **displacement** (Point) | reads `EndXDelta`/`EndYDelta` |
+| `BlockPolarStretchAction` | the (X, Y) **displacement** (Point) | reads `BaseXDelta`/`BaseYDelta` |
+| `BlockArrayAction` | the base value (Scalar) | reads the `Base` port |
+| `BlockFlipAction` | the **flip** state (Scalar) | reads the `Flip` port |
+| `BlockLookupAction` | the **matched row** index (−1 = none, Scalar) | reads each column's input value, finds the matching row (simplified; chained lookups / default-on-no-match not implemented) |
 
 **Notes:**
-- `CurrentValue` is a single `double?` (a scalar), so for **multi-valued** parameters (XY, point) and grips (displacement) it holds the **X component** as a representative; the full value lives in the context ports. Single-valued parameters (linear, polar, rotation, alignment, flip, visibility) hold their natural single value. This is a **simplification** of the ObjectARX model, where `value()` returns an `AcDbEvalVariant` that can hold a structured value.
+- `CurrentValue` is a shape-agnostic **`EvaluationValue`** ("object") that can hold either a scalar or a point, mirroring the ObjectARX `AcDbEvalVariant` (which can hold a structured value). Multi-valued expressions (XY, point, lookup parameters; move/stretch/polar-stretch actions; grips) carry the **whole** (X, Y) value; single-valued expressions (linear, polar, rotation, alignment, flip, visibility, scale, array, lookup actions) carry their natural scalar. A leaf with a single, well-known value shape exposes a typed `new EvaluationValue<T> CurrentValue` view reading `base.CurrentValue.As<T>()` (same name, correctly typed); the base property is the single storage `Evaluate` writes. The context ports are unchanged (still the fine-grained X/Y channels downstream nodes read).
 - **Lookup actions** are **excluded from the forward evaluation**: they are only reachable via `flag=4` (reverse) edges, which the topological order skips. So a lookup action's `CurrentValue` stays unset (`null`) after a forward `evaluate()` — the lookup is a separate (reverse) evaluation.
 - **Actions** read the connected parameter's value and store it as their `CurrentValue`; the full transform application to the block's entities is **out of scope** for the core engine.
 
@@ -349,9 +351,10 @@ Running the evaluator on all 10 samples (`dotnet run --project src/ACadSharp.Exa
 | `BLOCKPOLARPARAMETER` | 9.082 | distance between base (2.007,2.346) and end (8.429,8.767) |
 | `BLOCKROTATIONPARAMETER` | 1.571 | angle = atan2 = 90° (1.571 rad) |
 | `BLOCKALIGNMENTPARAMETER` | 0.524 | angle = atan2 = 30° (0.524 rad) |
-| `BLOCKXYPARAMETER` / `BLOCKPOINTPARAMETER` / `BLOCKFLIPPARAMETER` / `BLOCKVISIBILITYPARAMETER` | 0 | zero displacement (grips not moved) / default state |
+| `BLOCKXYPARAMETER` / `BLOCKPOINTPARAMETER` | (0,0,0) | zero (X, Y) displacement (grips not moved) — now the **whole point**, not just X |
+| `BLOCKFLIPPARAMETER` / `BLOCKVISIBILITYPARAMETER` | 0 | default state |
 
-End-to-end `EvaluationTests` (activate a grip with a known `ActivatedLocation`, evaluate, compare against the geometry) confirm: linear 5→8 (move end grip by (3,0,0)), polar 9.08→10.59 (move by (2,0,0)), rotation 90°→135° (rotate by 45°), point 0→2 (move by (2,3,0)), and that a component's stored `EvaluatedValue` (code `40`) is updated from the `1.797693134862314E+99` sentinel to the computed value.
+End-to-end `EvaluationTests` (activate a grip with a known `ActivatedLocation`, evaluate, compare against the geometry) confirm: linear 5→8 (move end grip by (3,0,0)), polar 9.08→10.59 (move by (2,0,0)), rotation 90°→135° (rotate by 45°), point (0,0,0)→(2,3,0) (move by (2,3,0) — the **whole** (X, Y) displacement, not just X), and that a component's stored `EvaluatedValue` (code `40`) is updated from the `1.797693134862314E+99` sentinel to the computed value.
 
 ---
 

@@ -45,6 +45,12 @@ public class BlockPointParameter : Block1PtParameter, IDxfClassDefined
 	/// X/Y deltas (the "XDelta/YDelta" ports) and the updated location (the "UpdatedX/Y"
 	/// ports) into the context.
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a point parameter this is the full (X, Y) displacement.
+	/// </summary>
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.GetDisplacement(context, out XYZ displacement);
@@ -54,7 +60,7 @@ public class BlockPointParameter : Block1PtParameter, IDxfClassDefined
 		context.SetValue(this.Id, "XDelta", displacement.X);
 		context.SetValue(this.Id, "YDelta", displacement.Y);
 		this.WriteUpdatedLocation(context, updatedLocation);
-		this.CurrentValue = displacement.X;
+		base.CurrentValue = EvaluationValue.FromPoint(displacement);
 
 		return true;
 	}

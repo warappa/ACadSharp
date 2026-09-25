@@ -69,6 +69,14 @@ public class BlockPolarParameter : Block2PtParameter, IDxfClassDefined
 	/// base and end points, and computes the value as the (distance, angle) from the base to
 	/// the end point.
 	/// </summary>
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a polar parameter this is the (distance, angle) pair as a
+	/// <em>polar-space</em> point: <c>X = distance</c>, <c>Y = angle</c> (radians). This is a polar
+	/// coordinate, <em>not</em> a Cartesian location.
+	/// </summary>
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
@@ -83,7 +91,7 @@ public class BlockPolarParameter : Block2PtParameter, IDxfClassDefined
 		context.SetValue(this.Id, "Scale", distance);
 		context.SetValue(this.Id, "AngleDelta", angle);
 		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
-		this.CurrentValue = distance;
+		base.CurrentValue = EvaluationValue.FromPoint(new XYZ(distance, angle, 0));
 
 		return true;
 	}

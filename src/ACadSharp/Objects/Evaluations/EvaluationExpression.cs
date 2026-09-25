@@ -37,10 +37,18 @@ public abstract class EvaluationExpression : NonGraphicalObject
 	/// The current value of the expression, updated during <see cref="Evaluate"/>.
 	/// <para>
 	/// Mirrors the ObjectARX <c>AcDbEvalExpr::value()</c> (the node's value, updated during
-	/// evaluation; <c>kNone</c> before the first evaluation).
+	/// evaluation; <c>kNone</c> before the first evaluation). The value is a shape-agnostic
+	/// <see cref="EvaluationValue"/> ("object") that can hold either a scalar or a point, so a
+	/// multi-valued expression (for example a point or XY parameter) carries its <em>whole</em>
+	/// value rather than a single representative component.
+	/// </para>
+	/// <para>
+	/// A leaf that has a single, well-known value shape exposes a typed view under the same name
+	/// (a <c>new</c> <see cref="EvaluationValue{T}"/> property reading <c>base.CurrentValue.As&lt;T&gt;()</c>);
+	/// this base property is the single storage that <see cref="Evaluate"/> writes.
 	/// </para>
 	/// </summary>
-	public double? CurrentValue { get; internal set; }
+	public EvaluationValue CurrentValue { get; internal set; } = EvaluationValue.None;
 
 	/// <summary>
 	/// Evaluates the expression, writing its output values into the <paramref name="context"/>.

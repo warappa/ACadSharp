@@ -51,6 +51,12 @@ public abstract class BlockGrip : BlockElement
 	public XYZ Displacement => (this.ActivatedLocation ?? this.Location) - this.Location;
 
 	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a grip this is the full (X, Y) displacement.
+	/// </summary>
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
+	/// <summary>
 	/// Evaluates the grip: writes its displacement (the "DisplacementX/Y" output ports) into
 	/// the context. The displacement is zero when the grip is not activated.
 	/// </summary>
@@ -60,7 +66,7 @@ public abstract class BlockGrip : BlockElement
 
 		context.SetValue(this.Id, "DisplacementX", displacement.X);
 		context.SetValue(this.Id, "DisplacementY", displacement.Y);
-		this.CurrentValue = displacement.X;
+		base.CurrentValue = EvaluationValue.FromPoint(displacement);
 
 		return true;
 	}
