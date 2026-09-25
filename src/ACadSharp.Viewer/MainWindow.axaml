@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="ACadSharp.Viewer.MainWindow"
+        Title="ACadSharp Viewer"
+        Width="1100" Height="700"
+        MinWidth="700" MinHeight="400">
+    <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="8,6" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
+            <DockPanel>
+                <Button x:Name="OpenButton" DockPanel.Dock="Left" Content="Open…" Click="OnOpenClick" />
+                <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" Content="Dark theme" IsChecked="True" Click="OnThemeToggleClick" />
+                <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorTertiary}" />
+            </DockPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Padding="10,5">
+            <TextBlock x:Name="StatusText" Foreground="{DynamicResource TextFillColorTertiary}" Text="Open a .dwg or .dxf file to begin." />
+        </Border>
+        <Grid x:Name="ContentRoot">
+            <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
+        </Grid>
+    </DockPanel>
+</Window>
