@@ -360,6 +360,15 @@ public static class GraphModel
         }
         switch (expr)
         {
+            case BlockLookupAction a:
+                foreach (BlockLookupAction.ColumnData col in a.Columns)
+                {
+                    if (col.NodeId != 0)
+                    {
+                        result.Add((col.NodeId, col.ConnectionName));
+                    }
+                }
+                break;
             case BlockFlipParameter p:
                 AddProp(p.FirstPointDisplacementX);
                 AddProp(p.FirstPointDisplacementY);
