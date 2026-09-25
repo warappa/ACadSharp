@@ -1,10 +1,11 @@
-﻿using ACadSharp.Entities;
+using ACadSharp.Entities;
 using ACadSharp.IO;
 using ACadSharp.Objects;
 using ACadSharp.Objects.Evaluations;
 using ACadSharp.Tables;
 using ACadSharp.Tests.TestModels;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -96,6 +97,34 @@ public class DynamicBlockTests : IOTestsBase
 		{
 			DwgWriter.Write(pathOut, doc, configuration: writerConfiguration as DwgWriterConfiguration, notification: this.onNotification);
 		}
+	}
+
+	/// <summary>
+	/// Validates the evaluation graph invariants (node/edge consistency + a valid
+	/// topological order) for every isolated dynamic block sample, in both DWG and DXF.
+	/// </summary>
+	[Theory]
+	[MemberData(nameof(IsolatedDynamicBlocksPaths))]
+	public void ValidateEvaluationGraphTest(FileModel test)
+	{
+		var config = this.getReaderConfiguration(test);
+		var doc = this.readDocument(test, true, config);
+
+		// Find the block record with an evaluation graph.
+		BlockRecord block = doc.BlockRecords
+			.FirstOrDefault(b => b.EvaluationGraph != null && b.EvaluationGraph.Nodes.Count() > 0);
+		Assert.NotNull(block);
+
+		EvaluationGraph graph = block.EvaluationGraph;
+		Assert.True(graph.Nodes.Count() > 0, "The evaluation graph has no nodes.");
+
+		// The graph must be internally consistent (node markers vs edge lists).
+		Assert.True(graph.TryValidate(out string error), $"The evaluation graph is not consistent: {error}");
+
+		// The graph must have a valid topological order (no cycles in the forward edges).
+		List<int> order = graph.GetTopologicalOrder(graph.Nodes.Select(n => n.Index));
+		Assert.NotEmpty(order);
+		Assert.Equal(graph.Nodes.Count(), order.Count);
 	}
 
 	private void assertBlockParameter(CadDocument doc, string blockName, Type parameterType)

@@ -59,10 +59,17 @@ public partial class EvaluationGraph
 	{
 		this._context.Clear();
 
+		// If no nodes are activated, the evaluation is a no-op (success): the reachable
+		// subgraph is empty, so there is nothing to evaluate.
+		if (this._activatedNodes.Count == 0)
+		{
+			return true;
+		}
+
 		List<int> order = this.GetTopologicalOrder(this._activatedNodes);
 		if (order.Count == 0)
 		{
-			return false; // cycle detected (or no activated nodes)
+			return false; // cycle detected
 		}
 
 		foreach (int i in order)
