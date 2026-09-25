@@ -486,6 +486,61 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 		}
 	}
 
+	private bool readBlockTextParameter(CadTemplate template, DxfMap map)
+	{
+		CadBlockTextParameterTemplate tmp = template as CadBlockTextParameterTemplate;
+		BlockTextParameter parameter = tmp.CadObject as BlockTextParameter;
+
+		switch (this._reader.Code)
+		{
+			default:
+				if (!this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockTextParameter]))
+				{
+					return this.readBlockParameter(template, map);
+				}
+				return true;
+		}
+	}
+
+	private bool readBlockCharParameter(CadTemplate template, DxfMap map)
+	{
+		CadBlockCharParameterTemplate tmp = template as CadBlockCharParameterTemplate;
+		BlockCharParameter parameter = tmp.CadObject as BlockCharParameter;
+
+		switch (this._reader.Code)
+		{
+			case 305:
+				string text = this._reader.ValueAsString;
+				parameter.Value = text.Length > 0 ? text[0] : '\0';
+				return true;
+			default:
+				if (!this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockCharParameter]))
+				{
+					return this.readBlockParameter(template, map);
+				}
+				return true;
+		}
+	}
+
+	private bool readBlockHandleParameter(CadTemplate template, DxfMap map)
+	{
+		CadBlockHandleParameterTemplate tmp = template as CadBlockHandleParameterTemplate;
+		BlockHandleParameter parameter = tmp.CadObject as BlockHandleParameter;
+
+		switch (this._reader.Code)
+		{
+			case 94:
+				parameter.Value = this._reader.ValueAsInt;
+				return true;
+			default:
+				if (!this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockHandleParameter]))
+				{
+					return this.readBlockParameter(template, map);
+				}
+				return true;
+		}
+	}
+
 	private bool readBlockPolarParameter(CadTemplate template, DxfMap map)
 	{
 		var tmp = template as CadBlock2PtParameterTemplate;
@@ -2313,6 +2368,12 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 				return this.readObjectCodes<BlockPointParameter>(new CadBlockPointParameterTemplate(), this.readBlockPointParameter);
 			case DxfFileToken.ObjectBlockXYParameter:
 				return this.readObjectCodes<BlockXYParameter>(new CadBlock2PtParameterTemplate(new BlockXYParameter()), this.readBlockXYParameter);
+			case DxfFileToken.ObjectBlockTextParameter:
+				return this.readObjectCodes<BlockTextParameter>(new CadBlockTextParameterTemplate(), this.readBlockTextParameter);
+			case DxfFileToken.ObjectBlockCharParameter:
+				return this.readObjectCodes<BlockCharParameter>(new CadBlockCharParameterTemplate(), this.readBlockCharParameter);
+			case DxfFileToken.ObjectBlockHandleParameter:
+				return this.readObjectCodes<BlockHandleParameter>(new CadBlockHandleParameterTemplate(), this.readBlockHandleParameter);
 			case DxfFileToken.ObjectBlockFlipGrip:
 				return this.readObjectCodes<BlockFlipGrip>(new CadBlockGripTemplate(new BlockFlipGrip()), this.readBlockGripSubclass);
 			case DxfFileToken.ObjectBlockLinearGrip:

@@ -340,6 +340,49 @@ internal partial class DwgObjectReader : DwgSectionIO
 		return template;
 	}
 
+	private CadTemplate readBlockTextParameter()
+	{
+		BlockTextParameter blockTextParameter = new();
+		CadBlockTextParameterTemplate template = new(blockTextParameter);
+
+		this.readBlockParameter(template);
+
+		blockTextParameter.Label = this._mergedReaders.ReadVariableText();
+		blockTextParameter.Description = this._mergedReaders.ReadVariableText();
+		blockTextParameter.Value = this._mergedReaders.ReadVariableText();
+
+		return template;
+	}
+
+	private CadTemplate readBlockCharParameter()
+	{
+		BlockCharParameter blockCharParameter = new();
+		CadBlockCharParameterTemplate template = new(blockCharParameter);
+
+		this.readBlockParameter(template);
+
+		blockCharParameter.Label = this._mergedReaders.ReadVariableText();
+		blockCharParameter.Description = this._mergedReaders.ReadVariableText();
+		string text = this._mergedReaders.ReadVariableText();
+		blockCharParameter.Value = text.Length > 0 ? text[0] : '\0';
+
+		return template;
+	}
+
+	private CadTemplate readBlockHandleParameter()
+	{
+		BlockHandleParameter blockHandleParameter = new();
+		CadBlockHandleParameterTemplate template = new(blockHandleParameter);
+
+		this.readBlockParameter(template);
+
+		blockHandleParameter.Label = this._mergedReaders.ReadVariableText();
+		blockHandleParameter.Description = this._mergedReaders.ReadVariableText();
+		blockHandleParameter.Value = this._mergedReaders.ReadBitLong();
+
+		return template;
+	}
+
 	private CadTemplate readBlockPolarParameter()
 	{
 		BlockPolarParameter polar = new();

@@ -471,6 +471,15 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 			case BlockXYParameter blockXYParameter:
 				this.writeBlockXYParameter(blockXYParameter);
 				break;
+			case BlockTextParameter blockTextParameter:
+				this.writeBlockTextParameter(blockTextParameter);
+				break;
+			case BlockCharParameter blockCharParameter:
+				this.writeBlockCharParameter(blockCharParameter);
+				break;
+			case BlockHandleParameter blockHandleParameter:
+				this.writeBlockHandleParameter(blockHandleParameter);
+				break;
 			case BlockPolarParameter blockPolarParameter:
 				this.writeBlockPolarParameter(blockPolarParameter);
 				break;
@@ -1118,6 +1127,42 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 		this._writer.Write(303, parameter.Label, map);
 		this._writer.Write(304, parameter.Description, map);
 		this._writer.Write(1011, parameter.LabelPosition, map);
+	}
+
+	private void writeBlockTextParameter(BlockTextParameter parameter)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockTextParameter>();
+
+		this.writeBlockParameter(parameter);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockTextParameter);
+		this._writer.Write(303, parameter.Label, map);
+		this._writer.Write(304, parameter.Description, map);
+		this._writer.Write(305, parameter.Value, map);
+	}
+
+	private void writeBlockCharParameter(BlockCharParameter parameter)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockCharParameter>();
+
+		this.writeBlockParameter(parameter);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockCharParameter);
+		this._writer.Write(303, parameter.Label, map);
+		this._writer.Write(304, parameter.Description, map);
+		this._writer.Write(305, parameter.Value.ToString(), map);
+	}
+
+	private void writeBlockHandleParameter(BlockHandleParameter parameter)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockHandleParameter>();
+
+		this.writeBlockParameter(parameter);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockHandleParameter);
+		this._writer.Write(303, parameter.Label, map);
+		this._writer.Write(304, parameter.Description, map);
+		this._writer.Write(94, (int)parameter.Value, map);
 	}
 
 	private void writeBlockPolarParameter(BlockPolarParameter parameter)

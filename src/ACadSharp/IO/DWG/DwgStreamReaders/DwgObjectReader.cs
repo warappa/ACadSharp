@@ -1,4 +1,4 @@
-﻿using ACadSharp.Blocks;
+using ACadSharp.Blocks;
 using ACadSharp.Classes;
 using ACadSharp.Entities;
 using ACadSharp.Entities.AecEntities;
@@ -6090,6 +6090,15 @@ namespace ACadSharp.IO.DWG
 					break;
 				case DxfFileToken.ObjectBlockXYParameter:
 					template = this.readBlockXYParameter();
+					break;
+				case DxfFileToken.ObjectBlockTextParameter:
+					template = this.readBlockTextParameter();
+					break;
+				case DxfFileToken.ObjectBlockCharParameter:
+					template = this.readBlockCharParameter();
+					break;
+				case DxfFileToken.ObjectBlockHandleParameter:
+					template = this.readBlockHandleParameter();
 					break;
 				case DxfFileToken.ObjectBlockAlignmentParameter:
 					template = this.readBlockAlignmentParameter();

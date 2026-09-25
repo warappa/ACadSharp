@@ -331,6 +331,33 @@ internal partial class DwgObjectWriter : DwgSectionIO
 		this._writer.Write3BitDouble(parameter.LabelPosition);
 	}
 
+	private void writeBlockTextParameter(BlockTextParameter parameter)
+	{
+		this.writeBlockParameter(parameter);
+
+		this._writer.WriteVariableText(parameter.Label);
+		this._writer.WriteVariableText(parameter.Description);
+		this._writer.WriteVariableText(parameter.Value);
+	}
+
+	private void writeBlockCharParameter(BlockCharParameter parameter)
+	{
+		this.writeBlockParameter(parameter);
+
+		this._writer.WriteVariableText(parameter.Label);
+		this._writer.WriteVariableText(parameter.Description);
+		this._writer.WriteVariableText(parameter.Value.ToString());
+	}
+
+	private void writeBlockHandleParameter(BlockHandleParameter parameter)
+	{
+		this.writeBlockParameter(parameter);
+
+		this._writer.WriteVariableText(parameter.Label);
+		this._writer.WriteVariableText(parameter.Description);
+		this._writer.WriteBitLong((int)parameter.Value);
+	}
+
 	private void writeBlockPolarParameter(BlockPolarParameter parameter)
 	{
 		this.writeBlock2PtParameter(parameter);
@@ -1780,6 +1807,15 @@ internal partial class DwgObjectWriter : DwgSectionIO
 				break;
 			case BlockXYParameter blockXYParameter:
 				this.writeBlockXYParameter(blockXYParameter);
+				break;
+			case BlockTextParameter blockTextParameter:
+				this.writeBlockTextParameter(blockTextParameter);
+				break;
+			case BlockCharParameter blockCharParameter:
+				this.writeBlockCharParameter(blockCharParameter);
+				break;
+			case BlockHandleParameter blockHandleParameter:
+				this.writeBlockHandleParameter(blockHandleParameter);
 				break;
 			case BlockPolarParameter blockPolarParameter:
 				this.writeBlockPolarParameter(blockPolarParameter);

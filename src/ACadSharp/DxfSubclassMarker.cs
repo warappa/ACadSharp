@@ -1,4 +1,4 @@
-﻿namespace ACadSharp;
+namespace ACadSharp;
 
 public static class DxfSubclassMarker
 {
@@ -52,6 +52,8 @@ public static class DxfSubclassMarker
 
 	public const string BlockBasePointParameter = "AcDbBlockBasepointParameter";
 
+	public const string BlockCharParameter = "AcDbBlockCharParameter";
+
 	public const string BlockBegin = "AcDbBlockBegin";
 
 	public const string BlockElement = "AcDbBlockElement";
@@ -67,6 +69,8 @@ public static class DxfSubclassMarker
 	public const string BlockGrip = "AcDbBlockGrip";
 
 	public const string BlockGripExpression = "AcDbBlockGripExpr";
+
+	public const string BlockHandleParameter = "AcDbBlockHandleParameter";
 
 	public const string BlockLinearGrip = "AcDbBlockLinearGrip";
 
@@ -103,6 +107,8 @@ public static class DxfSubclassMarker
 	public const string BlockScaleAction = "AcDbBlockScaleAction";
 
 	public const string BlockStretchAction = "AcDbBlockStretchAction";
+
+	public const string BlockTextParameter = "AcDbBlockTextParameter";
 
 	public const string BlockVisibilityGrip = "AcDbBlockVisibilityGrip";
 

@@ -1,4 +1,4 @@
-﻿namespace ACadSharp;
+namespace ACadSharp;
 
 public static class DxfFileToken
 {
@@ -180,6 +180,8 @@ public static class DxfFileToken
 
 	public const string ObjectBlockBasePointParameter = "BLOCKBASEPOINTPARAMETER";
 
+	public const string ObjectBlockCharParameter = "BLOCKCHARPARAMETER";
+
 	public const string ObjectBlockFlipAction = "BLOCKFLIPACTION";
 
 	public const string ObjectBlockFlipGrip = "BLOCKFLIPGRIP";
@@ -187,6 +189,8 @@ public static class DxfFileToken
 	public const string ObjectBlockFlipParameter = "BLOCKFLIPPARAMETER";
 
 	public const string ObjectBlockGripLocationComponent = "BLOCKGRIPLOCATIONCOMPONENT";
+
+	public const string ObjectBlockHandleParameter = "BLOCKHANDLEPARAMETER";
 
 	public const string ObjectBlockLinearGrip = "BLOCKLINEARGRIP";
 
@@ -219,6 +223,8 @@ public static class DxfFileToken
 	public const string ObjectBlockScaleAction = "BLOCKSCALEACTION";
 
 	public const string ObjectBlockStretchAction = "BLOCKSTRETCHACTION";
+
+	public const string ObjectBlockTextParameter = "BLOCKTEXTPARAMETER";
 
 	public const string ObjectBlockVisibilityGrip = "BLOCKVISIBILITYGRIP";
 

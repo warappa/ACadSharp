@@ -1,7 +1,10 @@
+using ACadSharp;
+using ACadSharp.IO;
 using ACadSharp.Objects.Evaluations;
 using CSMath;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Xunit;
 
@@ -431,5 +434,137 @@ public class EvaluationValueTests
 		Assert.True(action.Evaluate(context));
 		Assert.Equal(EvaluationValueType.Double, action.CurrentValue.Type);
 		Assert.True(Math.Abs(action.CurrentValue.DoubleValue.Value - (-1)) < 1e-6, $"Expected -1, got {action.CurrentValue}.");
+	}
+
+	// ------------------------------------------------------------------
+	// Value-emitting parameters: the String, Char, and ObjectId shapes.
+	// ------------------------------------------------------------------
+
+	[Fact]
+	public void TextParameterEmitsStringTest()
+	{
+		BlockTextParameter parameter = new() { Id = 1, Value = "Size 5" };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		// The "Value" port holds the text as a string (the kString shape).
+		Assert.True(context.TryGetValue(1, "Value", out EvaluationValue v));
+		Assert.Equal(EvaluationValueType.String, v.Type);
+		Assert.Equal("Size 5", v.StringValue);
+
+		// The typed CurrentValue is a set string.
+		Assert.True(parameter.CurrentValue.IsSet);
+		Assert.Equal("Size 5", parameter.CurrentValue.Value);
+	}
+
+	[Fact]
+	public void CharParameterEmitsCharTest()
+	{
+		BlockCharParameter parameter = new() { Id = 2, Value = 'A' };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		// The "Value" port holds the character (the kChar shape).
+		Assert.True(context.TryGetValue(2, "Value", out EvaluationValue v));
+		Assert.Equal(EvaluationValueType.Char, v.Type);
+		Assert.Equal('A', v.CharValue);
+
+		// The typed CurrentValue is a set char.
+		Assert.True(parameter.CurrentValue.IsSet);
+		Assert.Equal('A', parameter.CurrentValue.Value);
+	}
+
+	[Fact]
+	public void HandleParameterEmitsObjectIdTest()
+	{
+		BlockHandleParameter parameter = new() { Id = 3, Value = 1234567L };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		// The "Value" port holds the object handle (the kOldId shape).
+		Assert.True(context.TryGetValue(3, "Value", out EvaluationValue v));
+		Assert.Equal(EvaluationValueType.ObjectId, v.Type);
+		Assert.Equal(1234567L, v.ObjectIdValue);
+
+		// The typed CurrentValue is a set long.
+		Assert.True(parameter.CurrentValue.IsSet);
+		Assert.Equal(1234567L, parameter.CurrentValue.Value);
+	}
+
+	[Fact]
+	public void EveryValueShapeIsEmittedByANodeTest()
+	{
+		// Full type support: every shape in EvaluationValueType is produced by at least one node.
+		// (None is the unset state; the remaining seven shapes are emitted by the nodes below.)
+		EvaluationContext context = new();
+
+		BlockTextParameter text = new() { Id = 1, Value = "x" };
+		BlockCharParameter character = new() { Id = 2, Value = 'A' };
+		BlockHandleParameter handle = new() { Id = 3, Value = 7L };
+		BlockVisibilityParameter visibility = new() { Id = 4 };
+		BlockXYParameter xy = new() { Id = 5 };
+		BlockPointParameter point = new() { Id = 6 };
+		BlockLinearParameter linear = new() { Id = 7 };
+
+		Assert.True(text.Evaluate(context));
+		Assert.True(character.Evaluate(context));
+		Assert.True(handle.Evaluate(context));
+		Assert.True(visibility.Evaluate(context));
+		Assert.True(xy.Evaluate(context));
+		Assert.True(point.Evaluate(context));
+		Assert.True(linear.Evaluate(context));
+
+		// The shape of each node's value after evaluation (read via the base, untyped
+		// CurrentValue — the typed override hides it and carries no Type).
+		Assert.Equal(EvaluationValueType.String, ((EvaluationExpression)text).CurrentValue.Type);
+		Assert.Equal(EvaluationValueType.Char, ((EvaluationExpression)character).CurrentValue.Type);
+		Assert.Equal(EvaluationValueType.ObjectId, ((EvaluationExpression)handle).CurrentValue.Type);
+		Assert.Equal(EvaluationValueType.Int, ((EvaluationExpression)visibility).CurrentValue.Type);
+		Assert.Equal(EvaluationValueType.Point2d, ((EvaluationExpression)xy).CurrentValue.Type);
+		Assert.Equal(EvaluationValueType.Point, ((EvaluationExpression)point).CurrentValue.Type);
+		Assert.Equal(EvaluationValueType.Double, ((EvaluationExpression)linear).CurrentValue.Type);
+	}
+
+	// ------------------------------------------------------------------
+	// DXF round-trip: the new node types survive a write/read cycle.
+	// ------------------------------------------------------------------
+
+	[Fact]
+	public void NewParameterTypesRoundTripDxfTest()
+	{
+		CadDocument document = new();
+
+		BlockTextParameter text = new() { Id = 1, Label = "T", Description = "a text parameter", Value = "Size 5" };
+		BlockCharParameter character = new() { Id = 2, Label = "C", Description = "a char parameter", Value = 'A' };
+		BlockHandleParameter handle = new() { Id = 3, Label = "H", Description = "a handle parameter", Value = 1234567L };
+
+		// Reference the objects from the root dictionary: Add registers them with the
+		// document (via OnAdd) and makes them reachable to the writer (which only writes
+		// objects reachable from the root dictionary).
+		document.RootDictionary.Add("testText", text);
+		document.RootDictionary.Add("testChar", character);
+		document.RootDictionary.Add("testHandle", handle);
+
+		using MemoryStream output = new MemoryStream();
+		DxfWriter.Write(output, document);
+
+		using MemoryStream input = new MemoryStream(output.ToArray());
+		CadDocument result = DxfReader.Read(input);
+
+		BlockTextParameter resultText = result.GetCadObject<BlockTextParameter>(text.Handle);
+		Assert.NotNull(resultText);
+		Assert.Equal("Size 5", resultText.Value);
+		Assert.Equal("T", resultText.Label);
+
+		BlockCharParameter resultCharacter = result.GetCadObject<BlockCharParameter>(character.Handle);
+		Assert.NotNull(resultCharacter);
+		Assert.Equal('A', resultCharacter.Value);
+
+		BlockHandleParameter resultHandle = result.GetCadObject<BlockHandleParameter>(handle.Handle);
+		Assert.NotNull(resultHandle);
+		Assert.Equal(1234567L, resultHandle.Value);
 	}
 }
