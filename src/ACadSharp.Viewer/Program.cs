@@ -401,6 +401,43 @@ static class Screenshot
                                 nodeViewer.MouseMove(box1.Value);
                                 Pump(10);
                             }
+
+                            // 5. Regression check (issue: the wheel only worked over
+                            //    the graph content, the empty viewport area was a
+                            //    dead zone the scroll viewer consumed): the canvas
+                            //    now fills the viewport, so the wheel must zoom at
+                            //    a point in the empty area too.
+                            Point empty = nodeViewer.Graph.TranslatePoint(
+                                new Point(700, 400), nodeViewer) ?? new Point(700, 400);
+                            double scaleBefore = nodeViewer.Graph.Scale;
+                            nodeViewer.MouseWheel(empty, new Vector(0, 1));
+                            nodeViewer.MouseWheel(empty, new Vector(0, 1));
+                            Pump(10);
+                            Log($"empty-area wheel: scale {scaleBefore} -> {nodeViewer.Graph.Scale}");
+
+                            // 6. Regression check (issue: drag-pan was dead in the
+                            //    empty area): zoom in until the content overflows the
+                            //    viewport, then drag-pan from the empty area.
+                            while (nodeViewer.Graph.Scale < 2.0)
+                            {
+                                nodeViewer.Graph.ZoomIn();
+                                Pump(5);
+                            }
+                            Vector offsetBefore = nodeViewer.Graph.ScrollOffsetForVerification;
+                            nodeViewer.MouseDown(empty, Avalonia.Input.MouseButton.Left);
+                            nodeViewer.MouseMove(empty + new Vector(100, 60));
+                            nodeViewer.MouseUp(empty + new Vector(100, 60), Avalonia.Input.MouseButton.Left);
+                            Pump(10);
+                            Log($"empty-area pan: offset {offsetBefore} -> {nodeViewer.Graph.ScrollOffsetForVerification}");
+                            Log($"state: {nodeViewer.Graph.ScrollStateForVerification}");
+
+                            // 7. Fit the graph back into view so the capture shows it
+                            //    (the regression checks above zoomed in and panned it
+                            //    away). FitToView sets scale 1.0, which shrinks the
+                            //    canvas to the viewport and clamps the offset to (0,0).
+                            nodeViewer.Graph.FitToView();
+                            Pump(10);
+                            Log($"after fit: {nodeViewer.Graph.ScrollStateForVerification}");
                         }
                     }
                 }

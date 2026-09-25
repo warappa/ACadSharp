@@ -51,6 +51,10 @@ public partial class NodeGraphView : UserControl
     private Border? _selectedBox;
     private bool _selectedIsTarget;
 
+    // Edge labels that still need their final position (the text width is
+    // only known after the first layout pass): (mask, label, start.X, end.X).
+    private readonly List<(Border mask, TextBlock label, double startX, double endX)> _pendingLabels = new();
+
     /// <summary>
     /// Raised when a node box is clicked, with the node's full dump.
     /// </summary>
@@ -80,6 +84,56 @@ public partial class NodeGraphView : UserControl
         GraphCanvas.PointerReleased += OnCanvasPointerReleased;
         GraphCanvas.PointerCaptureLost += OnCanvasPointerCaptureLost;
         GraphCanvas.PointerWheelChanged += OnWheelZoom;
+
+        // Re-apply the canvas size once the scroll viewport has a size
+        // (the first layout, and window resizes) so the canvas keeps
+        // filling the viewport. Setting the same size again does not
+        // invalidate the layout, so this settles after one pass.
+        Scroll.LayoutUpdated += (_, _) =>
+        {
+            if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
+            {
+                ApplyScale();
+            }
+
+            PositionPendingLabels();
+        };
+
+        // Backup: the canvas's own layout pass (in case the scroll viewer's
+        // LayoutUpdated fires before the labels have been measured).
+        GraphCanvas.LayoutUpdated += (_, _) => PositionPendingLabels();
+    }
+
+    /// <summary>
+    /// Parks each pending edge label at the edge midpoint, shifted left so
+    /// its right edge stays at least 16px clear of the arrowhead tip
+    /// (the 8px arrowhead plus 8px of visible gap), once the text width is
+    /// known. For long labels on short edges that shifts the label left
+    /// over the source box's edge — the labels draw above the boxes, so
+    /// the overlap stays readable. Labels that are not measured yet are
+    /// left for the next layout pass.
+    /// </summary>
+    private void PositionPendingLabels()
+    {
+        if (_pendingLabels.Count == 0)
+        {
+            return;
+        }
+
+        for (int i = _pendingLabels.Count - 1; i >= 0; i--)
+        {
+            (Border mask, TextBlock label, double startX, double endX) = _pendingLabels[i];
+            double w = label.DesiredSize.Width;
+            if (w <= 0)
+            {
+                continue; // not measured yet; try on the next pass
+            }
+
+            double centeredLeft = (startX + endX) / 2 - w / 2;
+            double labelLeft = Math.Min(centeredLeft, endX - 16 - w);
+            Canvas.SetLeft(mask, labelLeft - 2); // -2 = mask left padding
+            _pendingLabels.RemoveAt(i);
+        }
     }
 
     /// <summary>
@@ -207,28 +261,46 @@ public partial class NodeGraphView : UserControl
 
     /// <summary>
     /// Applies the border for a box's current state: the accent selection
-    /// ring wins, then the hover highlight, then the default (a white ring
-    /// for the target, none otherwise).
+    /// ring wins, then the hover highlight, then the default (a dim white
+    /// ring for the target, invisible otherwise). The thickness is constant
+    /// per box (3 for the target, 2 otherwise) so the inner text never
+    /// shifts when the hover state changes — only the brush changes
+    /// (transparent = invisible but still reserves the border slot).
     /// </summary>
     private void SetBoxBorder(Border border, bool isTarget, bool hovered)
     {
+        border.BorderThickness = new Thickness(isTarget ? 3 : 2);
+
         if (_selectedBox == border)
         {
             border.BorderBrush = GetAccentBrush();
-            border.BorderThickness = new Thickness(hovered ? 4 : 3);
             return;
         }
 
         if (hovered)
         {
             border.BorderBrush = isTarget ? WhiteBrush : HoverBrush;
-            border.BorderThickness = new Thickness(isTarget ? 4 : 2);
             return;
         }
 
-        border.BorderBrush = isTarget ? WhiteBrush : null;
-        border.BorderThickness = new Thickness(isTarget ? 3 : 0);
+        border.BorderBrush = isTarget
+            ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF))
+            : Brushes.Transparent;
     }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot interact mode):
+    /// the current scroll offset.
+    /// </summary>
+    public Vector ScrollOffsetForVerification => Scroll.Offset;
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot interact mode):
+    /// a one-line snapshot of the scroll state for diagnostics.
+    /// </summary>
+    public string ScrollStateForVerification =>
+        $"scroll bounds={Scroll.Bounds} extent={Scroll.Extent} viewport={Scroll.Viewport} " +
+        $"offset={Scroll.Offset} canvas={GraphCanvas.Bounds}";
 
     /// <summary>
     /// Verification helper (used by the --screenshot mode): the center of
@@ -276,6 +348,25 @@ public partial class NodeGraphView : UserControl
         return new SolidColorBrush(MediaColor.Parse("#0078D4"));
     }
 
+    /// <summary>
+    /// The opaque canvas background (the window background color from the
+    /// current theme — verified to match the dialog background in both
+    /// themes). Used for the edge-label background mask.
+    /// </summary>
+    private static IBrush GetCanvasBackgroundBrush()
+    {
+        var app = Application.Current;
+        if (app is not null)
+        {
+            if (app.FindResource(app.ActualThemeVariant, "SolidBackgroundFillColorBase") is IBrush brush)
+            {
+                return brush;
+            }
+        }
+
+        return new SolidColorBrush(MediaColor.Parse("#202020"));
+    }
+
     private void ApplyScale()
     {
         if (_naturalWidth <= 0)
@@ -285,9 +376,20 @@ public partial class NodeGraphView : UserControl
 
         // Scale the rendered content and the layout extent together: the
         // canvas's layout size drives the scroll extent, and the
-        // RenderTransform scales the drawing within it.
-        GraphCanvas.Width = _naturalWidth * _scale;
-        GraphCanvas.Height = _naturalHeight * _scale;
+        // RenderTransform scales the drawing within it. The canvas also
+        // fills the whole scroll viewport, so the empty space around the
+        // graph is part of the canvas too: the pointer handlers (wheel
+        // zoom, drag pan) run on the canvas before the scroll viewer's
+        // default wheel handler, and work anywhere in the viewport.
+        double width = _naturalWidth * _scale;
+        double height = _naturalHeight * _scale;
+        if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
+        {
+            width = Math.Max(width, Scroll.Bounds.Width);
+            height = Math.Max(height, Scroll.Bounds.Height);
+        }
+        GraphCanvas.Width = width;
+        GraphCanvas.Height = height;
         GraphCanvas.RenderTransform = new ScaleTransform(_scale, _scale);
     }
 
@@ -298,6 +400,7 @@ public partial class NodeGraphView : UserControl
         _hoverBox = null;
         _pendingSelectBox = null;
         _panStartOffset = null;
+        _pendingLabels.Clear();
         GraphCanvas.Children.Clear();
 
         if (model.Nodes.Count == 0)
@@ -336,6 +439,13 @@ public partial class NodeGraphView : UserControl
             AddNodeBox(node, positions[node.Index]);
         }
 
+        // Edge labels last: above the node boxes, so a label wider than
+        // the gap stays readable where it overlaps the source box.
+        foreach (var (mask, _, _, _) in _pendingLabels)
+        {
+            GraphCanvas.Children.Add(mask);
+        }
+
         _naturalWidth = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
         _naturalHeight = Math.Max(
             model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + Margin * 2,
@@ -355,8 +465,10 @@ public partial class NodeGraphView : UserControl
             Padding = new Thickness(isTarget ? 13 : 10, isTarget ? 7 : 4),
             MinWidth = BoxWidth,
             Height = BoxHeight,
-            BorderBrush = isTarget ? new SolidColorBrush(MediaColor.Parse("#FFFFFF")) : null,
-            BorderThickness = isTarget ? new Thickness(3) : new Thickness(0),
+            // Constant thickness (3 for the target, 2 otherwise) so hover
+            // never shifts the text; the brush is set by SetBoxBorder.
+            BorderBrush = isTarget ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent,
+            BorderThickness = isTarget ? new Thickness(3) : new Thickness(2),
         };
 
         var text = new TextBlock
@@ -568,7 +680,15 @@ public partial class NodeGraphView : UserControl
             AddArrowhead(end, direction);
         }
 
-        // Label at the midpoint.
+        // Label at the midpoint; the opaque background mask (the canvas
+        // background color) keeps the label readable where it overlaps the
+        // edge line. The label is added to the canvas AFTER the node boxes
+        // (see SetGraph), so a label that is wider than the gap stays
+        // readable as a badge over the source box's edge instead of being
+        // hidden behind it. The final position is refined after layout,
+        // once the text width is known: centered on the edge midpoint,
+        // shifted left so the right edge stays at least 16px clear of the
+        // arrowhead tip.
         if (edge.Label.Length > 0)
         {
             Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
@@ -578,10 +698,23 @@ public partial class NodeGraphView : UserControl
                 Foreground = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80)),
                 Text = edge.Label,
             };
-            // Rough centering: estimate ~6px per character at font size 11.
-            Canvas.SetLeft(label, mid.X - edge.Label.Length * 3);
-            Canvas.SetTop(label, mid.Y);
-            GraphCanvas.Children.Add(label);
+            var labelMask = new Border
+            {
+                Background = GetCanvasBackgroundBrush(),
+                CornerRadius = new CornerRadius(2),
+                Padding = new Thickness(2, 1),
+                Child = label,
+                IsHitTestVisible = false, // the edge line keeps its hover
+            };
+            // Provisional: centered on the midpoint, shifted a bit left; the
+            // final position is set by PositionPendingLabels once the text
+            // width is known.
+            Canvas.SetLeft(labelMask, mid.X - edge.Label.Length * 3);
+            Canvas.SetTop(labelMask, mid.Y);
+
+            _pendingLabels.Add((labelMask, label, start.X, end.X));
+            // NOTE: the mask is added to the canvas in SetGraph, after the
+            // node boxes (so it draws above them).
         }
     }
 

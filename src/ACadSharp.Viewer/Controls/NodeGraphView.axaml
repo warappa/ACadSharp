@@ -3,7 +3,10 @@
              x:Class="ACadSharp.Viewer.Controls.NodeGraphView">
     <Grid>
         <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-            <Canvas x:Name="GraphCanvas" Background="Transparent" MinWidth="400" MinHeight="300" />
+            <!-- Opaque background = the window background color (verified
+                 identical in both themes), so the canvas fills the whole
+                 viewport seamlessly and the edge-label mask blends in. -->
+            <Canvas x:Name="GraphCanvas" Background="{DynamicResource SolidBackgroundFillColorBase}" MinWidth="400" MinHeight="300" />
         </ScrollViewer>
         <!-- Hover tooltip for nodes and edges (Avalonia 12 removed ToolTipService,
              so this is a small floating card positioned at the pointer). -->
