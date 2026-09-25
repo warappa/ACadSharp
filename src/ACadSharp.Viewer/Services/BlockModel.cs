@@ -15,6 +15,8 @@ public class PropertyItem
     public string Name { get; }
     public string Description { get; }
     public string ValueText { get; }
+    public string TypeText { get; }
+    public string ValueOnlyText => ValueFormatter.FormatValueOnly(Expression);
     public bool HasValue { get; }
     public int NodeIndex { get; }
     public EvaluationExpression Expression { get; }
@@ -25,6 +27,7 @@ public class PropertyItem
         Name = name;
         Description = description;
         ValueText = ValueFormatter.Format(node.Expression);
+        TypeText = ValueFormatter.TypeText(node.Expression);
         HasValue = node.Expression.CurrentValue.Type != EvaluationValueType.None;
         NodeIndex = node.Index;
         Expression = node.Expression;

@@ -5,15 +5,18 @@ using System;
 namespace ACadSharp.Viewer.Services;
 
 /// <summary>
-/// Human-oriented formatting of evaluation values: angles in degrees
-/// (the stored values are radians), polar values as "distance @ angle°"
-/// (AutoCAD's polar input notation), and XY values as "x, y".
+/// Human-oriented formatting of evaluation values: the value type (the
+/// <see cref="EvaluationValueType"/> enum value) followed by the value itself —
+/// angles in degrees (the stored values are radians), polar values as
+/// "distance @ angle°" (AutoCAD's polar input notation), and XY values as
+/// "x, y".
 /// </summary>
 public static class ValueFormatter
 {
     /// <summary>
-    /// Formats an expression's current value for display. Returns
-    /// "&lt;unset&gt;" for values that have not been evaluated yet.
+    /// Formats an expression's current value for display: the value type
+    /// (the <see cref="EvaluationValueType"/> enum value) followed by the value.
+    /// Returns "&lt;unset&gt;" for values that have not been evaluated yet.
     /// </summary>
     public static string Format(EvaluationExpression expression)
     {
@@ -23,6 +26,39 @@ public static class ValueFormatter
             return "<unset>";
         }
 
+        return $"{value.Type}: {FormatValue(expression, value)}";
+    }
+
+    /// <summary>
+    /// The value type (the <see cref="EvaluationValueType"/> enum value) of the
+    /// expression's current value, or "&lt;unset&gt;" when it has not been evaluated.
+    /// </summary>
+    public static string TypeText(EvaluationExpression expression)
+    {
+        EvaluationValue value = expression.CurrentValue;
+        return value.Type == EvaluationValueType.None ? "<unset>" : value.Type.ToString();
+    }
+
+    /// <summary>
+    /// Formats the value itself (without the type prefix). Returns "&lt;unset&gt;" for
+    /// values that have not been evaluated yet.
+    /// </summary>
+    public static string FormatValueOnly(EvaluationExpression expression)
+    {
+        EvaluationValue value = expression.CurrentValue;
+        if (value.Type == EvaluationValueType.None)
+        {
+            return "<unset>";
+        }
+
+        return FormatValue(expression, value);
+    }
+
+    /// <summary>
+    /// Formats the value itself (without the type prefix).
+    /// </summary>
+    private static string FormatValue(EvaluationExpression expression, EvaluationValue value)
+    {
         switch (expression)
         {
             case BlockPolarParameter:
