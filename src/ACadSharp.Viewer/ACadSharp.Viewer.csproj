@@ -18,6 +18,11 @@
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.3" />
+    <PackageReference Include="Avalonia.Headless" Version="12.1.3" />
+    <!-- Real (CPU) renderer for headless screenshot mode: with UseHeadlessDrawing=false
+         the headless window's framebuffer is locked and drawn by Skia, so
+         CaptureRenderedFrame() returns real pixels. -->
+    <PackageReference Include="Avalonia.Skia" Version="12.1.3" />
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.1.2" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />

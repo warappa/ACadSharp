@@ -40,17 +40,41 @@
         <Grid RowDefinitions="Auto,*">
             <ui:FAInfoBar x:Name="InfoBar" Grid.Row="0" IsOpen="False" IsClosable="True"
                          Margin="8,8,8,0" />
-            <Grid Grid.Row="1" ColumnDefinitions="360,*">
+            <Grid Grid.Row="1" ColumnDefinitions="360,Auto,*">
                 <Border Grid.Column="0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,1,0">
-                    <TreeView x:Name="BlockTree" Margin="4" SelectionChanged="OnTreeSelectionChanged">
-                        <TreeView.ItemTemplate>
-                            <TreeDataTemplate DataType="svc:BlockTreeNode" ItemsSource="{Binding Children}">
-                                <TextBlock Text="{Binding DisplayName}" />
-                            </TreeDataTemplate>
-                        </TreeView.ItemTemplate>
-                    </TreeView>
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="8,8,8,4">
+                            <TextBox x:Name="TreeSearchBox" Grid.Column="0" Margin="0,0,6,0"
+                                     PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged" />
+                            <Button Grid.Column="1" Click="OnExpandAllClick" Padding="6,2" Focusable="False">
+                                <ui:FASymbolIcon Symbol="ChevronDown" />
+                            </Button>
+                            <Button Grid.Column="2" Click="OnCollapseAllClick" Padding="6,2" Focusable="False">
+                                <ui:FASymbolIcon Symbol="ChevronUp" />
+                            </Button>
+                        </Grid>
+                        <Grid Grid.Row="1">
+                            <TreeView x:Name="BlockTree" Margin="4,0,4,4" SelectionChanged="OnTreeSelectionChanged">
+                                <TreeView.ItemTemplate>
+                                    <TreeDataTemplate DataType="svc:BlockTreeNode" ItemsSource="{Binding Children}">
+                                        <TextBlock Text="{Binding DisplayName}" />
+                                    </TreeDataTemplate>
+                                </TreeView.ItemTemplate>
+                            </TreeView>
+                            <TextBlock x:Name="TreeEmptyText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorTertiary}"
+                                       Text="No file loaded — open a .dwg or .dxf (Ctrl+O)" />
+                        </Grid>
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" Margin="10,4,10,8">
+                            <TextBlock Text="⚡ dynamic" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <TextBlock Text="×N referenced N times" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <TextBlock Text="⟳ cycle root" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <TextBlock x:Name="TreeSummary" Margin="8,0,0,0" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                        </StackPanel>
+                    </Grid>
                 </Border>
-                <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+                <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource ControlStrokeColorDefault}" />
+                <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
                     <TextBlock x:Name="BlockHeader" Grid.Row="0" Margin="12,10,12,0" FontWeight="Bold" FontSize="16" />
                     <TextBlock x:Name="EvalStatus" Grid.Row="1" Margin="12,4,12,0" Foreground="{DynamicResource TextFillColorSecondary}" />
                     <Grid Grid.Row="2">
@@ -73,7 +97,7 @@
                         <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
                     </Grid>
                 </Grid>
-                <ui:FAProgressRing x:Name="LoadingRing" IsVisible="False" Width="48" Height="48"
+                <ui:FAProgressRing x:Name="LoadingRing" Grid.Column="2" IsVisible="False" Width="48" Height="48"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
         </Grid>

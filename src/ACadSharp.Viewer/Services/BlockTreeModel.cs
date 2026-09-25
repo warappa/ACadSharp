@@ -43,6 +43,17 @@ public class BlockTreeNode
 
         DisplayName = name + (suffix ?? string.Empty);
     }
+
+    /// <summary>
+    /// Copy for the filtered view: same block and display name, possibly
+    /// pruned children (search filter).
+    /// </summary>
+    public BlockTreeNode(BlockRecord block, string displayName, List<BlockTreeNode> children)
+    {
+        Block = block;
+        DisplayName = displayName;
+        Children = children;
+    }
 }
 
 /// <summary>

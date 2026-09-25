@@ -14,6 +14,7 @@ using FluentAvalonia.UI.Controls;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -31,6 +32,7 @@ public partial class MainWindow : Window
     private bool _isBusy;
     private Timer? _infoBarAutoClose;
     private string? _lastPath;
+    private List<BlockTreeNode> _fullTree = new();
 
     public MainWindow()
     {
@@ -47,6 +49,76 @@ public partial class MainWindow : Window
         DragDrop.SetAllowDrop(this, true);
         DragDrop.AddDragOverHandler(this, OnDragOver);
         DragDrop.AddDropHandler(this, OnDrop);
+    }
+
+    private void OnTreeSearchTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        ApplyTreeFilter();
+    }
+
+    private void ApplyTreeFilter()
+    {
+        string query = (TreeSearchBox.Text ?? string.Empty).Trim();
+
+        List<BlockTreeNode> visible = query.Length == 0
+            ? _fullTree
+            : _fullTree
+                .Select(n => FilterNode(n, query))
+                .Where(n => n is not null)
+                .Cast<BlockTreeNode>()
+                .ToList();
+
+        BlockTree.ItemsSource = visible;
+        TreeEmptyText.Text = visible.Count == 0
+            ? (query.Length == 0 ? "No file loaded — open a .dwg or .dxf (Ctrl+O)" : "No blocks match")
+            : string.Empty;
+        TreeEmptyText.IsVisible = visible.Count == 0;
+    }
+
+    /// <summary>
+    /// Returns a copy of the node if the node or any descendant matches the
+    /// query: a matching node keeps all its children (full context); a
+    /// non-matching node keeps only the matching children (breadcrumb path).
+    /// </summary>
+    private static BlockTreeNode? FilterNode(BlockTreeNode node, string query)
+    {
+        bool selfMatches = node.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+        List<BlockTreeNode> matchingChildren = node.Children
+            .Select(c => FilterNode(c, query))
+            .Where(c => c is not null)
+            .Cast<BlockTreeNode>()
+            .ToList();
+
+        if (!selfMatches && matchingChildren.Count == 0)
+        {
+            return null;
+        }
+
+        return new BlockTreeNode(node.Block, node.DisplayName, selfMatches ? node.Children : matchingChildren);
+    }
+
+    private void OnExpandAllClick(object? sender, RoutedEventArgs e)
+    {
+        SetAllExpanded(true);
+    }
+
+    private void OnCollapseAllClick(object? sender, RoutedEventArgs e)
+    {
+        SetAllExpanded(false);
+    }
+
+    private void SetAllExpanded(bool expanded)
+    {
+        // Avalonia 12's TreeView has no ExpandAll/CollapseAll; it is not
+        // virtualized, so every item's container is realized and reachable.
+        foreach (Control c in BlockTree.GetRealizedTreeContainers())
+        {
+            if (c is TreeViewItem item)
+            {
+                item.IsExpanded = expanded;
+            }
+        }
     }
 
     private async void OnOpenClick(object? sender, RoutedEventArgs e)
@@ -128,7 +200,7 @@ public partial class MainWindow : Window
         await LoadFileAsync(path);
     }
 
-    private async Task LoadFileAsync(string path)
+    public async Task LoadFileAsync(string path)
     {
         _isBusy = true;
         _lastPath = path;
@@ -143,23 +215,32 @@ public partial class MainWindow : Window
             CadDocument document = await Task.Run(() => CadFileService.LoadFile(path));
             _document = document;
 
-            var tree = BlockTreeModel.Build(document);
-            BlockTree.ItemsSource = tree;
+            _fullTree = BlockTreeModel.Build(document);
+            TreeSearchBox.Text = string.Empty;
+            ApplyTreeFilter();
+
+            int total = document.BlockRecords.Count;
+            int dynamic = document.BlockRecords.Count(b => b.IsDynamic);
+            TreeSummary.Text = $"{total} block(s): {dynamic} dynamic, {total - dynamic} static";
+
             BlockHeader.Text = string.Empty;
             EvalStatus.Text = string.Empty;
             PropertyGrid.ItemsSource = null;
             PlaceholderText.Text = "Select a block in the tree to see its properties.";
             PlaceholderText.IsVisible = true;
 
-            SetStatus($"Loaded {Path.GetFileName(path)}: {document.BlockRecords.Count} block record(s), {tree.Count} root(s).", StatusKind.Success);
+            SetStatus($"Loaded {Path.GetFileName(path)}: {total} block(s), {_fullTree.Count} root(s).", StatusKind.Success);
             ShowInfoBar(
                 FAInfoBarSeverity.Success,
                 "File loaded",
-                $"{Path.GetFileName(path)} — {document.BlockRecords.Count} block record(s).");
+                $"{Path.GetFileName(path)} — {total} block(s).");
         }
         catch (Exception ex)
         {
             _document = null;
+            _fullTree = new List<BlockTreeNode>();
+            TreeSummary.Text = string.Empty;
+            ApplyTreeFilter();
             SetStatus($"Failed to load {Path.GetFileName(path)}: {ex.Message}", StatusKind.Error);
             ShowInfoBar(
                 FAInfoBarSeverity.Error,
