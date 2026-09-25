@@ -359,7 +359,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        new NodeViewerDialog(_selectedNode.Block, item, graph).Show();
+        new NodeViewerDialog(_selectedNode.Block, item, graph).ShowDialog(this);
     }
 
     /// <summary>
