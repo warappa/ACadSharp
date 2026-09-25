@@ -7,6 +7,20 @@ namespace ACadSharp.Objects.Evaluations;
 public partial class EvaluationGraph
 {
 	/// <summary>
+	/// True for the "reverse" direction of a flag-4 (invertible/lookup) edge pair:
+	/// the edge whose <see cref="Edge.ReverseEdge"/> index is lower than its own index.
+	/// The file stores both directions of a bidirectional lookup link as separate
+	/// records, but logically it is one invertible edge. Skipping the reverse
+	/// direction keeps the graph acyclic (DAG) for topological ordering and
+	/// layout purposes, while still following the forward direction.
+	/// </summary>
+	public bool IsReverseLookupEdge(int edgeIndex)
+	{
+		Edge e = this.Edges[edgeIndex];
+		return e.Flags == 4 && e.ReverseEdge >= 0 && e.ReverseEdge < e.Index;
+	}
+
+	/// <summary>
 	/// Returns the indices of the edges that go INTO the given node (the node's incoming
 	/// edges), in linked-list order. Returns an empty list for an invalid node index or a
 	/// node with no incoming edges.
@@ -167,14 +181,16 @@ public partial class EvaluationGraph
 	/// <summary>
 	/// Computes a topological ordering of the nodes reachable from the given start nodes,
 	/// following outgoing edges. A node appears after all of its predecessors (the nodes
-	/// whose values it depends on). Lookup reverse edges (flag 4) are ignored for ordering
-	/// purposes so that the cyclic lookup connections do not prevent a valid ordering.
+	/// whose values it depends on). The "reverse" direction of invertible (flag-4) edge
+	/// pairs is ignored for ordering purposes so that the bidirectional lookup connections
+	/// do not prevent a valid ordering, while the forward direction is still followed.
 	/// </summary>
 	/// <param name="startNodes">The indices of the nodes to start from (the user-activated nodes).</param>
 	/// <returns>The topologically ordered node indices, or an empty list when the reachable subgraph has a cycle.</returns>
 	public List<int> GetTopologicalOrder(IEnumerable<int> startNodes)
 	{
-		// Build the reachable subgraph (following outgoing edges, ignoring lookup reverse edges).
+		// Build the reachable subgraph (following outgoing edges, skipping the
+		// reverse direction of invertible flag-4 pairs to keep the graph acyclic).
 		HashSet<int> reachable = new HashSet<int>();
 		Stack<int> stack = new Stack<int>();
 		foreach (int s in startNodes)
@@ -195,13 +211,12 @@ public partial class EvaluationGraph
 
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				Edge edge = this.Edges[e];
-				if (edge.Flags == 4)
+				if (this.IsReverseLookupEdge(e))
 				{
-					continue; // skip lookup reverse edges to avoid the cycle
+					continue;
 				}
 
-				stack.Push(edge.ToNodeIndex);
+				stack.Push(this.Edges[e].ToNodeIndex);
 			}
 		}
 
@@ -216,15 +231,14 @@ public partial class EvaluationGraph
 		{
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				Edge edge = this.Edges[e];
-				if (edge.Flags == 4)
+				if (this.IsReverseLookupEdge(e))
 				{
 					continue;
 				}
 
-				if (reachable.Contains(edge.ToNodeIndex))
+				if (reachable.Contains(this.Edges[e].ToNodeIndex))
 				{
-					inDegree[edge.ToNodeIndex]++;
+					inDegree[this.Edges[e].ToNodeIndex]++;
 				}
 			}
 		}
@@ -246,12 +260,12 @@ public partial class EvaluationGraph
 
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				Edge edge = this.Edges[e];
-				if (edge.Flags == 4)
+				if (this.IsReverseLookupEdge(e))
 				{
 					continue;
 				}
 
+				Edge edge = this.Edges[e];
 				if (!reachable.Contains(edge.ToNodeIndex))
 				{
 					continue;

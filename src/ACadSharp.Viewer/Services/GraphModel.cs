@@ -124,7 +124,11 @@ public static class GraphModel
             .Where(n => n.Expression is not null)
             .ToDictionary(n => n.Index);
 
-        // First-visit BFS depth over incoming edges.
+        // First-visit BFS depth over incoming edges. The "reverse" direction
+        // of a flag-4 (lookup) pair is skipped to keep the graph acyclic
+        // (AutoCAD's AcDbEvalGraph is a DAG by design; the file stores both
+        // directions of a bidirectional lookup link, but only one is a real
+        // data-flow edge).
         Dictionary<int, int> depth = new() { [targetIndex] = 0 };
         var queue = new Queue<int>();
         queue.Enqueue(targetIndex);
@@ -134,7 +138,13 @@ public static class GraphModel
             int current = queue.Dequeue();
             foreach (int edgeIndex in graph.GetIncomingEdges(current))
             {
-                int from = graph.Edges[edgeIndex].FromNodeIndex;
+                EvaluationGraph.Edge e = graph.Edges[edgeIndex];
+                if (IsReverseLookupEdge(e))
+                {
+                    continue;
+                }
+
+                int from = e.FromNodeIndex;
                 if (!depth.ContainsKey(from))
                 {
                     depth[from] = depth[current] + 1;
@@ -166,7 +176,7 @@ public static class GraphModel
             foreach (int edgeIdx in graph.GetOutgoingEdges(nodeIndex))
             {
                 EvaluationGraph.Edge e = graph.Edges[edgeIdx];
-                if ((e.Flags & 4) != 0 && depth.ContainsKey(e.ToNodeIndex))
+                if (e.Flags == 4 && !IsReverseLookupEdge(e) && depth.ContainsKey(e.ToNodeIndex))
                 {
                     neighborDepths.Add(depth[e.ToNodeIndex]);
                 }
@@ -174,7 +184,7 @@ public static class GraphModel
             foreach (int edgeIdx in graph.GetIncomingEdges(nodeIndex))
             {
                 EvaluationGraph.Edge e = graph.Edges[edgeIdx];
-                if ((e.Flags & 4) != 0 && depth.ContainsKey(e.FromNodeIndex))
+                if (e.Flags == 4 && !IsReverseLookupEdge(e) && depth.ContainsKey(e.FromNodeIndex))
                 {
                     neighborDepths.Add(depth[e.FromNodeIndex]);
                 }
@@ -214,9 +224,14 @@ public static class GraphModel
             }
         }
 
-        // Edges: every edge whose both ends are in the subgraph.
+        // Edges: every edge whose both ends are in the subgraph. The
+        // "reverse" direction of a flag-4 pair is skipped (DAG).
         foreach (EvaluationGraph.Edge edge in graph.Edges)
         {
+            if (IsReverseLookupEdge(edge))
+            {
+                continue;
+            }
             if (!depth.ContainsKey(edge.FromNodeIndex) || !depth.ContainsKey(edge.ToNodeIndex))
             {
                 continue;
@@ -240,6 +255,10 @@ public static class GraphModel
 
         foreach (EvaluationGraph.Edge edge in graph.Edges)
         {
+            if (IsReverseLookupEdge(edge))
+            {
+                continue;
+            }
             if (!depth.ContainsKey(edge.FromNodeIndex) || !depth.ContainsKey(edge.ToNodeIndex))
             {
                 continue;
@@ -265,6 +284,16 @@ public static class GraphModel
     /// connections. Lookup edges (flag 4 or a lookup action/parameter) get a
     /// "lookup ×N" label and are drawn dashed.
     /// </summary>
+    /// <summary>
+    /// True for the "reverse" direction of a flag-4 (lookup) edge pair:
+    /// the edge whose <c>ReverseEdge</c> index is lower than its own index.
+    /// Skipping these keeps the graph acyclic (DAG).
+    /// </summary>
+    private static bool IsReverseLookupEdge(EvaluationGraph.Edge edge)
+    {
+        return edge.Flags == 4 && edge.ReverseEdge >= 0 && edge.ReverseEdge < edge.Index;
+    }
+
     /// <summary>
     /// The port name for an edge: the <c>Name</c> field of the connection on
     /// the target node that references the source node. Falls back to a
