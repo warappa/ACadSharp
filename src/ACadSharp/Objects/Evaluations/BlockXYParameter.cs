@@ -50,9 +50,11 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 	/// </summary>
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
-	/// a computed read of it). For an XY parameter this is the full (X, Y) offset.
+	/// a computed read of it). For an XY parameter this is the (X, Y) offset as a 2D point —
+	/// the parameter is inherently 2D (it has no Z), so the value is a <see cref="XY"/>
+	/// (<see cref="EvaluationValueType.Point2d"/>), not a 3D point.
 	/// </summary>
-	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+	public new EvaluationValue<XY> CurrentValue => base.CurrentValue.As<XY>();
 
 	public override bool Evaluate(EvaluationContext context)
 	{
@@ -67,7 +69,7 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 		context.SetValue(this.Id, "XScale", x);
 		context.SetValue(this.Id, "YScale", y);
 		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
-		base.CurrentValue = EvaluationValue.FromPoint(new XYZ(x, y, 0));
+		base.CurrentValue = EvaluationValue.FromPoint2d(new XY(x, y));
 
 		return true;
 	}

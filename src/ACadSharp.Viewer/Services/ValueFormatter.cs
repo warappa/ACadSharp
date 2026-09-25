@@ -71,9 +71,9 @@ public static class ValueFormatter
                 return $"{ToDegrees(value.DoubleValue ?? 0):0.##}°";
             case BlockXYParameter:
             {
-                // A Cartesian (x, y) pair; drop the always-zero Z.
-                XYZ p = value.PointValue ?? XYZ.Zero;
-                return $"{p.X:0.##}, {p.Y:0.##}";
+                // A Cartesian (x, y) pair; the value is a 2D point.
+                XY p2 = value.Point2dValue ?? XY.Zero;
+                return $"{p2.X:0.##}, {p2.Y:0.##}";
             }
             default:
                 return value.ToString();

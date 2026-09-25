@@ -83,21 +83,24 @@ public partial class BlockVisibilityParameter : Block1PtParameter, IDxfClassDefi
 
 		XYZ updatedLocation = this.Location + displacement;
 
-		// The selected state index: 0 = the first state (default).
-		double stateIndex = 0;
+		// The selected state index: 0 = the first state (default). It is a discrete
+		// integer (the index into the states collection), so it is emitted as an
+		/// <see cref="EvaluationValueType.Int"/>.
+		int stateIndex = 0;
 
-		context.SetValue(this.Id, "Value", stateIndex);
+		context.SetValue(this.Id, "Value", EvaluationValue.FromInt(stateIndex));
 		this.WriteUpdatedLocation(context, updatedLocation);
-		base.CurrentValue = EvaluationValue.FromDouble(stateIndex);
+		base.CurrentValue = EvaluationValue.FromInt(stateIndex);
 
 		return true;
 	}
 
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
-	/// a computed read of it). For a visibility parameter this is the selected state index.
+	/// a computed read of it). For a visibility parameter this is the selected state index
+	/// (a discrete integer).
 	/// </summary>
-	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+	public new EvaluationValue<int> CurrentValue => base.CurrentValue.As<int>();
 
 	/// <inheritdoc/>
 	public override CadObject Clone()
