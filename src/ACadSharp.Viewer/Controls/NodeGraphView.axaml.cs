@@ -26,7 +26,11 @@ public partial class NodeGraphView : UserControl
 {
     private const double BoxWidth = 170;
     private const double BoxHeight = 48;
-    private const double ColumnWidth = 240;
+    // Column pitch: the horizontal gap between node boxes is ColumnWidth -
+    // BoxWidth (150px). The edge labels sit in that gap (centered on the
+    // line, 16px clear of the arrowhead), so the pitch must leave room for
+    // the longest port-name label (e.g. "Displacement lookup ×2", ~120px).
+    private const double ColumnWidth = 320;
     private const double RowHeight = 80;
     private const double Margin = 20;
     private const double MinScale = 0.1;
