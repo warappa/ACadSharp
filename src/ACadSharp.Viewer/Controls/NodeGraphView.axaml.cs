@@ -651,6 +651,16 @@ public partial class NodeGraphView : UserControl
         Point start = new Point(from.X + BoxWidth, from.Y + BoxHeight / 2);
         Point end = new Point(to.X, to.Y + BoxHeight / 2);
 
+        Vector direction = end - start;
+        bool hasDirection = direction.SquaredLength > 0.01;
+        if (hasDirection)
+        {
+            direction = direction.Normalize();
+        }
+
+        // Shorten the line by 5px so it doesn't overlap the arrowhead tip.
+        Point lineEnd = hasDirection ? end - direction * 5 : end;
+
         double dx = Math.Max(Math.Abs(end.X - start.X) * 0.5, 40);
         var geometry = new PathGeometry();
         var figure = new PathFigure
@@ -661,8 +671,8 @@ public partial class NodeGraphView : UserControl
         figure.Segments.Add(new BezierSegment
         {
             Point1 = new Point(start.X + dx, start.Y),
-            Point2 = new Point(end.X - dx, end.Y),
-            Point3 = end,
+            Point2 = new Point(lineEnd.X - dx, lineEnd.Y),
+            Point3 = lineEnd,
         });
         geometry.Figures.Add(figure);
 
@@ -677,17 +687,34 @@ public partial class NodeGraphView : UserControl
             line.StrokeDashArray = new AvaloniaList<double> { 6, 4 };
         }
 
-        // Hover: thicken the edge and show a floating tooltip near the pointer.
+        GraphCanvas.Children.Add(line);
+
+        // Arrowhead at the target end (pointing along the edge direction).
+        Path? arrowhead = null;
+        if (hasDirection)
+        {
+            arrowhead = AddArrowhead(end, direction);
+        }
+
+        // Hover: thicken the edge (and arrowhead) and show a floating tooltip.
         line.PointerEntered += (_, e) =>
         {
             line.StrokeThickness = 3;
             line.Stroke = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
+            if (arrowhead is not null)
+            {
+                arrowhead.Fill = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
+            }
             ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
         };
         line.PointerExited += (_, _) =>
         {
             line.StrokeThickness = 1.5;
             line.Stroke = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
+            if (arrowhead is not null)
+            {
+                arrowhead.Fill = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
+            }
             HoverTip.IsVisible = false;
         };
         line.PointerMoved += (_, e) =>
@@ -699,16 +726,6 @@ public partial class NodeGraphView : UserControl
                 Canvas.SetTop(HoverTip, p.Y + 14);
             }
         };
-
-        GraphCanvas.Children.Add(line);
-
-        // Arrowhead at the target end (pointing along the edge direction).
-        Vector direction = end - start;
-        if (direction.SquaredLength > 0.01)
-        {
-            direction = direction.Normalize();
-            AddArrowhead(end, direction);
-        }
 
         // Label at the midpoint; the opaque background mask (the canvas
         // background color) keeps the label readable where it overlaps the
@@ -773,7 +790,7 @@ public partial class NodeGraphView : UserControl
         Canvas.SetTop(HoverTip, at.Y + 14);
     }
 
-    private void AddArrowhead(Point at, Vector direction)
+    private Path AddArrowhead(Point at, Vector direction)
     {
         double size = 8;
         Vector normal = new Vector(-direction.Y, direction.X);
@@ -791,11 +808,13 @@ public partial class NodeGraphView : UserControl
         figure.Segments.Add(new LineSegment { Point = p3 });
         geometry.Figures.Add(figure);
 
-        GraphCanvas.Children.Add(new Path
+        var arrowhead = new Path
         {
             Data = geometry,
             Fill = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A)),
-        });
+        };
+        GraphCanvas.Children.Add(arrowhead);
+        return arrowhead;
     }
 
     private static MediaColor GetKindColor(string kind) => kind switch
