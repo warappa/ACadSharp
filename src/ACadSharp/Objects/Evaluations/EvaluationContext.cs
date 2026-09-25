@@ -1,70 +1,109 @@
+using System;
 using System.Collections.Generic;
 
 namespace ACadSharp.Objects.Evaluations;
 
 /// <summary>
-/// The evaluation context: a value store used to pass values between the nodes of an
-/// <see cref="EvaluationGraph"/> during evaluation.
+/// The shared, mutable state that flows through a block's evaluation graph.
 /// <para>
-/// Mirrors the ObjectARX <c>AcDbEvalContext</c> (a key → value container). A value is
-/// stored under a pair of keys: the producing expression's <c>Id</c> and the output
-/// <em>port name</em> (for example <c>"DisplacementX"</c> or <c>"UpdatedEndX"</c>). A
-/// dependent node reads a value by the target expression's <c>Id</c> and the port name
-/// from its connection.
+/// Holds one <see cref="EvaluationValue"/> per (node id, port name) pair. When a node is evaluated,
+/// it reads its input connections from this context and writes its result back, so downstream
+/// nodes can consume it.
+/// </para>
+/// <para>
+/// The value is held in its full shape (<see cref="EvaluationValue"/> — scalar, point, 2D point,
+/// string, integer, character, or object id), so a text column (for example a lookup table's state
+/// name) can flow through the graph as a string rather than being coerced to a number.
 /// </para>
 /// </summary>
-public class EvaluationContext
+public sealed class EvaluationContext
 {
-	private readonly Dictionary<int, Dictionary<string, double>> _values = new Dictionary<int, Dictionary<string, double>>();
+	private readonly Dictionary<int, Dictionary<string, EvaluationValue>> _values = new();
 
 	/// <summary>
-	/// Stores a value for an expression under the given port name.
+	/// Stores the value of the named port on the given node.
 	/// </summary>
-	/// <param name="id">The producing expression's id.</param>
-	/// <param name="port">The output port name (for example "DisplacementX").</param>
-	/// <param name="value">The value to store.</param>
-	public void SetValue(int id, string port, double value)
+	public void SetValue(int id, string name, EvaluationValue value)
 	{
-		if (!this._values.TryGetValue(id, out Dictionary<string, double> ports))
+		if (!_values.TryGetValue(id, out var ports))
 		{
-			ports = new Dictionary<string, double>();
-			this._values[id] = ports;
+			ports = _values[id] = new Dictionary<string, EvaluationValue>();
 		}
 
-		ports[port] = value;
+		ports[name] = value;
 	}
 
 	/// <summary>
-	/// Tries to get a value for an expression under the given port name.
+	/// Stores a scalar value for the named port on the given node.
 	/// </summary>
-	/// <param name="id">The producing expression's id.</param>
-	/// <param name="port">The output port name.</param>
-	/// <param name="value">The value, if found.</param>
-	/// <returns>True if the value was found; otherwise false (and <paramref name="value"/> is 0).</returns>
-	public bool TryGetValue(int id, string port, out double value)
+	public void SetValue(int id, string name, double value) => this.SetValue(id, name, EvaluationValue.FromDouble(value));
+
+	/// <summary>
+	/// Stores a string value for the named port on the given node.
+	/// </summary>
+	public void SetValue(int id, string name, string value) => this.SetValue(id, name, EvaluationValue.FromString(value));
+
+	/// <summary>
+	/// Reads the full value of the named port on the given node.
+	/// </summary>
+	public bool TryGetValue(int id, string name, out EvaluationValue value)
 	{
-		if (this._values.TryGetValue(id, out Dictionary<string, double> ports) && ports.TryGetValue(port, out value))
+		if (_values.TryGetValue(id, out var ports) && ports.TryGetValue(name, out var v))
 		{
+			value = v;
 			return true;
 		}
 
-		value = 0;
+		value = EvaluationValue.None;
 		return false;
 	}
 
 	/// <summary>
-	/// Checks whether a value has been stored for an expression under the given port name.
+	/// Reads the scalar of the named port on the given node.
+	/// <para>
+	/// Returns <c>false</c> when the port is absent <em>or</em> holds a non-scalar value (for
+	/// example a string). Use <see cref="TryGetValue(int, string, out EvaluationValue)"/> to inspect
+	/// the full shape.
+	/// </para>
 	/// </summary>
-	public bool HasValue(int id, string port)
+	public bool TryGetValue(int id, string name, out double value)
 	{
-		return this._values.TryGetValue(id, out Dictionary<string, double> ports) && ports.ContainsKey(port);
+		if (this.TryGetValue(id, name, out EvaluationValue v) && v.DoubleValue is { } d)
+		{
+			value = d;
+			return true;
+		}
+
+		value = 0.0;
+		return false;
 	}
 
 	/// <summary>
-	/// Clears all stored values.
+	/// Reads the string of the named port on the given node.
+	/// <para>
+	/// Returns <c>false</c> when the port is absent <em>or</em> holds a non-string value. Use
+	/// <see cref="TryGetValue(int, string, out EvaluationValue)"/> to inspect the full shape.
 	/// </summary>
-	public void Clear()
+	public bool TryGetValue(int id, string name, out string value)
 	{
-		this._values.Clear();
+		if (this.TryGetValue(id, name, out EvaluationValue v) && v.StringValue is { } s)
+		{
+			value = s;
+			return true;
+		}
+
+		value = null;
+		return false;
 	}
+
+	/// <summary>
+	/// Whether the named port on the given node has been set.
+	/// </summary>
+	public bool HasValue(int id, string name) =>
+		_values.TryGetValue(id, out var ports) && ports.ContainsKey(name);
+
+	/// <summary>
+	/// Clears all stored values (for example between evaluations of the same block).
+	/// </summary>
+	public void Clear() => _values.Clear();
 }

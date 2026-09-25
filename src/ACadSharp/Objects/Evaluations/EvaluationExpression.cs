@@ -38,9 +38,12 @@ public abstract class EvaluationExpression : NonGraphicalObject
 	/// <para>
 	/// Mirrors the ObjectARX <c>AcDbEvalExpr::value()</c> (the node's value, updated during
 	/// evaluation; <c>kNone</c> before the first evaluation). The value is a shape-agnostic
-	/// <see cref="EvaluationValue"/> ("object") that can hold either a scalar or a point, so a
-	/// multi-valued expression (for example a point or XY parameter) carries its <em>whole</em>
-	/// value rather than a single representative component.
+	/// <see cref="EvaluationValue"/> ("object") that can hold any of the shapes in
+	/// <see cref="EvaluationValueType"/> — a scalar, a 3D point, a 2D point, a string, an
+	/// integer, a character, or an object id — so a multi-valued expression (for example a
+	/// point or XY parameter) carries its <em>whole</em> value rather than a single
+	/// representative component, and a text value (for example a lookup table's state name)
+	/// flows through the graph as a string.
 	/// </para>
 	/// <para>
 	/// A leaf that has a single, well-known value shape exposes a typed view under the same name
