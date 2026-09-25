@@ -26,6 +26,9 @@ public partial class NodeGraphView : UserControl
 {
     private const double BoxWidth = 170;
     private const double BoxHeight = 48;
+    // A named node shows three lines (name / type / value), so its box is
+    // taller than the two-line boxes.
+    private const double NamedBoxHeight = 64;
     // Column pitch: the horizontal gap between node boxes is ColumnWidth -
     // BoxWidth (150px). The edge labels sit in that gap (centered on the
     // line, 16px clear of the arrowhead), so the pitch must leave room for
@@ -503,7 +506,9 @@ public partial class NodeGraphView : UserControl
 
             GraphNodeInfo? fromNode = byIndex.TryGetValue(edge.FromIndex, out GraphNodeInfo f) ? f : null;
             GraphNodeInfo? toNode = byIndex.TryGetValue(edge.ToIndex, out GraphNodeInfo t) ? t : null;
-            AddEdge(from, to, edge, fromNode, toNode);
+            // The connection points sit at the vertical center of each box,
+            // which depends on the box height (named boxes are taller).
+            AddEdge(from, BoxHeightFor(fromNode), to, BoxHeightFor(toNode), edge, fromNode, toNode);
         }
 
         // Node boxes.
@@ -531,13 +536,19 @@ public partial class NodeGraphView : UserControl
         // The target (depth 0) gets a highlight ring.
         bool isTarget = node.Depth == 0;
 
+        // The element's name (parameters, grips, and actions all carry one):
+        // when present it is the primary label and the type drops to the
+        // secondary line; without a name the type stays primary.
+        string? name = GetName(node.Expression);
+        bool hasName = name is not null;
+
         var border = new Border
         {
             CornerRadius = new CornerRadius(8),
             Background = new SolidColorBrush(GetKindColor(node.Kind)),
             Padding = new Thickness(isTarget ? 13 : 10, isTarget ? 7 : 4),
             MinWidth = BoxWidth,
-            Height = BoxHeight,
+            Height = hasName ? NamedBoxHeight : BoxHeight,
             // Constant thickness (3 for the target, 2 otherwise) so hover
             // never shifts the text; the brush is set by SetBoxBorder.
             BorderBrush = isTarget ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent,
@@ -549,26 +560,36 @@ public partial class NodeGraphView : UserControl
             Foreground = Brushes.White,
             FontWeight = FontWeight.SemiBold,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Text = $"{node.Expression.GetType().Name}  (#{node.Index})",
+            Text = hasName ? name! : $"{node.Expression.GetType().Name}  (#{node.Index})",
         };
-        var valueText = new TextBlock
+        var lines = new List<TextBlock> { text };
+
+        if (hasName)
+        {
+            // The type is secondary when the name is primary.
+            lines.Add(new TextBlock
+            {
+                Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+                FontSize = 11,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                Text = $"{node.Expression.GetType().Name}  #{node.Index}",
+            });
+        }
+
+        lines.Add(new TextBlock
         {
             Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
             FontSize = 11,
             FontFamily = new FontFamily("Cascadia Code, Consolas, monospace"),
             TextTrimming = TextTrimming.CharacterEllipsis,
             Text = ValueFormatter.Format(node.Expression),
-        };
+        });
 
-        var stack = new StackPanel
+        var stack = new StackPanel { Spacing = 1 };
+        foreach (TextBlock line in lines)
         {
-            Spacing = 1,
-            Children =
-            {
-                text,
-                valueText,
-            },
-        };
+            stack.Children.Add(line);
+        }
 
         border.Child = stack;
         Canvas.SetLeft(border, position.X);
@@ -685,14 +706,16 @@ public partial class NodeGraphView : UserControl
 
     private void AddEdge(
         Point from,
+        double fromHeight,
         Point to,
+        double toHeight,
         GraphEdgeInfo edge,
         GraphNodeInfo? fromNode,
         GraphNodeInfo? toNode)
     {
         // From the right-middle of the source box to the left-middle of the target box.
-        Point start = new Point(from.X + BoxWidth, from.Y + BoxHeight / 2);
-        Point end = new Point(to.X, to.Y + BoxHeight / 2);
+        Point start = new Point(from.X + BoxWidth, from.Y + fromHeight / 2);
+        Point end = new Point(to.X, to.Y + toHeight / 2);
 
         Vector direction = end - start;
         bool hasDirection = direction.SquaredLength > 0.01;
@@ -831,7 +854,9 @@ public partial class NodeGraphView : UserControl
 
     private void ShowEdgeTip(GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, Point at)
     {
-        string tip = $"{fromNode?.Kind ?? "?"} #{edge.FromIndex}  →  {toNode?.Kind ?? "?"} #{edge.ToIndex}";
+        // The node's name (when it has one) leads the label, then the kind
+        // and index.
+        string tip = $"{NodeLabel(fromNode)}  →  {NodeLabel(toNode)}";
         tip += edge.Label.Length > 0 ? $"\nport: {edge.Label}" : "\n(unlabeled connection)";
         if (edge.IsDashed)
         {
@@ -839,6 +864,19 @@ public partial class NodeGraphView : UserControl
         }
 
         SetHoverTip(tip, at);
+    }
+
+    private static string NodeLabel(GraphNodeInfo? node)
+    {
+        if (node is null)
+        {
+            return "?";
+        }
+
+        string? name = GetName(node.Expression);
+        return name is null
+            ? $"{node.Kind} #{node.Index}"
+            : $"{name} ({node.Kind}) #{node.Index}";
     }
 
     private void SetHoverTip(string text, Point at)
@@ -876,6 +914,25 @@ public partial class NodeGraphView : UserControl
         return arrowhead;
     }
 
+    /// <summary>
+    /// The display name of a node's element: the block element name
+    /// (parameters, grips, and actions all carry one); null when the element
+    /// has no name (e.g. grip location components).
+    /// </summary>
+    private static string? GetName(EvaluationExpression expression)
+    {
+        string? name = (expression as BlockElement)?.ElementName;
+        return string.IsNullOrWhiteSpace(name) ? null : name;
+    }
+
+    /// <summary>
+    /// The height of a node's box: named nodes show three lines (name /
+    /// type / value) and get the taller box; unnamed nodes stay at the
+    /// default two-line height.
+    /// </summary>
+    private static double BoxHeightFor(GraphNodeInfo? node) =>
+        node is null || GetName(node.Expression) is null ? BoxHeight : NamedBoxHeight;
+
     private static MediaColor GetKindColor(string kind) => kind switch
     {
         "Parameter" => MediaColor.Parse("#3D7EBF"),
@@ -889,17 +946,17 @@ public partial class NodeGraphView : UserControl
     {
         var sb = new StringBuilder();
         sb.AppendLine($"{node.Expression.GetType().Name}  (node #{node.Index}, {node.Kind})");
+        string? name = GetName(node.Expression);
+        if (name is not null)
+        {
+            sb.AppendLine($"name: {name}");
+        }
         sb.AppendLine($"value: {ValueFormatter.Format(node.Expression)}");
         sb.AppendLine($"id: {node.Expression.Id}");
 
         if (node.Expression is BlockGrip grip)
         {
             sb.AppendLine($"location: {grip.Location}  displacement: {grip.Displacement}");
-        }
-
-        if (node.Expression is BlockParameter parameter)
-        {
-            sb.AppendLine($"element name: {parameter.ElementName}");
         }
 
         return sb.ToString();
