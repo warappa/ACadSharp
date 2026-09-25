@@ -497,20 +497,43 @@ public partial class NodeGraphView : UserControl
             byIndex[node.Index] = node;
         }
 
+        // Port positions: distributed evenly along the left/right edge of the box.
+        Dictionary<int, List<Point>> inputPortPos = new();
+        Dictionary<int, List<Point>> outputPortPos = new();
+        foreach (GraphNodeInfo node in model.Nodes)
+        {
+            Point pos = positions[node.Index];
+            double h = BoxHeightFor(node);
+
+            inputPortPos[node.Index] = new List<Point>();
+            for (int i = 0; i < node.InputPorts.Count; i++)
+            {
+                double y = pos.Y + (i + 0.5) * (h / Math.Max(1, node.InputPorts.Count));
+                inputPortPos[node.Index].Add(new Point(pos.X, y));
+            }
+
+            outputPortPos[node.Index] = new List<Point>();
+            for (int i = 0; i < node.OutputPorts.Count; i++)
+            {
+                double y = pos.Y + (i + 0.5) * (h / Math.Max(1, node.OutputPorts.Count));
+                outputPortPos[node.Index].Add(new Point(pos.X + BoxWidth, y));
+            }
+        }
+
         // Edges first (below the node boxes).
         foreach (GraphEdgeInfo edge in model.Edges)
         {
-            if (!positions.TryGetValue(edge.FromIndex, out Point from)
-                || !positions.TryGetValue(edge.ToIndex, out Point to))
+            if (!byIndex.TryGetValue(edge.FromIndex, out GraphNodeInfo? fromNode)
+                || !byIndex.TryGetValue(edge.ToIndex, out GraphNodeInfo? toNode))
             {
                 continue;
             }
 
-            GraphNodeInfo? fromNode = byIndex.TryGetValue(edge.FromIndex, out GraphNodeInfo f) ? f : null;
-            GraphNodeInfo? toNode = byIndex.TryGetValue(edge.ToIndex, out GraphNodeInfo t) ? t : null;
-            // The connection points sit at the vertical center of each box,
-            // which depends on the box height (named boxes are taller).
-            AddEdge(from, BoxHeightFor(fromNode), to, BoxHeightFor(toNode), edge, fromNode, toNode);
+            int srcIdx = FindPortIndex(fromNode.OutputPorts, edge.ToIndex);
+            int dstIdx = FindPortIndex(toNode.InputPorts, edge.FromIndex);
+            Point start = outputPortPos[edge.FromIndex][srcIdx];
+            Point end = inputPortPos[edge.ToIndex][dstIdx];
+            AddEdge(start, end, edge, fromNode, toNode);
         }
 
         // Node boxes.
@@ -704,26 +727,100 @@ public partial class NodeGraphView : UserControl
         };
 
         GraphCanvas.Children.Add(border);
+
+        // Port circles and labels: input ports on the left edge, output
+        // ports on the right edge.
+        double h = hasName ? NamedBoxHeight : BoxHeight;
+        DrawPorts(node.InputPorts, position.X, position.Y, h, isInput: true);
+        DrawPorts(node.OutputPorts, position.X + BoxWidth, position.Y, h, isInput: false);
+    }
+
+    /// <summary>
+    /// Draws a row of port circles (small filled circles) along the given
+    /// edge of a box, with the port name in small font next to each circle.
+    /// </summary>
+    private void DrawPorts(List<PortInfo> ports, double edgeX, double boxY, double boxH, bool isInput)
+    {
+        if (ports.Count == 0)
+        {
+            return;
+        }
+
+        const double radius = 4;
+        foreach (PortInfo port in ports)
+        {
+            // Position: distributed evenly along the edge.
+            int idx = ports.IndexOf(port);
+            double y = boxY + (idx + 0.5) * (boxH / ports.Count);
+
+            // Circle.
+            var circle = new Ellipse
+            {
+                Width = radius * 2,
+                Height = radius * 2,
+                Fill = Brushes.White,
+                Stroke = new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+                StrokeThickness = 1,
+                IsHitTestVisible = false,
+            };
+            Canvas.SetLeft(circle, edgeX - radius);
+            Canvas.SetTop(circle, y - radius);
+            GraphCanvas.Children.Add(circle);
+
+            // Label: to the left of input ports, to the right of output ports.
+            if (port.Name.Length > 0)
+            {
+                var label = new TextBlock
+                {
+                    FontSize = 9,
+                    Foreground = new SolidColorBrush(MediaColor.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                    Text = port.Name,
+                    IsHitTestVisible = false,
+                };
+                if (isInput)
+                {
+                    // Measure-free: position to the left of the circle.
+                    Canvas.SetLeft(label, edgeX - radius - port.Name.Length * 5.5 - 2);
+                }
+                else
+                {
+                    Canvas.SetLeft(label, edgeX + radius + 2);
+                }
+                Canvas.SetTop(label, y - 6);
+                GraphCanvas.Children.Add(label);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds the index of the port in the given list that connects to the
+    /// given peer node index. Returns 0 when no match is found.
+    /// </summary>
+    private static int FindPortIndex(List<PortInfo> ports, int peerIndex)
+    {
+        for (int i = 0; i < ports.Count; i++)
+        {
+            if (ports[i].PeerIndex == peerIndex)
+            {
+                return i;
+            }
+        }
+
+        return 0;
     }
 
     private void AddEdge(
-        Point from,
-        double fromHeight,
-        Point to,
-        double toHeight,
+        Point start,
+        Point end,
         GraphEdgeInfo edge,
         GraphNodeInfo? fromNode,
         GraphNodeInfo? toNode)
     {
         if (edge.IsFeedback)
         {
-            AddFeedbackEdge(from, fromHeight, to, toHeight, edge, fromNode, toNode);
+            AddFeedbackEdge(start, end, edge, fromNode, toNode);
             return;
         }
-
-        // From the right-middle of the source box to the left-middle of the target box.
-        Point start = new Point(from.X + BoxWidth, from.Y + fromHeight / 2);
-        Point end = new Point(to.X, to.Y + toHeight / 2);
 
         Vector direction = end - start;
         bool hasDirection = direction.SquaredLength > 0.01;
@@ -862,17 +959,12 @@ public partial class NodeGraphView : UserControl
     /// at the target end.
     /// </summary>
     private void AddFeedbackEdge(
-        Point from,
-        double fromHeight,
-        Point to,
-        double toHeight,
+        Point start,
+        Point end,
         GraphEdgeInfo edge,
         GraphNodeInfo? fromNode,
         GraphNodeInfo? toNode)
     {
-        // Arc from the top-center of the source to the top-center of the target.
-        Point start = new Point(from.X + BoxWidth / 2, from.Y);
-        Point end = new Point(to.X + BoxWidth / 2, to.Y);
 
         double arcHeight = Math.Max(50, Math.Abs(end.X - start.X) * 0.25);
         Point c1 = new Point(start.X, start.Y - arcHeight);

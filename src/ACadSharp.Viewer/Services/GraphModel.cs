@@ -6,8 +6,24 @@ using System.Linq;
 namespace ACadSharp.Viewer.Services;
 
 /// <summary>
+/// A named port (slot) on a node, connected to a specific peer node.
+/// </summary>
+public class PortInfo
+{
+    public string Name { get; }
+    public int PeerIndex { get; }
+
+    public PortInfo(string name, int peerIndex)
+    {
+        Name = name;
+        PeerIndex = peerIndex;
+    }
+}
+
+/// <summary>
 /// A node in the ancestor subgraph, with its layout position
-/// (column = BFS depth from the target, row = order within the column).
+/// (column = BFS depth from the target, row = order within the column)
+/// and its input/output ports.
 /// </summary>
 public class GraphNodeInfo
 {
@@ -20,6 +36,18 @@ public class GraphNodeInfo
     /// Color category: Parameter / Grip / Action / Component / Other.
     /// </summary>
     public string Kind { get; }
+
+    /// <summary>
+    /// Input ports (left side of the box): each entry is a port that reads
+    /// from a specific peer node.
+    /// </summary>
+    public List<PortInfo> InputPorts { get; set; } = new();
+
+    /// <summary>
+    /// Output ports (right side of the box): each entry is a port that a
+    /// specific peer node reads from.
+    /// </summary>
+    public List<PortInfo> OutputPorts { get; set; } = new();
 
     public GraphNodeInfo(int index, EvaluationExpression expression, int depth, int row)
     {
@@ -195,6 +223,34 @@ public static class GraphModel
             result.Edges.Add(BuildEdgeLabel(graph, edge, isFeedback));
         }
 
+        // Ports: for each edge, the port name (from the target's connection)
+        // is an output port on the source and an input port on the target.
+        var inputPorts = new Dictionary<int, List<PortInfo>>();
+        var outputPorts = new Dictionary<int, List<PortInfo>>();
+        foreach (int nodeIndex in depth.Keys)
+        {
+            inputPorts[nodeIndex] = new List<PortInfo>();
+            outputPorts[nodeIndex] = new List<PortInfo>();
+        }
+
+        foreach (EvaluationGraph.Edge edge in graph.Edges)
+        {
+            if (!depth.ContainsKey(edge.FromNodeIndex) || !depth.ContainsKey(edge.ToNodeIndex))
+            {
+                continue;
+            }
+
+            string portName = GetPortName(graph, edge);
+            outputPorts[edge.FromNodeIndex].Add(new PortInfo(portName, edge.ToNodeIndex));
+            inputPorts[edge.ToNodeIndex].Add(new PortInfo(portName, edge.FromNodeIndex));
+        }
+
+        foreach (GraphNodeInfo node in result.Nodes)
+        {
+            node.InputPorts = inputPorts[node.Index];
+            node.OutputPorts = outputPorts[node.Index];
+        }
+
         return result;
     }
 
@@ -204,6 +260,32 @@ public static class GraphModel
     /// connections. Lookup edges (flag 4 or a lookup action/parameter) get a
     /// "lookup ×N" label and are drawn dashed.
     /// </summary>
+    /// <summary>
+    /// The port name for an edge: the <c>Name</c> field of the connection on
+    /// the target node that references the source node. Empty when no such
+    /// connection exists.
+    /// </summary>
+    private static string GetPortName(EvaluationGraph graph, EvaluationGraph.Edge edge)
+    {
+        EvaluationExpression? toExpr = GetExpression(graph, edge.ToNodeIndex);
+        EvaluationExpression? fromExpr = GetExpression(graph, edge.FromNodeIndex);
+
+        if (toExpr is null || fromExpr is null)
+        {
+            return string.Empty;
+        }
+
+        foreach ((int id, string name) in GetConnections(toExpr))
+        {
+            if (id == fromExpr.Id)
+            {
+                return name;
+            }
+        }
+
+        return string.Empty;
+    }
+
     private static GraphEdgeInfo BuildEdgeLabel(EvaluationGraph graph, EvaluationGraph.Edge edge, bool isFeedback)
     {
         EvaluationExpression? toExpr = GetExpression(graph, edge.ToNodeIndex);
@@ -215,29 +297,18 @@ public static class GraphModel
             || toExpr is BlockLookupAction
             || fromExpr is BlockLookupAction;
 
-        string? portName = null;
-        if (toExpr is not null)
-        {
-            foreach ((int id, string name) in GetConnections(toExpr))
-            {
-                if (id == fromExpr?.Id)
-                {
-                    portName = name;
-                    break;
-                }
-            }
-        }
+        string portName = GetPortName(graph, edge);
 
         string label;
         if (isLookup)
         {
-            label = portName is null
+            label = portName.Length == 0
                 ? "lookup"
                 : $"lookup ({portName})";
         }
         else
         {
-            label = portName ?? string.Empty;
+            label = portName;
         }
 
         if (edge.TrackedCount > 1)
