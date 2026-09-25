@@ -1,4 +1,5 @@
 using ACadSharp;
+using ACadSharp.Viewer.Controls;
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
@@ -15,6 +16,7 @@ namespace ACadSharp.Viewer;
 public partial class MainWindow : Window
 {
     private CadDocument? _document;
+    private BlockTreeNode? _selectedNode;
 
     public MainWindow()
     {
@@ -81,6 +83,7 @@ public partial class MainWindow : Window
             return;
         }
 
+        _selectedNode = node;
         BlockHeader.Text = node.Block.Name + (node.Block.IsDynamic ? " (dynamic)" : string.Empty);
 
         BlockModel? model = BlockModel.Create(node.Block);
@@ -104,10 +107,18 @@ public partial class MainWindow : Window
 
     private void OnInfoClick(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: PropertyItem item })
+        if (sender is not Button { Tag: PropertyItem item } || _selectedNode is null)
         {
-            StatusText.Text = $"Info for '{item.Name}' (node {item.NodeIndex}) — the node viewer arrives in a later phase.";
+            return;
         }
+
+        if (_selectedNode.Block.EvaluationGraph is not { } graph)
+        {
+            return;
+        }
+
+        var dialog = new NodeViewerDialog(_selectedNode.Block, item, graph);
+        dialog.ShowDialog(this);
     }
 
     private void OnThemeToggleClick(object? sender, RoutedEventArgs e)

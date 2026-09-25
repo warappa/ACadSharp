@@ -132,6 +132,15 @@ static class SmokeTest
             {
                 Console.WriteLine($"  {property.Name,-20} [{property.Description}] = {property.ValueText}");
             }
+
+            // 4. Ancestor subgraph sizes (node viewer input).
+            Console.WriteLine();
+            Console.WriteLine("--- ancestor subgraphs ---");
+            foreach (PropertyItem property in model.Properties)
+            {
+                GraphModel.Result sub = GraphModel.BuildAncestors(graph, property.NodeIndex);
+                Console.WriteLine($"  {property.Name,-20} -> {sub.Nodes.Count} node(s), {sub.Edges.Count} edge(s), maxDepth={sub.MaxDepth}");
+            }
         }
 
         Console.WriteLine();
