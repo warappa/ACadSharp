@@ -151,6 +151,11 @@ public static class GraphModel
         foreach (KeyValuePair<int, int> kv in depth.ToList())
         {
             int nodeIndex = kv.Key;
+            // The target always stays at depth 0 (rightmost column).
+            if (nodeIndex == targetIndex)
+            {
+                continue;
+            }
             if (!byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node)
                 || node.Expression is not BlockLookupAction)
             {
