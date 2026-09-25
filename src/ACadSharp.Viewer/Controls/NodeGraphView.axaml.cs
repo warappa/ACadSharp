@@ -16,7 +16,10 @@ namespace ACadSharp.Viewer.Controls;
 /// <summary>
 /// Draws a layered node graph: node boxes (color-coded by kind) in columns
 /// by BFS depth, bezier edges with arrowheads and port-name labels.
-/// Clicking a node box raises <see cref="OnNodeClicked"/> with its details.
+/// The target node (depth 0) gets a highlight ring. Supports zooming
+/// (Scale / ZoomIn / ZoomOut / FitToView) and shows a hover tooltip on
+/// edges. Clicking a node box raises <see cref="OnNodeClicked"/> with its
+/// details.
 /// </summary>
 public partial class NodeGraphView : UserControl
 {
@@ -25,15 +28,84 @@ public partial class NodeGraphView : UserControl
     private const double ColumnWidth = 240;
     private const double RowHeight = 80;
     private const double Margin = 20;
+    private const double MinScale = 0.1;
+    private const double MaxScale = 3.0;
+
+    private double _scale = 1.0;
+    private double _naturalWidth;
+    private double _naturalHeight;
 
     /// <summary>
     /// Raised when a node box is clicked, with the node's full dump.
     /// </summary>
     public Action<string>? OnNodeClicked { get; set; }
 
+    /// <summary>
+    /// The current zoom factor (1.0 = natural size).
+    /// </summary>
+    public double Scale
+    {
+        get => _scale;
+        set
+        {
+            _scale = Math.Clamp(value, MinScale, MaxScale);
+            ApplyScale();
+        }
+    }
+
     public NodeGraphView()
     {
         InitializeComponent();
+    }
+
+    /// <summary>
+    /// Zooms in by one step (1.25×).
+    /// </summary>
+    public void ZoomIn() => Scale = _scale * 1.25;
+
+    /// <summary>
+    /// Zooms out by one step (÷1.25).
+    /// </summary>
+    public void ZoomOut() => Scale = _scale / 1.25;
+
+    /// <summary>
+    /// Scales the graph to fit the visible scroll-view area
+    /// (never zooms in beyond the natural size).
+    /// </summary>
+    public void FitToView()
+    {
+        if (_naturalWidth <= 0 || _naturalHeight <= 0)
+        {
+            return;
+        }
+
+        // Allow ~16px for the scrollbars on each axis.
+        double availableWidth = Scroll.Bounds.Width - 16;
+        double availableHeight = Scroll.Bounds.Height - 16;
+        if (availableWidth <= 0 || availableHeight <= 0)
+        {
+            return; // not measured yet
+        }
+
+        double factor = Math.Min(
+            1.0,
+            Math.Min(availableWidth / _naturalWidth, availableHeight / _naturalHeight));
+        Scale = Math.Max(MinScale, factor);
+    }
+
+    private void ApplyScale()
+    {
+        if (_naturalWidth <= 0)
+        {
+            return;
+        }
+
+        // Scale the rendered content and the layout extent together: the
+        // canvas's layout size drives the scroll extent, and the
+        // RenderTransform scales the drawing within it.
+        GraphCanvas.Width = _naturalWidth * _scale;
+        GraphCanvas.Height = _naturalHeight * _scale;
+        GraphCanvas.RenderTransform = new ScaleTransform(_scale, _scale);
     }
 
     public void SetGraph(GraphModel.Result model)
@@ -47,11 +119,13 @@ public partial class NodeGraphView : UserControl
 
         // Node positions: the target (depth 0) in the rightmost column.
         Dictionary<int, Point> positions = new();
+        Dictionary<int, GraphNodeInfo> byIndex = new();
         foreach (GraphNodeInfo node in model.Nodes)
         {
             double x = (model.MaxDepth - node.Depth) * ColumnWidth + Margin;
             double y = node.Row * RowHeight + Margin;
             positions[node.Index] = new Point(x, y);
+            byIndex[node.Index] = node;
         }
 
         // Edges first (below the node boxes).
@@ -63,7 +137,9 @@ public partial class NodeGraphView : UserControl
                 continue;
             }
 
-            AddEdge(from, to, edge);
+            GraphNodeInfo? fromNode = byIndex.TryGetValue(edge.FromIndex, out GraphNodeInfo f) ? f : null;
+            GraphNodeInfo? toNode = byIndex.TryGetValue(edge.ToIndex, out GraphNodeInfo t) ? t : null;
+            AddEdge(from, to, edge, fromNode, toNode);
         }
 
         // Node boxes.
@@ -72,25 +148,27 @@ public partial class NodeGraphView : UserControl
             AddNodeBox(node, positions[node.Index]);
         }
 
-        GraphCanvas.Width = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
-        GraphCanvas.Height = Math.Max(
+        _naturalWidth = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
+        _naturalHeight = Math.Max(
             model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + Margin * 2,
             300);
+        ApplyScale();
     }
 
     private void AddNodeBox(GraphNodeInfo node, Point position)
     {
-        string value = node.Expression.CurrentValue.Type == EvaluationValueType.None
-            ? "<unset>"
-            : node.Expression.CurrentValue.ToString();
+        // The target (depth 0) gets a highlight ring.
+        bool isTarget = node.Depth == 0;
 
         var border = new Border
         {
             CornerRadius = new CornerRadius(8),
             Background = new SolidColorBrush(GetKindColor(node.Kind)),
-            Padding = new Thickness(10, 4),
+            Padding = new Thickness(isTarget ? 13 : 10, isTarget ? 7 : 4),
             MinWidth = BoxWidth,
             Height = BoxHeight,
+            BorderBrush = isTarget ? new SolidColorBrush(MediaColor.Parse("#FFFFFF")) : null,
+            BorderThickness = isTarget ? new Thickness(3) : new Thickness(0),
         };
 
         var text = new TextBlock
@@ -104,8 +182,9 @@ public partial class NodeGraphView : UserControl
         {
             Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
             FontSize = 11,
+            FontFamily = new FontFamily("Cascadia Code, Consolas, monospace"),
             TextTrimming = TextTrimming.CharacterEllipsis,
-            Text = value,
+            Text = ValueFormatter.Format(node.Expression),
         };
 
         var stack = new StackPanel
@@ -125,7 +204,12 @@ public partial class NodeGraphView : UserControl
         GraphCanvas.Children.Add(border);
     }
 
-    private void AddEdge(Point from, Point to, GraphEdgeInfo edge)
+    private void AddEdge(
+        Point from,
+        Point to,
+        GraphEdgeInfo edge,
+        GraphNodeInfo? fromNode,
+        GraphNodeInfo? toNode)
     {
         // From the right-middle of the source box to the left-middle of the target box.
         Point start = new Point(from.X + BoxWidth, from.Y + BoxHeight / 2);
@@ -157,6 +241,29 @@ public partial class NodeGraphView : UserControl
             line.StrokeDashArray = new AvaloniaList<double> { 6, 4 };
         }
 
+        // Hover: thicken the edge and show a floating tooltip near the pointer.
+        line.PointerEntered += (_, e) =>
+        {
+            line.StrokeThickness = 3;
+            line.Stroke = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
+            ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+        };
+        line.PointerExited += (_, _) =>
+        {
+            line.StrokeThickness = 1.5;
+            line.Stroke = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
+            EdgeTip.IsVisible = false;
+        };
+        line.PointerMoved += (_, e) =>
+        {
+            if (EdgeTip.IsVisible)
+            {
+                Point p = e.GetPosition(Overlay);
+                Canvas.SetLeft(EdgeTip, p.X + 14);
+                Canvas.SetTop(EdgeTip, p.Y + 14);
+            }
+        };
+
         GraphCanvas.Children.Add(line);
 
         // Arrowhead at the target end (pointing along the edge direction).
@@ -182,6 +289,21 @@ public partial class NodeGraphView : UserControl
             Canvas.SetTop(label, mid.Y);
             GraphCanvas.Children.Add(label);
         }
+    }
+
+    private void ShowEdgeTip(GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, Point at)
+    {
+        string tip = $"{fromNode?.Kind ?? "?"} #{edge.FromIndex}  →  {toNode?.Kind ?? "?"} #{edge.ToIndex}";
+        tip += edge.Label.Length > 0 ? $"\nport: {edge.Label}" : "\n(unlabeled connection)";
+        if (edge.IsDashed)
+        {
+            tip += "\n(lookup connection)";
+        }
+
+        EdgeTipText.Text = tip;
+        EdgeTip.IsVisible = true;
+        Canvas.SetLeft(EdgeTip, at.X + 14);
+        Canvas.SetTop(EdgeTip, at.Y + 14);
     }
 
     private void AddArrowhead(Point at, Vector direction)
@@ -222,7 +344,7 @@ public partial class NodeGraphView : UserControl
     {
         var sb = new StringBuilder();
         sb.AppendLine($"{node.Expression.GetType().Name}  (node #{node.Index}, {node.Kind})");
-        sb.AppendLine($"value: {node.Expression.CurrentValue}");
+        sb.AppendLine($"value: {ValueFormatter.Format(node.Expression)}");
         sb.AppendLine($"id: {node.Expression.Id}");
 
         if (node.Expression is BlockGrip grip)

@@ -29,6 +29,7 @@ public partial class MainWindow : Window
 
     private CadDocument? _document;
     private BlockTreeNode? _selectedNode;
+    private List<PropertyItem>? _properties;
     private bool _isBusy;
     private Timer? _infoBarAutoClose;
     private string? _lastPath;
@@ -225,6 +226,7 @@ public partial class MainWindow : Window
 
             BlockHeader.Text = string.Empty;
             EvalStatus.Text = string.Empty;
+            _properties = null;
             PropertyGrid.ItemsSource = null;
             PlaceholderText.Text = "Select a block in the tree to see its properties.";
             PlaceholderText.IsVisible = true;
@@ -290,6 +292,7 @@ public partial class MainWindow : Window
         if (model is null)
         {
             EvalStatus.Text = "Not a dynamic block (no evaluation graph).";
+            _properties = null;
             PropertyGrid.ItemsSource = null;
             PlaceholderText.Text = "This block has no parameters.";
             PlaceholderText.IsVisible = true;
@@ -300,6 +303,7 @@ public partial class MainWindow : Window
             ? $"Evaluation OK ({model.GripCount} grip(s) activated)"
             : "Evaluation FAILED — values may be incomplete.";
 
+        _properties = model.Properties;
         PropertyGrid.ItemsSource = model.Properties;
         PlaceholderText.Text = "No parameters in this block.";
         PlaceholderText.IsVisible = model.Properties.Count == 0;
@@ -312,13 +316,96 @@ public partial class MainWindow : Window
             return;
         }
 
-        if (_selectedNode.Block.EvaluationGraph is not { } graph)
+        OpenNodeViewer(item);
+    }
+
+    /// <summary>
+    /// Opens the node viewer (modeless) for the given property.
+    /// </summary>
+    public void OpenNodeViewer(PropertyItem item)
+    {
+        if (_selectedNode is null || _selectedNode.Block.EvaluationGraph is not { } graph)
         {
             return;
         }
 
-        var dialog = new NodeViewerDialog(_selectedNode.Block, item, graph);
-        dialog.ShowDialog(this);
+        new NodeViewerDialog(_selectedNode.Block, item, graph).Show();
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): expands the
+    /// ancestors of the first dynamic block in the tree and selects it, so
+    /// its properties show in the grid. Returns the selected node, or null
+    /// when no dynamic block was found.
+    /// </summary>
+    public BlockTreeNode? SelectFirstDynamicNode()
+    {
+        List<BlockTreeNode> path = new();
+        if (!FindFirstDynamic(_fullTree, path))
+        {
+            return null;
+        }
+
+        // Expand the ancestors so the target node is visible.
+        foreach (BlockTreeNode ancestor in path)
+        {
+            foreach (Control c in BlockTree.GetRealizedTreeContainers())
+            {
+                if (c is TreeViewItem tvi && ReferenceEquals(tvi.DataContext, ancestor))
+                {
+                    tvi.IsExpanded = true;
+                }
+            }
+        }
+
+        BlockTreeNode target = path[^1];
+        BlockTree.SelectedItem = target;
+        return target;
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): selects the
+    /// first dynamic block in the tree and opens its node viewer for the
+    /// first property, so the dialog can be captured headlessly. Returns
+    /// the dialog window, or null when no dynamic block was found.
+    /// </summary>
+    public TopLevel? OpenFirstDynamicNodeViewer()
+    {
+        BlockTreeNode? target = SelectFirstDynamicNode();
+        if (target is null)
+        {
+            return null;
+        }
+
+        BlockModel? model = BlockModel.Create(target.Block);
+        if (model is null || model.Properties.Count == 0 || target.Block.EvaluationGraph is not { } graph)
+        {
+            return null;
+        }
+
+        var dialog = new NodeViewerDialog(target.Block, model.Properties[0], graph);
+        dialog.Show();
+        return dialog;
+    }
+
+    private static bool FindFirstDynamic(List<BlockTreeNode> nodes, List<BlockTreeNode> path)
+    {
+        foreach (BlockTreeNode node in nodes)
+        {
+            if (node.IsDynamic)
+            {
+                path.Add(node);
+                return true;
+            }
+
+            if (FindFirstDynamic(node.Children, path))
+            {
+                path.Insert(0, node);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void OnThemeToggleClick(object? sender, RoutedEventArgs e)
@@ -331,6 +418,14 @@ public partial class MainWindow : Window
 
         ThemeIcon.Symbol = isDark ? FASymbol.DarkTheme : FASymbol.WeatherSunny;
         ThemeLabel.Text = isDark ? "Dark" : "Light";
+
+        // The value-foreground converter resolves theme brushes once per bind;
+        // re-binding forces it to pick up the new theme's brushes.
+        if (_properties is not null)
+        {
+            PropertyGrid.ItemsSource = null;
+            PropertyGrid.ItemsSource = _properties;
+        }
     }
 
     private void SetStatus(string text, StatusKind kind)

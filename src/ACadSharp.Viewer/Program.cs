@@ -3,6 +3,7 @@ using ACadSharp.Objects.Evaluations;
 using ACadSharp.Tables;
 using ACadSharp.Viewer.Services;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
@@ -32,7 +33,8 @@ class Program
 
         if (args.Length >= 2 && args[0] == "--screenshot")
         {
-            int code = Screenshot.Run(args[1], args.Length >= 3 ? args[2] : null);
+            bool openDialog = args.Length >= 4 && args[3] == "dialog";
+            int code = Screenshot.Run(args[1], args.Length >= 3 ? args[2] : null, openDialog);
             Environment.Exit(code);
             return;
         }
@@ -174,11 +176,13 @@ static class SmokeTest
 /// <summary>
 /// Headless screenshot mode: renders the main window on the Avalonia.Headless
 /// platform (CPU-only; no display, X11, or GPU required) and saves a PNG.
-/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf]
+/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog]
+/// The optional "dialog" argument opens the node viewer for the first
+/// dynamic block after the file loads and captures that dialog instead.
 /// </summary>
 static class Screenshot
 {
-    public static int Run(string outputPath, string? filePath)
+    public static int Run(string outputPath, string? filePath, bool openDialog = false)
     {
         if (filePath is not null && !File.Exists(filePath))
         {
@@ -251,21 +255,59 @@ static class Screenshot
                     Log($"load completed={loadTask.IsCompleted}");
                 }
 
+                // For the main-window capture, select the first dynamic block
+                // so the property grid is populated (mirrors what a user does).
+                if (filePath is not null && !openDialog)
+                {
+                    var selected = window.SelectFirstDynamicNode();
+                    Log($"first dynamic node selected={selected is not null}");
+                    for (int i = 0; i < 10; i++)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                        Thread.Sleep(10);
+                    }
+                }
+
+                // Optionally open the node viewer dialog and capture it instead.
+                TopLevel? dialog = null;
+                if (openDialog)
+                {
+                    dialog = window.OpenFirstDynamicNodeViewer();
+                    Log($"node viewer opened={dialog is not null}");
+                    if (dialog is not null)
+                    {
+                        // Pump until the dialog is visible and its auto-fit
+                        // (posted at Background priority) has run.
+                        for (int i = 0; i < 30 && !dialog.IsVisible; i++)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                            Thread.Sleep(20);
+                        }
+                        for (int i = 0; i < 10; i++)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                            Thread.Sleep(10);
+                        }
+                        Log($"dialog visible={dialog.IsVisible} bounds={dialog.Bounds}");
+                    }
+                }
+
                 // Phase 2: render + capture. CaptureRenderedFrame internally pumps
                 // (RunJobs + ForceRenderTimerTick until stable), so a few retries
                 // cover the window's open + first paint.
-                var frame = window.CaptureRenderedFrame();
+                TopLevel captureTarget = dialog ?? window;
+                var frame = captureTarget.CaptureRenderedFrame();
                 for (int i = 0; i < 30 && frame is null; i++)
                 {
                     Avalonia.Threading.Dispatcher.UIThread.RunJobs();
                     AvaloniaHeadlessPlatform.ForceRenderTimerTick(1);
-                    frame = window.CaptureRenderedFrame();
+                    frame = captureTarget.CaptureRenderedFrame();
                     Thread.Sleep(10);
                 }
 
                 if (frame is null)
                 {
-                    Log($"after capture loop: visible={window.IsVisible} bounds={window.Bounds} frame=null");
+                    Log($"after capture loop: visible={captureTarget.IsVisible} bounds={captureTarget.Bounds} frame=null");
                     throw new InvalidOperationException("no frame was rendered");
                 }
 

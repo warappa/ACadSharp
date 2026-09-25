@@ -24,7 +24,7 @@ public class PropertyItem
         (string name, string description) = GetLabelAndDescription(parameter);
         Name = name;
         Description = description;
-        ValueText = node.Expression.CurrentValue.ToString();
+        ValueText = ValueFormatter.Format(node.Expression);
         HasValue = node.Expression.CurrentValue.Type != EvaluationValueType.None;
         NodeIndex = node.Index;
         Expression = node.Expression;

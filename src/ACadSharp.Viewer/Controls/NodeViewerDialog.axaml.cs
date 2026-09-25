@@ -1,15 +1,20 @@
 using ACadSharp.Objects.Evaluations;
 using ACadSharp.Tables;
 using ACadSharp.Viewer.Services;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
 
 namespace ACadSharp.Viewer.Controls;
 
 /// <summary>
 /// Modal dialog showing the subgraph of nodes involved in constructing a
-/// property's value: the target node plus its upstream ancestors
-/// (transitive closure over incoming edges), laid out left to right.
-/// Clicking a node shows its full details in the bottom panel.
+/// property's value: the target node (highlighted ring) plus its upstream
+/// ancestors (transitive closure over incoming edges), laid out left to
+/// right. The header carries a color legend and fit/zoom controls.
+/// Clicking a node shows its full details in the bottom panel; hovering
+/// an edge shows the connection in a floating tooltip.
 /// </summary>
 public partial class NodeViewerDialog : Window
 {
@@ -22,5 +27,14 @@ public partial class NodeViewerDialog : Window
         GraphModel.Result model = GraphModel.BuildAncestors(graph, property.NodeIndex);
         Graph.SetGraph(model);
         Graph.OnNodeClicked = details => Details.Text = details;
+
+        // Fit once the layout pass has measured the scroll view.
+        Dispatcher.UIThread.Post(() => Graph.FitToView(), DispatcherPriority.Background);
     }
+
+    private void OnFitClick(object? sender, RoutedEventArgs e) => Graph.FitToView();
+
+    private void OnZoomInClick(object? sender, RoutedEventArgs e) => Graph.ZoomIn();
+
+    private void OnZoomOutClick(object? sender, RoutedEventArgs e) => Graph.ZoomOut();
 }
