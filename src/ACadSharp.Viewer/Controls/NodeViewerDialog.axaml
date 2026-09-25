@@ -27,13 +27,13 @@
                     </StackPanel>
                     <!-- Avalonia 12 removed the ToolTip attached property, so the
                          buttons are icon-only (the legend explains the colors). -->
-                    <Button Click="OnFitClick" Padding="6,2" Focusable="False">
+                    <Button Click="OnFitClick" Focusable="False">
                         <ui:FASymbolIcon Symbol="FullScreen" />
                     </Button>
-                    <Button Click="OnZoomInClick" Padding="6,2" Focusable="False">
+                    <Button Click="OnZoomInClick" Focusable="False">
                         <ui:FASymbolIcon Symbol="ZoomIn" />
                     </Button>
-                    <Button Click="OnZoomOutClick" Padding="6,2" Focusable="False">
+                    <Button Click="OnZoomOutClick" Focusable="False">
                         <ui:FASymbolIcon Symbol="ZoomOut" />
                     </Button>
                 </StackPanel>

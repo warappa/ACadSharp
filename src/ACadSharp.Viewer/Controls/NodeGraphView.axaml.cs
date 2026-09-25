@@ -200,14 +200,14 @@ public partial class NodeGraphView : UserControl
     }
 
     /// <summary>
-    /// Zooms in by one step (1.25×).
+    /// Zooms in by one step (1.15×), anchored at the viewport center.
     /// </summary>
-    public void ZoomIn() => Scale = _scale * 1.25;
+    public void ZoomIn() => ZoomAt(new Point(Scroll.Bounds.Width / 2, Scroll.Bounds.Height / 2), 1);
 
     /// <summary>
-    /// Zooms out by one step (÷1.25).
+    /// Zooms out by one step (÷1.15), anchored at the viewport center.
     /// </summary>
-    public void ZoomOut() => Scale = _scale / 1.25;
+    public void ZoomOut() => ZoomAt(new Point(Scroll.Bounds.Width / 2, Scroll.Bounds.Height / 2), -1);
 
     /// <summary>
     /// Scales the graph to fit the visible scroll-view area
