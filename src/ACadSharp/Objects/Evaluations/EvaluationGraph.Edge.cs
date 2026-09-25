@@ -42,10 +42,11 @@ public partial class EvaluationGraph
 		public int ReverseEdge { get; set; }
 
 		/// <summary>
-		/// Edge flags. <c>0</c> for normal edges; <c>4</c> for bidirectional lookup edges.
+		/// Edge flags. <see cref="EdgeFlags.None"/> for normal directed edges;
+		/// <see cref="EdgeFlags.Invertible"/> for bidirectional lookup edges.
 		/// </summary>
 		[DxfCodeValue(93)]
-		public int Flags { get; set; }
+		public EdgeFlags Flags { get; set; }
 
 		/// <summary>
 		/// Index of the source node (the element that produces the value).

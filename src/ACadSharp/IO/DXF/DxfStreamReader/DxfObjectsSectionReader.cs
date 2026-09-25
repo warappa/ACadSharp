@@ -1400,7 +1400,7 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 					edge.Index = this._reader.ValueAsInt;
 
 					this._reader.ExpectedCode(93);
-					edge.Flags = this._reader.ValueAsInt;
+					edge.Flags = (EvaluationGraph.EdgeFlags)this._reader.ValueAsInt;
 
 					this._reader.ExpectedCode(94);
 					edge.TrackedCount = this._reader.ValueAsInt;

@@ -138,13 +138,12 @@ public static class GraphModel
             int current = queue.Dequeue();
             foreach (int edgeIndex in graph.GetIncomingEdges(current))
             {
-                EvaluationGraph.Edge e = graph.Edges[edgeIndex];
-                if (IsReverseLookupEdge(e))
+                if (graph.IsReverseLookupEdge(edgeIndex))
                 {
                     continue;
                 }
 
-                int from = e.FromNodeIndex;
+                int from = graph.Edges[edgeIndex].FromNodeIndex;
                 if (!depth.ContainsKey(from))
                 {
                     depth[from] = depth[current] + 1;
@@ -175,18 +174,16 @@ public static class GraphModel
             List<int> neighborDepths = new();
             foreach (int edgeIdx in graph.GetOutgoingEdges(nodeIndex))
             {
-                EvaluationGraph.Edge e = graph.Edges[edgeIdx];
-                if (e.Flags == 4 && !IsReverseLookupEdge(e) && depth.ContainsKey(e.ToNodeIndex))
+                if (graph.IsForwardLookupEdge(edgeIdx) && depth.ContainsKey(graph.Edges[edgeIdx].ToNodeIndex))
                 {
-                    neighborDepths.Add(depth[e.ToNodeIndex]);
+                    neighborDepths.Add(depth[graph.Edges[edgeIdx].ToNodeIndex]);
                 }
             }
             foreach (int edgeIdx in graph.GetIncomingEdges(nodeIndex))
             {
-                EvaluationGraph.Edge e = graph.Edges[edgeIdx];
-                if (e.Flags == 4 && !IsReverseLookupEdge(e) && depth.ContainsKey(e.FromNodeIndex))
+                if (graph.IsForwardLookupEdge(edgeIdx) && depth.ContainsKey(graph.Edges[edgeIdx].FromNodeIndex))
                 {
-                    neighborDepths.Add(depth[e.FromNodeIndex]);
+                    neighborDepths.Add(depth[graph.Edges[edgeIdx].FromNodeIndex]);
                 }
             }
 
@@ -225,13 +222,14 @@ public static class GraphModel
         }
 
         // Edges: every edge whose both ends are in the subgraph. The
-        // "reverse" direction of a flag-4 pair is skipped (DAG).
-        foreach (EvaluationGraph.Edge edge in graph.Edges)
+        // "reverse" direction of an invertible pair is skipped (DAG).
+        for (int i = 0; i < graph.Edges.Count; i++)
         {
-            if (IsReverseLookupEdge(edge))
+            if (graph.IsReverseLookupEdge(i))
             {
                 continue;
             }
+            EvaluationGraph.Edge edge = graph.Edges[i];
             if (!depth.ContainsKey(edge.FromNodeIndex) || !depth.ContainsKey(edge.ToNodeIndex))
             {
                 continue;
@@ -253,12 +251,13 @@ public static class GraphModel
             outputPorts[nodeIndex] = new List<PortInfo>();
         }
 
-        foreach (EvaluationGraph.Edge edge in graph.Edges)
+        for (int i = 0; i < graph.Edges.Count; i++)
         {
-            if (IsReverseLookupEdge(edge))
+            if (graph.IsReverseLookupEdge(i))
             {
                 continue;
             }
+            EvaluationGraph.Edge edge = graph.Edges[i];
             if (!depth.ContainsKey(edge.FromNodeIndex) || !depth.ContainsKey(edge.ToNodeIndex))
             {
                 continue;
@@ -284,16 +283,6 @@ public static class GraphModel
     /// connections. Lookup edges (flag 4 or a lookup action/parameter) get a
     /// "lookup ×N" label and are drawn dashed.
     /// </summary>
-    /// <summary>
-    /// True for the "reverse" direction of a flag-4 (lookup) edge pair:
-    /// the edge whose <c>ReverseEdge</c> index is lower than its own index.
-    /// Skipping these keeps the graph acyclic (DAG).
-    /// </summary>
-    private static bool IsReverseLookupEdge(EvaluationGraph.Edge edge)
-    {
-        return edge.Flags == 4 && edge.ReverseEdge >= 0 && edge.ReverseEdge < edge.Index;
-    }
-
     /// <summary>
     /// The port name for an edge: the <c>Name</c> field of the connection on
     /// the target node that references the source node. Falls back to a
@@ -342,7 +331,7 @@ public static class GraphModel
         EvaluationExpression? toExpr = GetExpression(graph, edge.ToNodeIndex);
         EvaluationExpression? fromExpr = GetExpression(graph, edge.FromNodeIndex);
 
-        bool isLookup = (edge.Flags & 4) != 0
+        bool isLookup = edge.Flags == EvaluationGraph.EdgeFlags.Invertible
             || toExpr is BlockLookupParameter
             || fromExpr is BlockLookupParameter
             || toExpr is BlockLookupAction

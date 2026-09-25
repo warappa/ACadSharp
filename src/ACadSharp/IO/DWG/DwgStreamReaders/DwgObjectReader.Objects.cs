@@ -851,7 +851,7 @@ internal partial class DwgObjectReader : DwgSectionIO
 			//92 index
 			edge.Index = this._objectReader.ReadBitLong();
 			//93
-			edge.Flags = this._objectReader.ReadBitLong();
+			edge.Flags = (EvaluationGraph.EdgeFlags)this._objectReader.ReadBitLong();
 			//94
 			edge.TrackedCount = this._objectReader.ReadBitLong();
 

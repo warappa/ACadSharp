@@ -1074,7 +1074,7 @@ internal partial class DwgObjectWriter : DwgSectionIO
 		for (int i = 0; i < edgesArr.Length; i++)
 		{
 			this._writer.WriteBitLong(i);
-			this._writer.WriteBitLong(edgesArr[i].Flags);
+			this._writer.WriteBitLong((int)edgesArr[i].Flags);
 			this._writer.WriteBitLong(edgesArr[i].TrackedCount);
 
 			this._writer.WriteBitLong(edgesArr[i].FromNodeIndex);

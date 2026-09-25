@@ -17,7 +17,18 @@ public partial class EvaluationGraph
 	public bool IsReverseLookupEdge(int edgeIndex)
 	{
 		Edge e = this.Edges[edgeIndex];
-		return e.Flags == 4 && e.ReverseEdge >= 0 && e.ReverseEdge < e.Index;
+		return e.Flags == EdgeFlags.Invertible && e.ReverseEdge >= 0 && e.ReverseEdge < e.Index;
+	}
+
+	/// <summary>
+	/// True for the "forward" direction of an invertible (flag-4) edge pair:
+	/// the edge whose <see cref="Edge.ReverseEdge"/> index is higher than its own
+	/// index (or unset). Non-invertible edges return false.
+	/// </summary>
+	public bool IsForwardLookupEdge(int edgeIndex)
+	{
+		Edge e = this.Edges[edgeIndex];
+		return e.Flags == EdgeFlags.Invertible && !this.IsReverseLookupEdge(edgeIndex);
 	}
 
 	/// <summary>
