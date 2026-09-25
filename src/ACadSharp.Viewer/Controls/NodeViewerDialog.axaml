@@ -45,6 +45,16 @@
                        TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondary}"
                        Text="Click a node to see its details. Hover a node or edge for a quick summary. Scroll to zoom, drag to pan." />
         </Border>
-        <local:NodeGraphView x:Name="Graph" />
+        <Grid>
+            <local:NodeGraphView x:Name="Graph" />
+            <!-- Mini-map: always shows the whole graph at a fixed scale; the
+                 highlighted rectangle tracks the visible area, and pressing
+                 or dragging the map re-centers the main view. -->
+            <local:MiniMapView x:Name="MiniMap"
+                               Width="220" Height="150"
+                               Margin="12"
+                               HorizontalAlignment="Right"
+                               VerticalAlignment="Bottom" />
+        </Grid>
     </DockPanel>
 </Window>

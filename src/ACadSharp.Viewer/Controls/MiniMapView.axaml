@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ACadSharp.Viewer.Controls.MiniMapView">
+    <!-- The background is set in code (the theme's elevated-surface color when
+         available, falling back to the base canvas color) so a missing
+         resource never leaves the card transparent. -->
+    <Border x:Name="Root"
+            CornerRadius="8"
+            Padding="8"
+            Opacity="0.9"
+            BorderBrush="{DynamicResource CardStrokeColorDefault}"
+            BorderThickness="1">
+        <Canvas x:Name="MiniCanvas" ClipToBounds="True" />
+    </Border>
+</UserControl>

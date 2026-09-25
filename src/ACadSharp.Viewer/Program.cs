@@ -180,7 +180,7 @@ static class SmokeTest
 /// <summary>
 /// Headless screenshot mode: renders the main window on the Avalonia.Headless
 /// platform (CPU-only; no display, X11, or GPU required) and saves a PNG.
-/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog|tip|flyout|interact]
+/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog|tip|flyout|interact|minimap]
 /// The optional "dialog" argument opens the node viewer for the first
 /// dynamic block after the file loads and captures that dialog instead.
 /// The optional "tip" argument force-shows the first-run teaching tip
@@ -190,7 +190,11 @@ static class SmokeTest
 /// theme / a red accent (the settings-flyout operations) and capture the
 /// main window. The "interact" argument opens the node viewer and simulates
 /// a user (wheel zoom, drag pan, click select, hover) through the real
-/// input pipeline before capturing the dialog.
+/// input pipeline before capturing the dialog. The "minimap" argument opens
+/// the node viewer, zooms in (so the visible-area rectangle is clearly
+/// smaller than the whole graph), and navigates through the mini-map
+/// (press + drag), verifying both the rectangle tracking and the
+/// mini-map navigation.
 /// </summary>
 static class Screenshot
 {
@@ -203,6 +207,7 @@ static class Screenshot
         bool applyAccent = mode == "accent";
         bool interact = mode == "interact";
         bool zoombug = mode == "zoombug";
+        bool minimap = mode == "minimap";
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -338,7 +343,7 @@ static class Screenshot
 
                 // Optionally open the node viewer dialog and capture it instead.
                 TopLevel? dialog = null;
-                if (openDialog || interact || zoombug)
+                if (openDialog || interact || zoombug || minimap)
                 {
                     dialog = window.OpenFirstDynamicNodeViewer();
                     Log($"node viewer opened={dialog is not null}");
@@ -357,6 +362,10 @@ static class Screenshot
                             Thread.Sleep(10);
                         }
                         Log($"dialog visible={dialog.IsVisible} bounds={dialog.Bounds}");
+                        if (dialog is NodeViewerDialog nodeViewerForMiniMapLog)
+                        {
+                            Log($"minimap: {nodeViewerForMiniMapLog.MiniMap.MiniMapStateForVerification}");
+                        }
 
                         // Verification: simulate a user through the real input
                         // pipeline (Avalonia.Headless extensions on TopLevel):
@@ -490,6 +499,66 @@ static class Screenshot
                             PumpZb(10);
                             Log($"after scroll-to-origin: scale={zoomBugViewer.Graph.Scale:0.###} {zoomBugViewer.Graph.ScrollStateForVerification}");
                             Log($"after scroll-to-origin: box0 center={zoomBugViewer.Graph.GetNodeBoxCenter(zoomBugViewer, 0)}");
+                        }
+
+                        // Verify the mini-map: zoom in (the visible-area
+                        // rectangle must shrink to a fraction of the whole
+                        // graph), then navigate through the mini-map (a
+                        // press + drag re-centers the main view on the
+                        // content point under the pointer).
+                        if (minimap && dialog is NodeViewerDialog miniMapViewer)
+                        {
+                            void PumpMm(int n)
+                            {
+                                for (int i = 0; i < n; i++)
+                                {
+                                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                                    Thread.Sleep(10);
+                                }
+                            }
+
+                            Log($"before: {miniMapViewer.Graph.ScrollStateForVerification}");
+                            Log($"minimap before: {miniMapViewer.MiniMap.MiniMapStateForVerification}");
+
+                            // Drag the first node box in the main view (left
+                            // button, +60/+40, at the fit scale of 1.0): the
+                            // node's mini-map box must follow (its offset
+                            // appears in the mini-map state).
+                            Point? box0 = miniMapViewer.Graph.GetNodeBoxCenter(miniMapViewer, 0);
+                            Log($"box0={box0}");
+                            if (box0 is not null)
+                            {
+                                miniMapViewer.MouseDown(box0.Value, Avalonia.Input.MouseButton.Left);
+                                miniMapViewer.MouseMove(box0.Value + new Vector(60, 40));
+                                miniMapViewer.MouseUp(box0.Value + new Vector(60, 40), Avalonia.Input.MouseButton.Left);
+                                PumpMm(10);
+                                Log($"after node drag: {miniMapViewer.MiniMap.MiniMapStateForVerification}");
+                            }
+
+                            // Zoom in three notches at a point inside the graph.
+                            Point p = new Point(300, 200);
+                            miniMapViewer.MouseWheel(p, new Vector(0, 1));
+                            miniMapViewer.MouseWheel(p, new Vector(0, 1));
+                            miniMapViewer.MouseWheel(p, new Vector(0, 1));
+                            PumpMm(10);
+                            Log($"after zoom: {miniMapViewer.Graph.ScrollStateForVerification}");
+                            Log($"minimap after zoom: {miniMapViewer.MiniMap.MiniMapStateForVerification}");
+
+                            // Press + drag the center of the mini-map: the
+                            // view should re-center on the content point
+                            // under the pointer.
+                            Point? mmCenter = miniMapViewer.MiniMap.TranslatePoint(
+                                new Point(110, 75), miniMapViewer);
+                            Log($"minimap center={mmCenter}");
+                            if (mmCenter is not null)
+                            {
+                                miniMapViewer.MouseDown(mmCenter.Value, Avalonia.Input.MouseButton.Left);
+                                miniMapViewer.MouseMove(mmCenter.Value + new Vector(40, 20));
+                                miniMapViewer.MouseUp(mmCenter.Value + new Vector(40, 20), Avalonia.Input.MouseButton.Left);
+                                PumpMm(10);
+                                Log($"after minimap drag: {miniMapViewer.Graph.ScrollStateForVerification}");
+                                Log($"minimap after drag: {miniMapViewer.MiniMap.MiniMapStateForVerification}");
+                            }
                         }
                     }
                 }

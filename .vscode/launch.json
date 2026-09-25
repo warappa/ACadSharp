@@ -1,0 +1,11 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Avalonia: ACadSharp.Viewer",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/src/ACadSharp.Viewer/ACadSharp.Viewer.csproj"
+        }
+    ]
+}

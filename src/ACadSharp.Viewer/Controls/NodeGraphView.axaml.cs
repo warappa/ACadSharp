@@ -116,6 +116,56 @@ public partial class NodeGraphView : UserControl
     public Action<string>? OnNodeClicked { get; set; }
 
     /// <summary>
+    /// Raised whenever the view's transform (scale or pan) changes, with
+    /// the currently visible rectangle in content coordinates (the graph's
+    /// natural layout system). The mini-map uses this to draw its
+    /// visible-area indicator.
+    /// </summary>
+    public Action<Rect>? ViewChanged { get; set; }
+
+    /// <summary>
+    /// Raised when a node is dragged (its user offset in content
+    /// coordinates), so the mini-map can keep the node's overview
+    /// position in sync.
+    /// </summary>
+    public Action<int, Vector>? NodeMoved { get; set; }
+
+    /// <summary>
+    /// The currently visible rectangle in content coordinates: the viewport
+    /// mapped back through the scale+translate transform (a content point c
+    /// appears at c*scale + pan, so the visible content is
+    /// ((0-pan)/scale, (0-pan)/scale, viewport/scale)). Empty before the
+    /// first layout.
+    /// </summary>
+    public Rect GetVisibleContentRect()
+    {
+        double w = Scroll.Bounds.Width;
+        double h = Scroll.Bounds.Height;
+        if (w <= 0 || h <= 0 || _scale <= 0)
+        {
+            return default; // a zero rect: the mini-map hides its indicator
+        }
+
+        return new Rect(-_panX / _scale, -_panY / _scale, w / _scale, h / _scale);
+    }
+
+    /// <summary>
+    /// Centers the view on the given content point (the mini-map's
+    /// navigation target).
+    /// </summary>
+    public void CenterOnContentPoint(Point p)
+    {
+        if (Scroll.Bounds.Width <= 0 || Scroll.Bounds.Height <= 0)
+        {
+            return; // not measured yet
+        }
+
+        _panX = Scroll.Bounds.Width / 2 - p.X * _scale;
+        _panY = Scroll.Bounds.Height / 2 - p.Y * _scale;
+        ApplyScaleToGraphCanvas();
+    }
+
+    /// <summary>
     /// The current zoom factor (1.0 = natural size).
     /// </summary>
     public double Scale
@@ -394,14 +444,32 @@ public partial class NodeGraphView : UserControl
     /// <summary>
     /// Verification helper (used by the --screenshot mode): the center of
     /// the n-th node box in the given root's coordinate system (null if
-    /// the boxes have not been laid out yet).
+    /// the boxes have not been laid out yet). The boxes are the first
+    /// Border child of the per-node container Canvases (the canvas's
+    /// direct Border children are the edge-label masks, not node boxes).
     /// </summary>
     public Point? GetNodeBoxCenter(Visual root, int n)
     {
         int count = -1;
         foreach (Control child in GraphCanvas.Children)
         {
-            if (child is not Border box || box.Bounds.Width <= 0)
+            if (child is not Canvas container)
+            {
+                continue;
+            }
+
+            // The node box is the container's first Border child (added
+            // before the port circles and labels).
+            Border? box = null;
+            foreach (Control c in container.Children)
+            {
+                if (c is Border b)
+                {
+                    box = b;
+                    break;
+                }
+            }
+            if (box is null || box.Bounds.Width <= 0)
             {
                 continue;
             }
@@ -508,13 +576,16 @@ public partial class NodeGraphView : UserControl
     }
 
     // Scales the graph about the canvas origin and translates it by the
-    // current pan, so a content point c appears at c*scale + pan.
+    // current pan, so a content point c appears at c*scale + pan. Every
+    // pan/zoom path funnels through here, so the ViewChanged event (the
+    // mini-map's visible-area indicator) is raised in one place.
     private void UpdateTransform()
     {
         var group = new TransformGroup();
         group.Children.Add(new ScaleTransform(_scale, _scale));
         group.Children.Add(new TranslateTransform(_panX, _panY));
         GraphCanvas.RenderTransform = group;
+        ViewChanged?.Invoke(GetVisibleContentRect());
     }
 
     public void SetGraph(GraphModel.Result model, bool resetPan = true)
@@ -755,6 +826,7 @@ public partial class NodeGraphView : UserControl
 
             Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
             _nodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
+            NodeMoved?.Invoke(node.Index, _nodeOffsets[node.Index]);
 
             // Move the container (box + ports + labels move together).
             if (_nodeContainers.TryGetValue(node.Index, out var container))
