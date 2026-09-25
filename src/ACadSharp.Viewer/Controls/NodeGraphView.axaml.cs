@@ -70,6 +70,14 @@ public partial class NodeGraphView : UserControl
     private Border? _selectedBox;
     private bool _selectedIsTarget;
 
+    // Cross-highlighting: edge Path → its connected port circles, and
+    // port circle → its connected edge Path. Populated after all drawing
+    // in SetGraph.
+    private readonly List<(Path line, int fromIdx, int toIdx, int srcPortIdx, int dstPortIdx)> _pendingEdges = new();
+    private readonly Dictionary<(int nodeIdx, int portIdx, bool isInput), Ellipse> _portCircles = new();
+    private readonly Dictionary<Path, (Ellipse? src, Ellipse? dst)> _edgeToCircles = new();
+    private readonly Dictionary<Ellipse, Path> _circleToEdge = new();
+
     // Edge labels that still need their final position (the text width is
     // only known after the first layout pass): (mask, label, start.X, end.X).
     private readonly List<(Border mask, TextBlock label, double startX, double endX)> _pendingLabels = new();
@@ -479,6 +487,10 @@ public partial class NodeGraphView : UserControl
         _panY = 0;
         _pendingLabels.Clear();
         _firstLabeledEdge = null;
+        _pendingEdges.Clear();
+        _portCircles.Clear();
+        _edgeToCircles.Clear();
+        _circleToEdge.Clear();
         GraphCanvas.Children.Clear();
 
         if (model.Nodes.Count == 0)
@@ -548,6 +560,18 @@ public partial class NodeGraphView : UserControl
         {
             GraphCanvas.Children.Add(mask);
         }
+
+        // Build the cross-highlighting mappings (edge ↔ port circle).
+        foreach (var (line, fromIdx, toIdx, srcPortIdx, dstPortIdx) in _pendingEdges)
+        {
+            Ellipse? src = _portCircles.TryGetValue((fromIdx, srcPortIdx, false), out var s) ? s : null;
+            Ellipse? dst = _portCircles.TryGetValue((toIdx, dstPortIdx, true), out var d) ? d : null;
+            _edgeToCircles[line] = (src, dst);
+            if (src is not null) _circleToEdge[src] = line;
+            if (dst is not null) _circleToEdge[dst] = line;
+        }
+        _pendingEdges.Clear();
+        _portCircles.Clear();
 
         _naturalWidth = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
         _naturalHeight = Math.Max(
@@ -731,15 +755,15 @@ public partial class NodeGraphView : UserControl
         // Port circles and labels: input ports on the left edge, output
         // ports on the right edge.
         double h = hasName ? NamedBoxHeight : BoxHeight;
-        DrawPorts(node.InputPorts, position.X, position.Y, h, isInput: true);
-        DrawPorts(node.OutputPorts, position.X + BoxWidth, position.Y, h, isInput: false);
+        DrawPorts(node.InputPorts, node.Index, position.X, position.Y, h, isInput: true);
+        DrawPorts(node.OutputPorts, node.Index, position.X + BoxWidth, position.Y, h, isInput: false);
     }
 
     /// <summary>
     /// Draws a row of port circles (small filled circles) along the given
     /// edge of a box, with the port name in small font next to each circle.
     /// </summary>
-    private void DrawPorts(List<PortInfo> ports, double edgeX, double boxY, double boxH, bool isInput)
+    private void DrawPorts(List<PortInfo> ports, int nodeIndex, double edgeX, double boxY, double boxH, bool isInput)
     {
         if (ports.Count == 0)
         {
@@ -747,13 +771,12 @@ public partial class NodeGraphView : UserControl
         }
 
         const double radius = 4;
-        foreach (PortInfo port in ports)
+        for (int i = 0; i < ports.Count; i++)
         {
-            // Position: distributed evenly along the edge.
-            int idx = ports.IndexOf(port);
-            double y = boxY + (idx + 0.5) * (boxH / ports.Count);
+            PortInfo port = ports[i];
+            double y = boxY + (i + 0.5) * (boxH / ports.Count);
 
-            // Circle.
+            // Circle (hit-test visible for cross-highlighting).
             var circle = new Ellipse
             {
                 Width = radius * 2,
@@ -761,35 +784,73 @@ public partial class NodeGraphView : UserControl
                 Fill = Brushes.White,
                 Stroke = new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
                 StrokeThickness = 1,
-                IsHitTestVisible = false,
             };
             Canvas.SetLeft(circle, edgeX - radius);
             Canvas.SetTop(circle, y - radius);
             GraphCanvas.Children.Add(circle);
+
+            // Store for cross-highlighting.
+            _portCircles[(nodeIndex, i, isInput)] = circle;
+
+            // Hover: highlight the circle and the connected edge.
+            circle.PointerEntered += (_, e) =>
+            {
+                circle.Fill = EdgeHoverBrush;
+                if (_circleToEdge.TryGetValue(circle, out var edgeLine))
+                {
+                    edgeLine.StrokeThickness = 3;
+                    edgeLine.Stroke = EdgeHoverBrush;
+                }
+                ShowPortTip(port, isInput, e.GetPosition(Overlay));
+            };
+            circle.PointerExited += (_, _) =>
+            {
+                circle.Fill = Brushes.White;
+                if (_circleToEdge.TryGetValue(circle, out var edgeLine))
+                {
+                    edgeLine.StrokeThickness = 1.5;
+                    edgeLine.Stroke = EdgeLineBrush;
+                }
+                HoverTip.IsVisible = false;
+            };
+            circle.PointerMoved += (_, e) =>
+            {
+                if (HoverTip.IsVisible)
+                {
+                    Point p = e.GetPosition(Overlay);
+                    Canvas.SetLeft(HoverTip, p.X + 14);
+                    Canvas.SetTop(HoverTip, p.Y + 14);
+                }
+            };
 
             // Label: to the left of input ports, to the right of output ports.
             if (port.Name.Length > 0)
             {
                 var label = new TextBlock
                 {
-                    FontSize = 9,
-                    Foreground = new SolidColorBrush(MediaColor.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                    FontSize = 10,
+                    Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
                     Text = port.Name,
                     IsHitTestVisible = false,
                 };
                 if (isInput)
                 {
-                    // Measure-free: position to the left of the circle.
-                    Canvas.SetLeft(label, edgeX - radius - port.Name.Length * 5.5 - 2);
+                    Canvas.SetLeft(label, edgeX - radius - port.Name.Length * 6 - 2);
                 }
                 else
                 {
                     Canvas.SetLeft(label, edgeX + radius + 2);
                 }
-                Canvas.SetTop(label, y - 6);
+                Canvas.SetTop(label, y - 7);
                 GraphCanvas.Children.Add(label);
             }
         }
+    }
+
+    private void ShowPortTip(PortInfo port, bool isInput, Point at)
+    {
+        string side = isInput ? "input" : "output";
+        SetHoverTip($"port: {port.Name}\n({side} slot)", at);
     }
 
     /// <summary>
@@ -807,6 +868,22 @@ public partial class NodeGraphView : UserControl
         }
 
         return 0;
+    }
+
+    /// <summary>
+    /// Highlights or unhighlights the port circles connected to the given
+    /// edge line (for cross-highlighting on edge hover).
+    /// </summary>
+    private void SetPortHighlight(Path line, bool highlight)
+    {
+        if (!_edgeToCircles.TryGetValue(line, out var circles))
+        {
+            return;
+        }
+
+        IBrush brush = highlight ? EdgeHoverBrush : WhiteBrush;
+        if (circles.src is not null) circles.src.Fill = brush;
+        if (circles.dst is not null) circles.dst.Fill = brush;
     }
 
     private void AddEdge(
@@ -860,6 +937,11 @@ public partial class NodeGraphView : UserControl
 
         GraphCanvas.Children.Add(line);
 
+        // Record for cross-highlighting (edge ↔ port circle).
+        int srcPortIdx = fromNode is not null ? FindPortIndex(fromNode.OutputPorts, edge.ToIndex) : 0;
+        int dstPortIdx = toNode is not null ? FindPortIndex(toNode.InputPorts, edge.FromIndex) : 0;
+        _pendingEdges.Add((line, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
+
         // Arrowhead at the target end (pointing along the edge direction).
         Path? arrowhead = null;
         if (hasDirection)
@@ -909,8 +991,8 @@ public partial class NodeGraphView : UserControl
             }
         }
 
-        // Hover: thicken the edge (and highlight the arrowhead and the
-        // label) and show a floating tooltip.
+        // Hover: thicken the edge (and highlight the arrowhead, the label,
+        // and the connected port circles) and show a floating tooltip.
         line.PointerEntered += (_, e) =>
         {
             line.StrokeThickness = 3;
@@ -924,6 +1006,7 @@ public partial class NodeGraphView : UserControl
                 label.Foreground = EdgeHoverBrush;
                 label.FontWeight = FontWeight.SemiBold;
             }
+            SetPortHighlight(line, true);
             ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
         };
         line.PointerExited += (_, _) =>
@@ -939,6 +1022,7 @@ public partial class NodeGraphView : UserControl
                 label.Foreground = EdgeLabelBrush;
                 label.FontWeight = FontWeight.Normal;
             }
+            SetPortHighlight(line, false);
             HoverTip.IsVisible = false;
         };
         line.PointerMoved += (_, e) =>
@@ -993,6 +1077,11 @@ public partial class NodeGraphView : UserControl
         };
         GraphCanvas.Children.Add(line);
 
+        // Record for cross-highlighting (edge ↔ port circle).
+        int srcPortIdx = fromNode is not null ? FindPortIndex(fromNode.OutputPorts, edge.ToIndex) : 0;
+        int dstPortIdx = toNode is not null ? FindPortIndex(toNode.InputPorts, edge.FromIndex) : 0;
+        _pendingEdges.Add((line, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
+
         // Arrowhead at the target end, pointing along the curve tangent
         // (the direction from the last control point toward the endpoint).
         Vector dir = end - c2;
@@ -1029,15 +1118,17 @@ public partial class NodeGraphView : UserControl
             GraphCanvas.Children.Add(labelMask);
         }
 
-        // Hover: thicken the arc and show a tooltip.
+        // Hover: thicken the arc, highlight connected port circles, and show a tooltip.
         line.PointerEntered += (_, e) =>
         {
             line.StrokeThickness = 3;
+            SetPortHighlight(line, true);
             ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
         };
         line.PointerExited += (_, _) =>
         {
             line.StrokeThickness = 1.5;
+            SetPortHighlight(line, false);
             HoverTip.IsVisible = false;
         };
         line.PointerMoved += (_, e) =>
