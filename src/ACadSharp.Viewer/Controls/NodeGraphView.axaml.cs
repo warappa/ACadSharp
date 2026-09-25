@@ -124,7 +124,7 @@ public partial class NodeGraphView : UserControl
         set
         {
             _scale = Math.Clamp(value, MinScale, MaxScale);
-            ApplyScale();
+            ApplyScaleToGraphCanvas();
         }
     }
 
@@ -132,13 +132,21 @@ public partial class NodeGraphView : UserControl
     {
         InitializeComponent();
 
+        GraphCanvas.RenderTransformOrigin =
+            new RelativePoint(0, 0, RelativeUnit.Relative);
+
         // Pan: press on empty canvas space and drag; the wheel zooms about
         // the cursor (handled here so the scroll viewer does not scroll).
         GraphCanvas.PointerPressed += OnCanvasPointerPressed;
         GraphCanvas.PointerMoved += OnCanvasPointerMoved;
         GraphCanvas.PointerReleased += OnCanvasPointerReleased;
         GraphCanvas.PointerCaptureLost += OnCanvasPointerCaptureLost;
-        GraphCanvas.PointerWheelChanged += OnWheelZoom;
+        // Attach to the ScrollViewer (full viewport), not the GraphCanvas
+        // (whose layout bounds are only as large as the content). The
+        // RenderTransform scales the canvas's rendering, but hit-testing
+        // uses layout bounds — so the wheel would not fire over the empty
+        // area around the content if attached to the canvas.
+        Scroll.PointerWheelChanged += OnWheelZoom;
 
         // Re-apply the canvas size once the scroll viewport has a size
         // (the first layout, and window resizes) so the canvas keeps
@@ -148,7 +156,7 @@ public partial class NodeGraphView : UserControl
         {
             if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
             {
-                ApplyScale();
+                ApplyScaleToGraphCanvas();
             }
 
             PositionPendingLabels();
@@ -225,7 +233,7 @@ public partial class NodeGraphView : UserControl
         // Center the graph in the viewport.
         _panX = (Scroll.Bounds.Width - _naturalWidth * _scale) / 2;
         _panY = (Scroll.Bounds.Height - _naturalHeight * _scale) / 2;
-        ApplyScale();
+        ApplyScaleToGraphCanvas();
     }
 
     /// <summary>
@@ -252,11 +260,14 @@ public partial class NodeGraphView : UserControl
         _panX = at.X - (at.X - _panX) * ratio;
         _panY = at.Y - (at.Y - _panY) * ratio;
         _scale = newScale;
-        ApplyScale();
+        ApplyScaleToGraphCanvas();
     }
 
     private void OnWheelZoom(object? sender, PointerWheelEventArgs e)
     {
+        // The container is a plain Grid (no padding, no border), so the
+        // client area IS the content area. e.GetPosition(Scroll) gives the
+        // position relative to the canvas's render origin directly.
         ZoomAt(e.GetPosition(Scroll), e.Delta.Y);
         e.Handled = true; // do not let the scroll viewer scroll
     }
@@ -377,7 +388,7 @@ public partial class NodeGraphView : UserControl
         _scale = 1.0;
         _panX = 0;
         _panY = 0;
-        ApplyScale();
+        ApplyScaleToGraphCanvas();
     }
 
     /// <summary>
@@ -476,7 +487,7 @@ public partial class NodeGraphView : UserControl
         return new SolidColorBrush(MediaColor.Parse("#202020"));
     }
 
-    private void ApplyScale()
+    private void ApplyScaleToGraphCanvas()
     {
         if (_naturalWidth <= 0)
         {
@@ -622,7 +633,7 @@ public partial class NodeGraphView : UserControl
         _naturalHeight = Math.Max(
             model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + Margin * 2,
             300);
-        ApplyScale();
+        ApplyScaleToGraphCanvas();
     }
 
     private void AddNodeBox(GraphNodeInfo node, Point position)
