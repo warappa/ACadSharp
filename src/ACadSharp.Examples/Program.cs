@@ -1,4 +1,4 @@
-﻿using ACadSharp.IO;
+using ACadSharp.IO;
 using ACadSharp.Tables;
 using ACadSharp.Tables.Collections;
 using System;
@@ -12,6 +12,22 @@ namespace ACadSharp.Examples
 
 		static void Main(string[] args)
 		{
+			if (args.Length > 0 && args[0] == "evalgraph")
+			{
+				if (args.Length < 2)
+				{
+					Console.WriteLine("Usage: ACadSharp.Examples evalgraph <file.dwg|file.dxf> [more files...]");
+					return;
+				}
+
+				foreach (string file in args.Skip(1))
+				{
+					EvaluationGraphExamples.DumpEvaluationGraphs(file);
+				}
+
+				return;
+			}
+
 			CadDocument doc;
 			DwgPreview preview;
 			using (DwgReader reader = new DwgReader(_file))
