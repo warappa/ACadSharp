@@ -232,4 +232,48 @@ public class EvaluationTests : IOTestsBase
 		graph.Activate(Array.Empty<int>());
 		Assert.True(graph.Evaluate(), "The evaluation should be a no-op when no grips are activated.");
 	}
+
+	/// <summary>
+	/// Verify that a component's stored <see cref="EvaluationExpression.EvaluatedValue"/>
+	/// (code 40) is updated after evaluation: before evaluation it is the "not yet
+	/// evaluated" sentinel, and after evaluation it is the computed value.
+	/// </summary>
+	[Fact]
+	public void EvaluateUpdatesEvaluatedValueTest()
+	{
+		(_, BlockRecord block, EvaluationGraph graph) = this.loadGraph("BLOCKLINEARPARAMETER");
+
+		// Find the component that mirrors the end point's X coordinate (the "UpdatedEndX"
+		// port of the linear parameter).
+		BlockGripLocationComponent component = graph.Nodes
+			.Select(n => n.Expression)
+			.OfType<BlockGripLocationComponent>()
+			.First(c => c.Connection.Name == "UpdatedEndX");
+
+		// Before evaluation, the component's EvaluatedValue is the "not yet evaluated"
+		// sentinel (1.797693134862314E+99) or null.
+		double? initialValue = component.EvaluatedValue?.Value as double?;
+		bool isSentinel = initialValue.HasValue && Math.Abs(initialValue.Value - 1.797693134862314E+99) < 1;
+		Assert.True(isSentinel || initialValue == null, $"The initial EvaluatedValue should be the sentinel or null, got {initialValue}.");
+
+		// Activate the end grip (move it by (3,0,0)) and evaluate.
+		BlockLinearParameter param = graph.Nodes
+			.Select(n => n.Expression)
+			.OfType<BlockLinearParameter>()
+			.First();
+		XYZ endPoint = param.SecondPoint;
+		BlockGrip endGrip = graph.Nodes
+			.Select(n => n.Expression)
+			.OfType<BlockLinearGrip>()
+			.First(g => close(g.Location, endPoint));
+		endGrip.ActivatedLocation = endPoint + new XYZ(3, 0, 0);
+
+		graph.Activate(new[] { nodeIndex(graph, endGrip) });
+		Assert.True(graph.Evaluate(), "The evaluation failed.");
+
+		// After evaluation, the component's EvaluatedValue should be the computed value
+		// (the updated end point's X coordinate = 8).
+		Assert.NotNull(component.EvaluatedValue);
+		assertClose(8.0, component.EvaluatedValue.Value as double?);
+	}
 }
