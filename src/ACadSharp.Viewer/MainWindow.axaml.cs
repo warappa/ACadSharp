@@ -44,7 +44,11 @@ public partial class MainWindow : Window
 
         var tree = BlockTreeModel.Build(_document);
         BlockTree.ItemsSource = tree;
+        BlockHeader.Text = string.Empty;
+        EvalStatus.Text = string.Empty;
+        PropertyGrid.ItemsSource = null;
         PlaceholderText.Text = "Select a block in the tree to see its properties.";
+        PlaceholderText.IsVisible = true;
         StatusText.Text = $"Loaded {Path.GetFileName(path)}: {_document.BlockRecords.Count} block record(s), {tree.Count} root(s).";
     }
 
@@ -72,10 +76,37 @@ public partial class MainWindow : Window
 
     private void OnTreeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (BlockTree.SelectedItem is BlockTreeNode node)
+        if (BlockTree.SelectedItem is not BlockTreeNode node)
         {
-            PlaceholderText.Text = $"Block '{node.Block.Name}' selected (properties in a later phase).";
-            StatusText.Text = $"Selected block: {node.Block.Name}{(node.Block.IsDynamic ? " (dynamic)" : "")}";
+            return;
+        }
+
+        BlockHeader.Text = node.Block.Name + (node.Block.IsDynamic ? " (dynamic)" : string.Empty);
+
+        BlockModel? model = BlockModel.Create(node.Block);
+        if (model is null)
+        {
+            EvalStatus.Text = "Not a dynamic block (no evaluation graph).";
+            PropertyGrid.ItemsSource = null;
+            PlaceholderText.Text = "This block has no parameters.";
+            PlaceholderText.IsVisible = true;
+            return;
+        }
+
+        EvalStatus.Text = model.EvaluationOk
+            ? $"Evaluation OK ({model.GripCount} grip(s) activated)"
+            : "Evaluation FAILED — values may be incomplete.";
+
+        PropertyGrid.ItemsSource = model.Properties;
+        PlaceholderText.Text = "No parameters in this block.";
+        PlaceholderText.IsVisible = model.Properties.Count == 0;
+    }
+
+    private void OnInfoClick(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: PropertyItem item })
+        {
+            StatusText.Text = $"Info for '{item.Name}' (node {item.NodeIndex}) — the node viewer arrives in a later phase.";
         }
     }
 

@@ -16,7 +16,7 @@
         <Border DockPanel.Dock="Bottom" Padding="10,5">
             <TextBlock x:Name="StatusText" Foreground="{DynamicResource TextFillColorTertiary}" Text="Open a .dwg or .dxf file to begin." />
         </Border>
-        <Grid x:Name="ContentRoot" ColumnDefinitions="360,*">
+        <Grid ColumnDefinitions="360,*">
             <Border Grid.Column="0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,1,0">
                 <TreeView x:Name="BlockTree" Margin="4" SelectionChanged="OnTreeSelectionChanged">
                     <TreeView.ItemTemplate>
@@ -26,8 +26,26 @@
                     </TreeView.ItemTemplate>
                 </TreeView>
             </Border>
-            <Grid Grid.Column="1">
-                <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
+            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*">
+                <TextBlock x:Name="BlockHeader" Grid.Row="0" Margin="12,10,12,0" FontWeight="Bold" FontSize="16" />
+                <TextBlock x:Name="EvalStatus" Grid.Row="1" Margin="12,4,12,0" Foreground="{DynamicResource TextFillColorSecondary}" />
+                <Grid Grid.Row="2">
+                    <DataGrid x:Name="PropertyGrid" x:DataType="svc:PropertyItem" AutoGenerateColumns="False" IsReadOnly="True" Margin="12,8">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="160" />
+                            <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
+                            <DataGridTextColumn Header="Value" Binding="{Binding ValueText}" Width="120" />
+                            <DataGridTemplateColumn Header="Info" Width="70">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Button Content="info" Click="OnInfoClick" Tag="{Binding}" />
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
+                </Grid>
             </Grid>
         </Grid>
     </DockPanel>

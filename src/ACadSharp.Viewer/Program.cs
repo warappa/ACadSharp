@@ -118,6 +118,20 @@ static class SmokeTest
                     : expr.CurrentValue.ToString();
                 Console.WriteLine($"  node {node.Index,2}: {expr.GetType().Name,-28} value={value}");
             }
+
+            // 3. Properties (label / description / value).
+            BlockModel? model = BlockModel.Create(block);
+            if (model is null)
+            {
+                continue;
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("--- properties ---");
+            foreach (PropertyItem property in model.Properties)
+            {
+                Console.WriteLine($"  {property.Name,-20} [{property.Description}] = {property.ValueText}");
+            }
         }
 
         Console.WriteLine();
