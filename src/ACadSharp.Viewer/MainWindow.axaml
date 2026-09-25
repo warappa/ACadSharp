@@ -29,6 +29,33 @@
                         </StackPanel>
                     </Button>
                 </StackPanel>
+                <Button x:Name="SettingsButton" DockPanel.Dock="Right" Padding="8,4" Focusable="False">
+                    <ui:FASymbolIcon Symbol="Settings" />
+                    <Button.Flyout>
+                        <!-- Avalonia 12: FAMenuFlyout (FlyoutBase) has no Name property,
+                             so it cannot be x:Named; MainWindow holds a reference
+                             via SettingsButton.Flyout instead. -->
+                        <ui:FAMenuFlyout Placement="Bottom">
+                            <ui:FARadioMenuFlyoutItem x:Name="ThemeLightItem" GroupName="theme" Text="Light theme"
+                                                      IconSource="WeatherSunny" CommandParameter="Light" Click="OnSettingsThemeClick" />
+                            <ui:FARadioMenuFlyoutItem x:Name="ThemeDarkItem" GroupName="theme" Text="Dark theme"
+                                                      IconSource="DarkTheme" CommandParameter="Dark" IsChecked="True" Click="OnSettingsThemeClick" />
+                            <ui:FARadioMenuFlyoutItem x:Name="ThemeHcItem" GroupName="theme" Text="High contrast"
+                                                      IconSource="Highlight" CommandParameter="HighContrast" Click="OnSettingsThemeClick" />
+                            <ui:FAMenuFlyoutSeparator />
+                            <ui:FARadioMenuFlyoutItem x:Name="AccentDefaultItem" GroupName="accent" Text="Default accent"
+                                                      IconSource="ColorFill" CommandParameter="AccentDefault" IsChecked="True" Click="OnSettingsAccentClick" />
+                            <ui:FARadioMenuFlyoutItem x:Name="AccentBlueItem" GroupName="accent" Text="Blue accent"
+                                                      IconSource="ColorFill" CommandParameter="AccentBlue" Click="OnSettingsAccentClick" />
+                            <ui:FARadioMenuFlyoutItem x:Name="AccentRedItem" GroupName="accent" Text="Red accent"
+                                                      IconSource="ColorFill" CommandParameter="AccentRed" Click="OnSettingsAccentClick" />
+                            <ui:FARadioMenuFlyoutItem x:Name="AccentGreenItem" GroupName="accent" Text="Green accent"
+                                                      IconSource="ColorFill" CommandParameter="AccentGreen" Click="OnSettingsAccentClick" />
+                            <ui:FARadioMenuFlyoutItem x:Name="AccentPurpleItem" GroupName="accent" Text="Purple accent"
+                                                      IconSource="ColorFill" CommandParameter="AccentPurple" Click="OnSettingsAccentClick" />
+                        </ui:FAMenuFlyout>
+                    </Button.Flyout>
+                </Button>
                 <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" IsChecked="True" Click="OnThemeToggleClick" Padding="10,4">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <ui:FASymbolIcon x:Name="ThemeIcon" Symbol="DarkTheme" />
@@ -113,6 +140,16 @@
                 <ui:FAProgressRing x:Name="LoadingRing" Grid.Column="2" IsVisible="False" Width="48" Height="48"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
+            <!-- First-run teaching tip: its template root is a Left/Top-aligned
+                 Border, so the element (spanning both rows) only intercepts
+                 input over the visible card, not the content behind it. -->
+            <ui:FATeachingTip x:Name="IntroTip"
+                              Title="Explore dynamic blocks"
+                              Subtitle="Open a file, select a ⚡ dynamic block, and press ⓘ next to a value to see its evaluation graph."
+                              PreferredPlacement="Bottom"
+                              IsLightDismissEnabled="True"
+                              ActionButtonContent="Got it"
+                              ActionButtonClick="OnIntroTipActionClick" />
         </Grid>
     </DockPanel>
 </Window>

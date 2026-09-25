@@ -7,6 +7,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
+using Avalonia.Styling;
+using FluentAvalonia.Styling;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -33,8 +35,8 @@ class Program
 
         if (args.Length >= 2 && args[0] == "--screenshot")
         {
-            bool openDialog = args.Length >= 4 && args[3] == "dialog";
-            int code = Screenshot.Run(args[1], args.Length >= 3 ? args[2] : null, openDialog);
+            string? mode = args.Length >= 4 ? args[3] : null;
+            int code = Screenshot.Run(args[1], args.Length >= 3 ? args[2] : null, mode);
             Environment.Exit(code);
             return;
         }
@@ -176,14 +178,25 @@ static class SmokeTest
 /// <summary>
 /// Headless screenshot mode: renders the main window on the Avalonia.Headless
 /// platform (CPU-only; no display, X11, or GPU required) and saves a PNG.
-/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog]
+/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog|tip|flyout]
 /// The optional "dialog" argument opens the node viewer for the first
 /// dynamic block after the file loads and captures that dialog instead.
+/// The optional "tip" argument force-shows the first-run teaching tip
+/// (regardless of the first-run flag) and captures the main window.
+/// The optional "flyout" argument opens the settings flyout and captures
+/// the main window. The "hc" and "accent" arguments apply the high-contrast
+/// theme / a red accent (the settings-flyout operations) and capture the
+/// main window.
 /// </summary>
 static class Screenshot
 {
-    public static int Run(string outputPath, string? filePath, bool openDialog = false)
+    public static int Run(string outputPath, string? filePath, string? mode = null)
     {
+        bool openDialog = mode == "dialog";
+        bool showTip = mode == "tip";
+        bool showFlyout = mode == "flyout";
+        bool applyHc = mode == "hc";
+        bool applyAccent = mode == "accent";
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -257,7 +270,7 @@ static class Screenshot
 
                 // For the main-window capture, select the first dynamic block
                 // so the property grid is populated (mirrors what a user does).
-                if (filePath is not null && !openDialog)
+                if (filePath is not null && !openDialog && !showTip && !showFlyout)
                 {
                     var selected = window.SelectFirstDynamicNode();
                     Log($"first dynamic node selected={selected is not null}");
@@ -266,6 +279,55 @@ static class Screenshot
                         Avalonia.Threading.Dispatcher.UIThread.RunJobs();
                         Thread.Sleep(10);
                     }
+                }
+
+                // Optionally force the first-run teaching tip open (verification).
+                if (showTip)
+                {
+                    window.ForceShowIntroTip();
+                    for (int i = 0; i < 20; i++)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                        Thread.Sleep(10);
+                    }
+                    Log("tip forced open");
+                }
+
+                // Optionally open the settings flyout (verification). The popup
+                // is windowless in Avalonia 12 (overlay layer), so it renders
+                // into the main window's frame.
+                if (showFlyout)
+                {
+                    window.ForceOpenSettingsFlyout();
+                    for (int i = 0; i < 30; i++)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                        Thread.Sleep(10);
+                    }
+                    Log("settings flyout forced open");
+                }
+
+                // Optionally apply the high-contrast theme or a red accent
+                // (the settings-flyout operations, for verification).
+                if (applyHc)
+                {
+                    window.ApplyThemeAndAccentForVerification(FluentAvaloniaTheme.HighContrastTheme, null);
+                    for (int i = 0; i < 20; i++)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                        Thread.Sleep(10);
+                    }
+                    Log("high contrast applied");
+                }
+                else if (applyAccent)
+                {
+                    window.ApplyThemeAndAccentForVerification(ThemeVariant.Dark, Avalonia.Media.Color.Parse("#D13438"));
+                    for (int i = 0; i < 20; i++)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                        Thread.Sleep(10);
+                    }
+                    Log("red accent applied");
                 }
 
                 // Optionally open the node viewer dialog and capture it instead.

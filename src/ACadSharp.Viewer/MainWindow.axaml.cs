@@ -10,6 +10,7 @@ using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using MediaColor = Avalonia.Media.Color;
 using Avalonia.Styling;
+using FluentAvalonia.Styling;
 using FluentAvalonia.UI.Controls;
 using System;
 using System.Collections.Generic;
@@ -27,6 +28,20 @@ public partial class MainWindow : Window
     private static readonly MediaColor ErrorColor = MediaColor.Parse("#D13438");
     private static readonly MediaColor SuccessColor = MediaColor.Parse("#2E9E5B");
 
+    // FluentAvalonia 3.x accent presets — applied to the theme instance's
+    // CustomAccentColor (3.x has no ApplicationAccentColorManager).
+    private static readonly MediaColor AccentBlue = MediaColor.Parse("#0078D4");
+    private static readonly MediaColor AccentRed = MediaColor.Parse("#D13438");
+    private static readonly MediaColor AccentGreen = MediaColor.Parse("#2E9E5B");
+    private static readonly MediaColor AccentPurple = MediaColor.Parse("#8764B8");
+
+    // First-run flag for the teaching tip (user profile, not the repo).
+    private static string FirstRunFlagPath =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "ACadSharp.Viewer",
+            "intro-tip-seen");
+
     private CadDocument? _document;
     private BlockTreeNode? _selectedNode;
     private List<PropertyItem>? _properties;
@@ -34,6 +49,7 @@ public partial class MainWindow : Window
     private Timer? _infoBarAutoClose;
     private string? _lastPath;
     private List<BlockTreeNode> _fullTree = new();
+    private FAMenuFlyout? _settingsFlyout;
 
     public MainWindow()
     {
@@ -50,6 +66,20 @@ public partial class MainWindow : Window
         DragDrop.SetAllowDrop(this, true);
         DragDrop.AddDragOverHandler(this, OnDragOver);
         DragDrop.AddDropHandler(this, OnDrop);
+
+        // First-run teaching tip: anchored to the property grid (where the
+        // info buttons live), shown once, then a flag is persisted in the
+        // user profile so it does not nag again.
+        IntroTip.Target = PropertyGrid;
+        if (!HasSeenIntroTip)
+        {
+            IntroTip.IsOpen = true;
+            MarkIntroTipSeen();
+        }
+
+        // Avalonia 12: FAMenuFlyout (FlyoutBase) has no Name property, so the
+        // flyout cannot be x:Named; grab the instance from the button instead.
+        _settingsFlyout = SettingsButton.Flyout as FAMenuFlyout;
     }
 
     private void OnTreeSearchTextChanged(object? sender, TextChangedEventArgs e)
@@ -411,13 +441,25 @@ public partial class MainWindow : Window
     private void OnThemeToggleClick(object? sender, RoutedEventArgs e)
     {
         bool isDark = DarkThemeToggle.IsChecked == true;
+        ApplyTheme(isDark ? ThemeVariant.Dark : ThemeVariant.Light);
+    }
+
+    private void ApplyTheme(ThemeVariant variant)
+    {
         if (Application.Current is not null)
         {
-            Application.Current.RequestedThemeVariant = isDark ? ThemeVariant.Dark : ThemeVariant.Light;
+            Application.Current.RequestedThemeVariant = variant;
         }
 
-        ThemeIcon.Symbol = isDark ? FASymbol.DarkTheme : FASymbol.WeatherSunny;
-        ThemeLabel.Text = isDark ? "Dark" : "Light";
+        // Sync the header toggle + the settings-flyout radio items.
+        bool isDark = variant == ThemeVariant.Dark;
+        bool isHc = variant == FluentAvaloniaTheme.HighContrastTheme;
+        ThemeIcon.Symbol = isDark ? FASymbol.DarkTheme : isHc ? FASymbol.Highlight : FASymbol.WeatherSunny;
+        ThemeLabel.Text = isDark ? "Dark" : isHc ? "High contrast" : "Light";
+        DarkThemeToggle.IsChecked = isDark;
+        ThemeLightItem.IsChecked = !isDark && !isHc;
+        ThemeDarkItem.IsChecked = isDark;
+        ThemeHcItem.IsChecked = isHc;
 
         // The value-foreground converter resolves theme brushes once per bind;
         // re-binding forces it to pick up the new theme's brushes.
@@ -426,6 +468,111 @@ public partial class MainWindow : Window
             PropertyGrid.ItemsSource = null;
             PropertyGrid.ItemsSource = _properties;
         }
+    }
+
+    private void OnSettingsThemeClick(object? sender, RoutedEventArgs e)
+    {
+        ThemeVariant? variant = (sender as FAMenuFlyoutItem)?.CommandParameter switch
+        {
+            "Light" => ThemeVariant.Light,
+            "Dark" => ThemeVariant.Dark,
+            "HighContrast" => FluentAvaloniaTheme.HighContrastTheme,
+            _ => null,
+        };
+        if (variant is not null)
+        {
+            ApplyTheme(variant);
+        }
+    }
+
+    private void OnSettingsAccentClick(object? sender, RoutedEventArgs e)
+    {
+        MediaColor? accent = (sender as FAMenuFlyoutItem)?.CommandParameter switch
+        {
+            "AccentDefault" => null,
+            "AccentBlue" => AccentBlue,
+            "AccentRed" => AccentRed,
+            "AccentGreen" => AccentGreen,
+            "AccentPurple" => AccentPurple,
+            _ => null,
+        };
+
+        // 3.x: the accent is set on the theme instance (6 variants are
+        // pregenerated); null restores the system/default accent.
+        if (App.Theme is not null)
+        {
+            App.Theme.CustomAccentColor = accent;
+        }
+    }
+
+    private static bool HasSeenIntroTip
+    {
+        get
+        {
+            try
+            {
+                return File.Exists(FirstRunFlagPath);
+            }
+            catch
+            {
+                return true; // cannot check; do not nag
+            }
+        }
+    }
+
+    private static void MarkIntroTipSeen()
+    {
+        try
+        {
+            string dir = Path.GetDirectoryName(FirstRunFlagPath)!;
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(FirstRunFlagPath, DateTime.Now.ToString("O"));
+        }
+        catch
+        {
+            // Non-fatal: the tip just shows again next time.
+        }
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): shows the
+    /// first-run teaching tip regardless of the first-run flag.
+    /// </summary>
+    public void ForceShowIntroTip()
+    {
+        IntroTip.IsOpen = true;
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): opens the
+    /// settings flyout so it can be captured headlessly.
+    /// </summary>
+    public void ForceOpenSettingsFlyout()
+    {
+        _settingsFlyout?.IsOpen = true;
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): applies a theme
+    /// variant and/or an accent color (the same operations the settings
+    /// flyout performs), so the results can be captured headlessly.
+    /// </summary>
+    public void ApplyThemeAndAccentForVerification(ThemeVariant? variant, MediaColor? accent)
+    {
+        if (variant is not null)
+        {
+            ApplyTheme(variant);
+        }
+
+        if (App.Theme is not null)
+        {
+            App.Theme.CustomAccentColor = accent;
+        }
+    }
+
+    private void OnIntroTipActionClick(FATeachingTip sender, EventArgs e)
+    {
+        IntroTip.IsOpen = false;
     }
 
     private void SetStatus(string text, StatusKind kind)
