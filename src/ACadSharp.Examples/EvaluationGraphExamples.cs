@@ -145,6 +145,13 @@ namespace ACadSharp.Examples
 			}
 			switch (expr)
 			{
+				case BlockFlipParameter p:
+					AddProp(p.FirstPointDisplacementX);
+					AddProp(p.FirstPointDisplacementY);
+					AddProp(p.SecondPointDisplacementX);
+					AddProp(p.SecondPointDisplacementY);
+					Add(p.UpdatedFlipConnection);
+					break;
 				case Block1PtParameter p:
 					AddProp(p.DisplacementX);
 					AddProp(p.DisplacementY);
@@ -197,9 +204,6 @@ namespace ACadSharp.Examples
 					Add(a.UpdatedBaseConnection);
 					Add(a.UpdatedEndConnection);
 					Add(a.UpdatedFlipConnection);
-					break;
-				case BlockFlipParameter p:
-					Add(p.UpdatedFlipConnection);
 					break;
 			}
 			return result;
