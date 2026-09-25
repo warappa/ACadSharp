@@ -70,6 +70,15 @@ public partial class NodeGraphView : UserControl
     private Border? _selectedBox;
     private bool _selectedIsTarget;
 
+    // Node dragging: per-node offset (viewport-independent, in content
+    // coordinates). Applied on top of the computed layout position.
+    private readonly Dictionary<int, Vector> _nodeOffsets = new();
+    private Border? _dragBox;
+    private int _dragNodeIndex;
+    private Point _dragStartPos;
+    private Point _dragLastPos;
+    private GraphModel.Result? _lastModel;
+
     // Cross-highlighting: edge Path → its connected port circles, and
     // port circle → its connected edge Path. Populated after all drawing
     // in SetGraph.
@@ -245,7 +254,13 @@ public partial class NodeGraphView : UserControl
     {
         if (e.Handled)
         {
-            return; // a node box handled the press
+            return;
+        }
+
+        // Only right-button pans the canvas.
+        if (!e.Properties.IsRightButtonPressed)
+        {
+            return;
         }
 
         e.Pointer.Capture(GraphCanvas);
@@ -480,15 +495,19 @@ public partial class NodeGraphView : UserControl
         GraphCanvas.RenderTransform = group;
     }
 
-    public void SetGraph(GraphModel.Result model)
+    public void SetGraph(GraphModel.Result model, bool resetPan = true)
     {
+        _lastModel = model;
         _selectedBox = null;
         _selectedIsTarget = false;
         _hoverBox = null;
         _pendingSelectBox = null;
         _panStartPan = null;
-        _panX = 0;
-        _panY = 0;
+        if (resetPan)
+        {
+            _panX = 0;
+            _panY = 0;
+        }
         _pendingLabels.Clear();
         _firstLabeledEdge = null;
         _pendingEdges.Clear();
@@ -504,6 +523,9 @@ public partial class NodeGraphView : UserControl
         }
 
         // Node positions: the target (depth 0) in the rightmost column.
+        // Base layout position only — the user-drag offset is applied
+        // separately in AddNodeBox so the closure's `position` stays
+        // the unmodified layout anchor.
         Dictionary<int, Point> positions = new();
         Dictionary<int, GraphNodeInfo> byIndex = new();
         foreach (GraphNodeInfo node in model.Nodes)
@@ -515,11 +537,13 @@ public partial class NodeGraphView : UserControl
         }
 
         // Port positions: distributed evenly along the left/right edge of the box.
+        // Apply the user-drag offset so ports follow the moved node.
         Dictionary<int, List<Point>> inputPortPos = new();
         Dictionary<int, List<Point>> outputPortPos = new();
         foreach (GraphNodeInfo node in model.Nodes)
         {
-            Point pos = positions[node.Index];
+            Vector off = _nodeOffsets.GetValueOrDefault(node.Index);
+            Point pos = new Point(positions[node.Index].X + off.X, positions[node.Index].Y + off.Y);
             double h = BoxHeightFor(node);
 
             inputPortPos[node.Index] = new List<Point>();
@@ -654,63 +678,92 @@ public partial class NodeGraphView : UserControl
         }
 
         border.Child = stack;
-        Canvas.SetLeft(border, position.X);
-        Canvas.SetTop(border, position.Y);
+        Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
+        Canvas.SetLeft(border, position.X + offset.X);
+        Canvas.SetTop(border, position.Y + offset.Y);
 
-        // Interaction: hover highlight + floating card, click to select,
-        // drag to pan. The box captures the pointer so it keeps receiving
-        // moves while the box moves away from the cursor during a pan.
+        // Interaction: left-button drag moves the node; left click selects;
+        // right-button propagates to the canvas for panning.
         border.PointerPressed += (_, e) =>
         {
-            e.Handled = true; // do not start a canvas pan
+            if (e.Properties.IsRightButtonPressed)
+            {
+                return; // let the canvas handle right-button pan
+            }
+
+            e.Handled = true;
             _pendingSelectBox = border;
             _pressPos = e.GetPosition(Scroll);
+            _dragBox = border;
+            _dragNodeIndex = node.Index;
+            _dragStartPos = e.GetPosition(Scroll);
+            _dragLastPos = e.GetPosition(Scroll);
             e.Pointer.Capture(border);
-            border.Cursor = new Cursor(StandardCursorType.Hand);
+            border.Cursor = new Cursor(StandardCursorType.SizeAll);
         };
         border.PointerMoved += (_, e) =>
         {
-            Point pos = e.GetPosition(Scroll);
-            if (_pendingSelectBox == border)
-            {
-                bool dragged = Math.Abs(pos.X - _pressPos.X) > DragThreshold
-                    || Math.Abs(pos.Y - _pressPos.Y) > DragThreshold;
-                if (!dragged)
-                {
-                    return;
-                }
-
-                // The press became a drag: drop the pending selection and
-                // clear the (possibly stale) hover state, then start panning.
-                _pendingSelectBox = null;
-                _panStartPan = new Vector(_panX, _panY);
-                _panStartPos = pos;
-                if (_hoverBox == border)
-                {
-                    _hoverBox = null;
-                    SetBoxBorder(border, isTarget, false);
-                }
-                HoverTip.IsVisible = false;
-            }
-
-            if (_panStartPan is not Vector start)
+            if (_dragBox != border)
             {
                 return;
             }
 
-            _panX = start.X + pos.X - _panStartPos.X;
-            _panY = start.Y + pos.Y - _panStartPos.Y;
-            UpdateTransform();
+            Point pos = e.GetPosition(Scroll);
+            bool dragged = Math.Abs(pos.X - _dragStartPos.X) > DragThreshold
+                || Math.Abs(pos.Y - _dragStartPos.Y) > DragThreshold;
+            if (!dragged)
+            {
+                _dragLastPos = pos;
+                return;
+            }
+
+            // Incremental delta: from the last move position, converted
+            // to content space (divide by scale). Accumulates smoothly
+            // across moves and across drags.
+            double dx = (pos.X - _dragLastPos.X) / _scale;
+            double dy = (pos.Y - _dragLastPos.Y) / _scale;
+            _dragLastPos = pos;
+
+            Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
+            _nodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
+
+            // Redraw everything (box, ports, edges) at the new offset.
+            // Skip the pan reset so the view doesn't jump.
+            if (_lastModel is not null)
+            {
+                SetGraph(_lastModel, resetPan: false);
+            }
         };
         border.PointerReleased += (_, e) =>
         {
-            if (_pendingSelectBox == border)
+            if (_dragBox == border)
             {
-                _pendingSelectBox = null;
-                SelectNode(border, node, isTarget);
+                _dragBox = null;
+
+                if (_pendingSelectBox == border)
+                {
+                    // Check if it was a drag or a click.
+                    Point pos = e.GetPosition(Scroll);
+                    bool wasDrag = Math.Abs(pos.X - _dragStartPos.X) > DragThreshold
+                        || Math.Abs(pos.Y - _dragStartPos.Y) > DragThreshold;
+
+                    if (wasDrag)
+                    {
+                        _pendingSelectBox = null;
+                        // Redraw edges to follow the moved node.
+                        if (_lastModel is not null)
+                        {
+                            SetGraph(_lastModel);
+                        }
+                    }
+                    else
+                    {
+                        _pendingSelectBox = null;
+                        SelectNode(border, node, isTarget);
+                    }
+                }
             }
 
-            _panStartPan = null;
             border.Cursor = null;
             e.Pointer.Capture(null);
 
