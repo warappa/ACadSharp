@@ -82,6 +82,10 @@ public partial class NodeGraphView : UserControl
     // only known after the first layout pass): (mask, label, start.X, end.X).
     private readonly List<(Border mask, TextBlock label, double startX, double endX)> _pendingLabels = new();
 
+    // Port labels deferred to a separate pass (drawn after all boxes so
+    // they are not covered by adjacent-column boxes).
+    private readonly List<Border> _pendingPortLabels = new();
+
     // The first edge line that has a label (for the hover-verification
     // helper, which needs a point on a labeled edge).
     private Path? _firstLabeledEdge;
@@ -491,6 +495,7 @@ public partial class NodeGraphView : UserControl
         _portCircles.Clear();
         _edgeToCircles.Clear();
         _circleToEdge.Clear();
+        _pendingPortLabels.Clear();
         GraphCanvas.Children.Clear();
 
         if (model.Nodes.Count == 0)
@@ -553,6 +558,14 @@ public partial class NodeGraphView : UserControl
         {
             AddNodeBox(node, positions[node.Index]);
         }
+
+        // Port labels: above all node boxes (so adjacent-column boxes
+        // don't cover them), below edge labels.
+        foreach (Border mask in _pendingPortLabels)
+        {
+            GraphCanvas.Children.Add(mask);
+        }
+        _pendingPortLabels.Clear();
 
         // Edge labels last: above the node boxes, so a label wider than
         // the gap stays readable where it overlaps the source box.
@@ -825,7 +838,8 @@ public partial class NodeGraphView : UserControl
 
             // Permanent label: to the left of input ports, to the right of
             // output ports. Fully opaque white, 11px, with a background
-            // mask so it stays readable over edge lines.
+            // mask. Deferred to _pendingPortLabels so it draws above all
+            // node boxes (not covered by adjacent-column boxes).
             if (port.Name.Length > 0)
             {
                 var label = new TextBlock
@@ -852,7 +866,7 @@ public partial class NodeGraphView : UserControl
                     Canvas.SetLeft(mask, edgeX + radius + 2);
                 }
                 Canvas.SetTop(mask, y - 8);
-                GraphCanvas.Children.Add(mask);
+                _pendingPortLabels.Add(mask);
             }
         }
     }
