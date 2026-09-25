@@ -262,8 +262,9 @@ public static class GraphModel
     /// </summary>
     /// <summary>
     /// The port name for an edge: the <c>Name</c> field of the connection on
-    /// the target node that references the source node. Empty when no such
-    /// connection exists.
+    /// the target node that references the source node. Falls back to a
+    /// type-specific default when no matching connection is found (the
+    /// EvalConnection entries are not always populated by the file reader).
     /// </summary>
     private static string GetPortName(EvaluationGraph graph, EvaluationGraph.Edge edge)
     {
@@ -272,7 +273,7 @@ public static class GraphModel
 
         if (toExpr is null || fromExpr is null)
         {
-            return string.Empty;
+            return "Value";
         }
 
         foreach ((int id, string name) in GetConnections(toExpr))
@@ -283,7 +284,23 @@ public static class GraphModel
             }
         }
 
-        return string.Empty;
+        // Fallback: the EvalConnection entries are not always populated by the
+        // file reader; use a type-specific default port name.
+        return toExpr switch
+        {
+            BlockLookupAction => "Lookup",
+            Block1PtParameter => "Displacement",   // covers BlockLookupParameter, BlockPointParameter
+            Block2PtParameter => "Displacement",  // covers BlockLinearParameter
+            BlockGripLocationComponent => "Location",
+            BlockScaleAction => "Scale",
+            BlockMoveAction => "Move",
+            BlockRotationAction => "Rotate",
+            BlockStretchAction => "Stretch",
+            BlockPolarStretchAction => "PolarStretch",
+            BlockArrayAction => "Array",
+            BlockFlipAction => "Flip",
+            _ => "Value",
+        };
     }
 
     private static GraphEdgeInfo BuildEdgeLabel(EvaluationGraph graph, EvaluationGraph.Edge edge, bool isFeedback)
