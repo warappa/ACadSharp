@@ -73,6 +73,17 @@ public partial class NodeGraphView : UserControl
     // Node dragging: per-node offset (viewport-independent, in content
     // coordinates). Applied on top of the computed layout position.
     private readonly Dictionary<int, Vector> _nodeOffsets = new();
+    // Container per node: holds the box + port circles + port labels.
+    // Moving the container moves the whole node group.
+    private readonly Dictionary<int, Canvas> _nodeContainers = new();
+    // Base (layout) positions per node, without the drag offset.
+    private readonly Dictionary<int, Point> _basePositions = new();
+    // Box heights per node (for port Y computation).
+    private readonly Dictionary<int, double> _boxHeights = new();
+    // Persistent edge records for real-time geometry updates during drag.
+    // The arrowhead and label (if any) are stored alongside the line so
+    // all three update together.
+    private readonly List<(Path line, Path? arrowhead, Border? labelMask, int fromIdx, int toIdx, int srcPortIdx, int dstPortIdx)> _edgeRecords = new();
     private Border? _dragBox;
     private int _dragNodeIndex;
     private Point _dragStartPos;
@@ -514,7 +525,8 @@ public partial class NodeGraphView : UserControl
         _portCircles.Clear();
         _edgeToCircles.Clear();
         _circleToEdge.Clear();
-        _pendingPortLabels.Clear();
+        _nodeContainers.Clear();
+        _edgeRecords.Clear();
         GraphCanvas.Children.Clear();
 
         if (model.Nodes.Count == 0)
@@ -528,12 +540,16 @@ public partial class NodeGraphView : UserControl
         // the unmodified layout anchor.
         Dictionary<int, Point> positions = new();
         Dictionary<int, GraphNodeInfo> byIndex = new();
+        _basePositions.Clear();
+        _boxHeights.Clear();
         foreach (GraphNodeInfo node in model.Nodes)
         {
             double x = (model.MaxDepth - node.Depth) * ColumnWidth + Margin;
             double y = node.Row * RowHeight + Margin;
             positions[node.Index] = new Point(x, y);
             byIndex[node.Index] = node;
+            _basePositions[node.Index] = new Point(x, y);
+            _boxHeights[node.Index] = BoxHeightFor(node);
         }
 
         // Port positions: distributed evenly along the left/right edge of the box.
@@ -582,14 +598,6 @@ public partial class NodeGraphView : UserControl
         {
             AddNodeBox(node, positions[node.Index]);
         }
-
-        // Port labels: above all node boxes (so adjacent-column boxes
-        // don't cover them), below edge labels.
-        foreach (Border mask in _pendingPortLabels)
-        {
-            GraphCanvas.Children.Add(mask);
-        }
-        _pendingPortLabels.Clear();
 
         // Edge labels last: above the node boxes, so a label wider than
         // the gap stays readable where it overlaps the source box.
@@ -678,9 +686,19 @@ public partial class NodeGraphView : UserControl
         }
 
         border.Child = stack;
+
+        // Container: holds the box (at 0,0) + port circles + port labels.
+        // Positioned at the node's layout position + drag offset.
+        var container = new Canvas();
+        Canvas.SetLeft(border, 0);
+        Canvas.SetTop(border, 0);
+        container.Children.Add(border);
+        _nodeContainers[node.Index] = container;
+
         Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
-        Canvas.SetLeft(border, position.X + offset.X);
-        Canvas.SetTop(border, position.Y + offset.Y);
+        Canvas.SetLeft(container, position.X + offset.X);
+        Canvas.SetTop(container, position.Y + offset.Y);
+        GraphCanvas.Children.Add(container);
 
         // Interaction: left-button drag moves the node; left click selects;
         // right-button propagates to the canvas for panning.
@@ -727,12 +745,15 @@ public partial class NodeGraphView : UserControl
             Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
             _nodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
 
-            // Redraw everything (box, ports, edges) at the new offset.
-            // Skip the pan reset so the view doesn't jump.
-            if (_lastModel is not null)
+            // Move the container (box + ports + labels move together).
+            if (_nodeContainers.TryGetValue(node.Index, out var container))
             {
-                SetGraph(_lastModel, resetPan: false);
+                Canvas.SetLeft(container, position.X + _nodeOffsets[node.Index].X);
+                Canvas.SetTop(container, position.Y + _nodeOffsets[node.Index].Y);
             }
+
+            // Update connected edges in real-time.
+            UpdateConnectedEdges(node.Index);
         };
         border.PointerReleased += (_, e) =>
         {
@@ -751,9 +772,10 @@ public partial class NodeGraphView : UserControl
                     {
                         _pendingSelectBox = null;
                         // Redraw edges to follow the moved node.
+                        // Skip pan reset so the view doesn't jump.
                         if (_lastModel is not null)
                         {
-                            SetGraph(_lastModel);
+                            SetGraph(_lastModel, resetPan: false);
                         }
                     }
                     else
@@ -816,20 +838,19 @@ public partial class NodeGraphView : UserControl
             HoverTip.IsVisible = false;
         };
 
-        GraphCanvas.Children.Add(border);
-
         // Port circles and labels: input ports on the left edge, output
-        // ports on the right edge.
+        // ports on the right edge. Positions are relative to the container's
+        // origin (the box's top-left corner).
         double h = hasName ? NamedBoxHeight : BoxHeight;
-        DrawPorts(node.InputPorts, node.Index, position.X, position.Y, h, isInput: true);
-        DrawPorts(node.OutputPorts, node.Index, position.X + BoxWidth, position.Y, h, isInput: false);
+        DrawPorts(node.InputPorts, node.Index, 0, 0, h, isInput: true, container);
+        DrawPorts(node.OutputPorts, node.Index, BoxWidth, 0, h, isInput: false, container);
     }
 
     /// <summary>
     /// Draws a row of port circles (small filled circles) along the given
     /// edge of a box, with the port name in small font next to each circle.
     /// </summary>
-    private void DrawPorts(List<PortInfo> ports, int nodeIndex, double edgeX, double boxY, double boxH, bool isInput)
+    private void DrawPorts(List<PortInfo> ports, int nodeIndex, double edgeX, double boxY, double boxH, bool isInput, Canvas container)
     {
         if (ports.Count == 0)
         {
@@ -843,6 +864,7 @@ public partial class NodeGraphView : UserControl
             double y = boxY + (i + 0.5) * (boxH / ports.Count);
 
             // Circle (hit-test visible for cross-highlighting).
+            // Positions are relative to the container's origin.
             var circle = new Ellipse
             {
                 Width = radius * 2,
@@ -853,7 +875,7 @@ public partial class NodeGraphView : UserControl
             };
             Canvas.SetLeft(circle, edgeX - radius);
             Canvas.SetTop(circle, y - radius);
-            GraphCanvas.Children.Add(circle);
+            container.Children.Add(circle);
 
             // Store for cross-highlighting.
             _portCircles[(nodeIndex, i, isInput)] = circle;
@@ -891,8 +913,7 @@ public partial class NodeGraphView : UserControl
 
             // Permanent label: to the left of input ports, to the right of
             // output ports. Fully opaque white, 11px, with a background
-            // mask. Deferred to _pendingPortLabels so it draws above all
-            // node boxes (not covered by adjacent-column boxes).
+            // mask. Added to the node container so it moves with the node.
             if (port.Name.Length > 0)
             {
                 var label = new TextBlock
@@ -919,7 +940,7 @@ public partial class NodeGraphView : UserControl
                     Canvas.SetLeft(mask, edgeX + radius + 2);
                 }
                 Canvas.SetTop(mask, y - 8);
-                _pendingPortLabels.Add(mask);
+                container.Children.Add(mask);
             }
         }
     }
@@ -1025,7 +1046,6 @@ public partial class NodeGraphView : UserControl
         {
             arrowhead = AddArrowhead(end, direction);
         }
-
         // Label at the midpoint; the opaque background mask (the canvas
         // background color) keeps the label readable where it overlaps the
         // edge line. The label is added to the canvas AFTER the node boxes
@@ -1036,6 +1056,7 @@ public partial class NodeGraphView : UserControl
         // shifted left so the right edge stays at least 16px clear of the
         // arrowhead tip.
         TextBlock? label = null;
+        Border? labelMask = null;
         if (edge.Label.Length > 0)
         {
             Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
@@ -1045,13 +1066,42 @@ public partial class NodeGraphView : UserControl
                 Foreground = EdgeLabelBrush,
                 Text = edge.Label,
             };
-            var labelMask = new Border
+            labelMask = new Border
             {
                 Background = GetCanvasBackgroundBrush(),
                 CornerRadius = new CornerRadius(2),
                 Padding = new Thickness(2, 1),
                 Child = label,
-                IsHitTestVisible = false, // the edge line keeps its hover
+            };
+            // Hovering the label highlights the edge (same as hovering the line).
+            labelMask.PointerEntered += (_, e) =>
+            {
+                line.StrokeThickness = 3;
+                line.Stroke = EdgeHoverBrush;
+                if (arrowhead is not null) arrowhead.Fill = EdgeHoverBrush;
+                label!.Foreground = EdgeHoverBrush;
+                label.FontWeight = FontWeight.SemiBold;
+                SetPortHighlight(line, true);
+                ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+            };
+            labelMask.PointerExited += (_, _) =>
+            {
+                line.StrokeThickness = 1.5;
+                line.Stroke = EdgeLineBrush;
+                if (arrowhead is not null) arrowhead.Fill = EdgeLineBrush;
+                label!.Foreground = EdgeLabelBrush;
+                label.FontWeight = FontWeight.Normal;
+                SetPortHighlight(line, false);
+                HoverTip.IsVisible = false;
+            };
+            labelMask.PointerMoved += (_, e) =>
+            {
+                if (HoverTip.IsVisible)
+                {
+                    Point p = e.GetPosition(Overlay);
+                    Canvas.SetLeft(HoverTip, p.X + 14);
+                    Canvas.SetTop(HoverTip, p.Y + 14);
+                }
             };
             // Provisional: centered on the midpoint, shifted a bit left; the
             // final position is set by PositionPendingLabels once the text
@@ -1067,6 +1117,7 @@ public partial class NodeGraphView : UserControl
                 _firstLabeledEdge = line;
             }
         }
+        _edgeRecords.Add((line, arrowhead, labelMask, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Hover: thicken the edge (and highlight the arrowhead, the label,
         // and the connected port circles) and show a floating tooltip.
@@ -1161,14 +1212,16 @@ public partial class NodeGraphView : UserControl
 
         // Arrowhead at the target end, pointing along the curve tangent
         // (the direction from the last control point toward the endpoint).
+        Path? fbArrowhead = null;
         Vector dir = end - c2;
         if (dir.SquaredLength > 0.01)
         {
             dir = dir.Normalize();
-            AddArrowhead(end, dir, FeedbackBrush);
+            fbArrowhead = AddArrowhead(end, dir, FeedbackBrush);
         }
 
         // Label at the arc apex (bezier midpoint, t = 0.5).
+        Border? fbLabelMask = null;
         if (edge.Label.Length > 0)
         {
             double apexX = 0.125 * start.X + 0.375 * c1.X + 0.375 * c2.X + 0.125 * end.X;
@@ -1180,7 +1233,7 @@ public partial class NodeGraphView : UserControl
                 Foreground = FeedbackLabelBrush,
                 Text = edge.Label,
             };
-            var labelMask = new Border
+            fbLabelMask = new Border
             {
                 Background = GetCanvasBackgroundBrush(),
                 CornerRadius = new CornerRadius(2),
@@ -1190,10 +1243,11 @@ public partial class NodeGraphView : UserControl
             };
             // Position the label at the apex, centered horizontally.
             double labelWidth = edge.Label.Length * 7; // rough estimate
-            Canvas.SetLeft(labelMask, apexX - labelWidth / 2);
-            Canvas.SetTop(labelMask, apexY - 12);
-            GraphCanvas.Children.Add(labelMask);
+            Canvas.SetLeft(fbLabelMask, apexX - labelWidth / 2);
+            Canvas.SetTop(fbLabelMask, apexY - 12);
+            GraphCanvas.Children.Add(fbLabelMask);
         }
+        _edgeRecords.Add((line, fbArrowhead, fbLabelMask, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Hover: thicken the arc, highlight connected port circles, and show a tooltip.
         line.PointerEntered += (_, e) =>
@@ -1302,6 +1356,119 @@ public partial class NodeGraphView : UserControl
     /// <summary>
     /// The height of a node's box: named nodes show three lines (name /
     /// type / value) and get the taller box; unnamed nodes stay at the
+    /// <summary>
+    /// Recomputes the geometry of all edges connected to the given node,
+    /// using the node's current (offset) position. Called during a drag
+    /// so the arrows follow the moved node in real-time.
+    /// </summary>
+    private void UpdateConnectedEdges(int nodeIndex)
+    {
+        foreach (var (line, arrowhead, labelMask, fromIdx, toIdx, srcPortIdx, dstPortIdx) in _edgeRecords)
+        {
+            if (fromIdx != nodeIndex && toIdx != nodeIndex)
+            {
+                continue;
+            }
+
+            // Compute the current port positions (base + offset).
+            if (!_basePositions.TryGetValue(fromIdx, out Point fromBase)
+                || !_basePositions.TryGetValue(toIdx, out Point toBase)
+                || !_boxHeights.TryGetValue(fromIdx, out double fromH)
+                || !_boxHeights.TryGetValue(toIdx, out double toH))
+            {
+                continue;
+            }
+
+            Vector fromOff = _nodeOffsets.GetValueOrDefault(fromIdx);
+            Vector toOff = _nodeOffsets.GetValueOrDefault(toIdx);
+
+            // Output port position (right edge of source).
+            double outY = fromBase.Y + fromOff.Y + (srcPortIdx + 0.5) * (fromH / Math.Max(1, GetPortCount(fromIdx, isInput: false)));
+            Point start = new Point(fromBase.X + fromOff.X + BoxWidth, outY);
+
+            // Input port position (left edge of target).
+            double inY = toBase.Y + toOff.Y + (dstPortIdx + 0.5) * (toH / Math.Max(1, GetPortCount(toIdx, isInput: true)));
+            Point end = new Point(toBase.X + toOff.X, inY);
+
+            // Rebuild the edge geometry.
+            line.Data = BuildEdgeGeometry(start, end);
+
+            // Update the arrowhead (rebuild the triangle at the new end).
+            if (arrowhead is not null)
+            {
+                Vector direction = end - start;
+                if (direction.SquaredLength > 0.01)
+                {
+                    direction = direction.Normalize();
+                    arrowhead.Data = BuildArrowheadGeometry(end, direction);
+                }
+            }
+
+            // Update the label position (centered on the new midpoint).
+            if (labelMask is not null)
+            {
+                Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
+                double labelWidth = (labelMask.Child as TextBlock)?.Text.Length * 3 ?? 0;
+                Canvas.SetLeft(labelMask, mid.X - labelWidth);
+                Canvas.SetTop(labelMask, mid.Y);
+            }
+        }
+    }
+
+    private int GetPortCount(int nodeIndex, bool isInput)
+    {
+        if (_lastModel is null) return 1;
+        var node = _lastModel.Nodes.FirstOrDefault(n => n.Index == nodeIndex);
+        return isInput ? Math.Max(1, node?.InputPorts.Count ?? 1) : Math.Max(1, node?.OutputPorts.Count ?? 1);
+    }
+
+    private static Geometry BuildArrowheadGeometry(Point at, Vector direction)
+    {
+        // Match AddArrowhead: a filled triangle pointing along `direction`.
+        double size = 8;
+        Vector normal = new Vector(-direction.Y, direction.X);
+        Point p1 = at - direction * size;
+        Point p2 = p1 + normal * (size / 2);
+        Point p3 = p1 - normal * (size / 2);
+        var geo = new PathGeometry();
+        var fig = new PathFigure
+        {
+            StartPoint = at,
+            IsClosed = true,
+        };
+        fig.Segments.Add(new LineSegment { Point = p2 });
+        fig.Segments.Add(new LineSegment { Point = p3 });
+        geo.Figures.Add(fig);
+        return geo;
+    }
+
+    private static Geometry BuildEdgeGeometry(Point start, Point end)
+    {
+        // Match the original AddEdge geometry: cubic bezier with horizontal
+        // control-point offset, shortened by 5px at the target end.
+        Vector direction = end - start;
+        bool hasDirection = direction.SquaredLength > 0.01;
+        if (hasDirection) direction = direction.Normalize();
+        Point lineEnd = hasDirection ? end - direction * 5 : end;
+        double dx = Math.Max(Math.Abs(end.X - start.X) * 0.5, 40);
+        var geo = new PathGeometry();
+        var fig = new PathFigure
+        {
+            StartPoint = start,
+            IsClosed = false,
+        };
+        fig.Segments.Add(new BezierSegment
+        {
+            Point1 = new Point(start.X + dx, start.Y),
+            Point2 = new Point(lineEnd.X - dx, lineEnd.Y),
+            Point3 = lineEnd,
+        });
+        geo.Figures.Add(fig);
+        return geo;
+    }
+
+    /// <summary>
+    /// Returns the box height for the given node: named nodes get the
     /// default two-line height.
     /// </summary>
     private static double BoxHeightFor(GraphNodeInfo? node) =>
