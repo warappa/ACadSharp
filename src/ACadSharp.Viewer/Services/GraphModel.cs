@@ -152,53 +152,6 @@ public static class GraphModel
             }
         }
 
-        // Co-locate lookup actions with their parameters: reassign each
-        // BlockLookupAction's depth to the mode depth of its flag-4-connected
-        // neighbors. This keeps the action↔parameter 2-cycle within one
-        // column and leaves only the target→action edge going right-to-left
-        // (drawn as a feedback arc).
-        foreach (KeyValuePair<int, int> kv in depth.ToList())
-        {
-            int nodeIndex = kv.Key;
-            // The target always stays at depth 0 (rightmost column).
-            if (nodeIndex == targetIndex)
-            {
-                continue;
-            }
-            if (!byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node)
-                || node.Expression is not BlockLookupAction)
-            {
-                continue;
-            }
-
-            List<int> neighborDepths = new();
-            foreach (int edgeIdx in graph.GetOutgoingEdges(nodeIndex))
-            {
-                if (graph.IsForwardLookupEdge(edgeIdx) && depth.ContainsKey(graph.Edges[edgeIdx].ToNodeIndex))
-                {
-                    neighborDepths.Add(depth[graph.Edges[edgeIdx].ToNodeIndex]);
-                }
-            }
-            foreach (int edgeIdx in graph.GetIncomingEdges(nodeIndex))
-            {
-                if (graph.IsForwardLookupEdge(edgeIdx) && depth.ContainsKey(graph.Edges[edgeIdx].FromNodeIndex))
-                {
-                    neighborDepths.Add(depth[graph.Edges[edgeIdx].FromNodeIndex]);
-                }
-            }
-
-            if (neighborDepths.Count == 0)
-            {
-                continue;
-            }
-
-            depth[nodeIndex] = neighborDepths
-                .GroupBy(d => d)
-                .OrderByDescending(g => g.Count())
-                .ThenBy(g => g.Key)
-                .First().Key;
-        }
-
         // Rows: within each column, order by node index.
         var byDepth = depth
             .GroupBy(kv => kv.Value)
