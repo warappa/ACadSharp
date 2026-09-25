@@ -5,13 +5,13 @@
         <ScrollViewer x:Name="Scroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
             <Canvas x:Name="GraphCanvas" Background="Transparent" MinWidth="400" MinHeight="300" />
         </ScrollViewer>
-        <!-- Hover tooltip for edges (Avalonia 12 removed ToolTipService, so this is
-             a small floating card positioned at the pointer). -->
+        <!-- Hover tooltip for nodes and edges (Avalonia 12 removed ToolTipService,
+             so this is a small floating card positioned at the pointer). -->
         <Canvas x:Name="Overlay" IsHitTestVisible="False">
-            <Border x:Name="EdgeTip" IsVisible="False" CornerRadius="6" Padding="8,5"
+            <Border x:Name="HoverTip" IsVisible="False" CornerRadius="6" Padding="8,5"
                     Background="{DynamicResource SolidBackgroundFillColorBase}"
                     BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1">
-                <TextBlock x:Name="EdgeTipText" FontSize="12" TextWrapping="Wrap" MaxWidth="260" />
+                <TextBlock x:Name="HoverTipText" FontSize="12" TextWrapping="Wrap" MaxWidth="260" />
             </Border>
         </Canvas>
     </Grid>

@@ -42,7 +42,7 @@
         <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,1,0,0">
             <TextBlock x:Name="Details" FontFamily="Cascadia Code, Consolas, monospace" FontSize="12"
                        TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondary}"
-                       Text="Click a node to see its details. Hover an edge to see the connection." />
+                       Text="Click a node to see its details. Hover a node or edge for a quick summary. Scroll to zoom, drag to pan." />
         </Border>
         <local:NodeGraphView x:Name="Graph" />
     </DockPanel>

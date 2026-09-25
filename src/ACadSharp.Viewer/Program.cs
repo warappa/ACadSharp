@@ -1,6 +1,7 @@
 using ACadSharp;
 using ACadSharp.Objects.Evaluations;
 using ACadSharp.Tables;
+using ACadSharp.Viewer.Controls;
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
@@ -178,7 +179,7 @@ static class SmokeTest
 /// <summary>
 /// Headless screenshot mode: renders the main window on the Avalonia.Headless
 /// platform (CPU-only; no display, X11, or GPU required) and saves a PNG.
-/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog|tip|flyout]
+/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog|tip|flyout|interact]
 /// The optional "dialog" argument opens the node viewer for the first
 /// dynamic block after the file loads and captures that dialog instead.
 /// The optional "tip" argument force-shows the first-run teaching tip
@@ -186,7 +187,9 @@ static class SmokeTest
 /// The optional "flyout" argument opens the settings flyout and captures
 /// the main window. The "hc" and "accent" arguments apply the high-contrast
 /// theme / a red accent (the settings-flyout operations) and capture the
-/// main window.
+/// main window. The "interact" argument opens the node viewer and simulates
+/// a user (wheel zoom, drag pan, click select, hover) through the real
+/// input pipeline before capturing the dialog.
 /// </summary>
 static class Screenshot
 {
@@ -197,6 +200,7 @@ static class Screenshot
         bool showFlyout = mode == "flyout";
         bool applyHc = mode == "hc";
         bool applyAccent = mode == "accent";
+        bool interact = mode == "interact";
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -270,7 +274,7 @@ static class Screenshot
 
                 // For the main-window capture, select the first dynamic block
                 // so the property grid is populated (mirrors what a user does).
-                if (filePath is not null && !openDialog && !showTip && !showFlyout)
+                if (filePath is not null && !openDialog && !showTip && !showFlyout && !interact)
                 {
                     var selected = window.SelectFirstDynamicNode();
                     Log($"first dynamic node selected={selected is not null}");
@@ -332,7 +336,7 @@ static class Screenshot
 
                 // Optionally open the node viewer dialog and capture it instead.
                 TopLevel? dialog = null;
-                if (openDialog)
+                if (openDialog || interact)
                 {
                     dialog = window.OpenFirstDynamicNodeViewer();
                     Log($"node viewer opened={dialog is not null}");
@@ -351,6 +355,53 @@ static class Screenshot
                             Thread.Sleep(10);
                         }
                         Log($"dialog visible={dialog.IsVisible} bounds={dialog.Bounds}");
+
+                        // Verification: simulate a user through the real input
+                        // pipeline (Avalonia.Headless extensions on TopLevel):
+                        // wheel zoom, drag pan, click select, hover.
+                        if (interact && dialog is NodeViewerDialog nodeViewer)
+                        {
+                            void Pump(int n)
+                            {
+                                for (int i = 0; i < n; i++)
+                                {
+                                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                                    Thread.Sleep(10);
+                                }
+                            }
+
+                            // 1. Zoom in two notches at a point inside the graph.
+                            Point center = new Point(200, 150);
+                            nodeViewer.MouseWheel(center, new Vector(0, 1));
+                            nodeViewer.MouseWheel(center, new Vector(0, 1));
+                            Pump(10);
+
+                            // 2. Pan: press, drag 120/80 px, release (content moves
+                            //    120 px left and 80 px up).
+                            nodeViewer.MouseDown(center, Avalonia.Input.MouseButton.Left);
+                            nodeViewer.MouseMove(center + new Vector(120, 80));
+                            nodeViewer.MouseUp(center + new Vector(120, 80), Avalonia.Input.MouseButton.Left);
+                            Pump(10);
+
+                            // 3. Select the first node box (a press without drag).
+                            Point? box0 = nodeViewer.Graph.GetNodeBoxCenter(nodeViewer, 0);
+                            Log($"box0={box0}");
+                            if (box0 is not null)
+                            {
+                                nodeViewer.MouseDown(box0.Value, Avalonia.Input.MouseButton.Left);
+                                nodeViewer.MouseUp(box0.Value, Avalonia.Input.MouseButton.Left);
+                                Pump(10);
+                            }
+
+                            // 4. Hover the second node box.
+                            Point? box1 = nodeViewer.Graph.GetNodeBoxCenter(nodeViewer, 1);
+                            Log($"box1={box1}");
+                            if (box1 is not null)
+                            {
+                                nodeViewer.MouseMove(box1.Value);
+                                Pump(10);
+                            }
+                        }
                     }
                 }
 

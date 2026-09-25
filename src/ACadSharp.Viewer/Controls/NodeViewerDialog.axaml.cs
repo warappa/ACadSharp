@@ -13,8 +13,9 @@ namespace ACadSharp.Viewer.Controls;
 /// property's value: the target node (highlighted ring) plus its upstream
 /// ancestors (transitive closure over incoming edges), laid out left to
 /// right. The header carries a color legend and fit/zoom controls.
-/// Clicking a node shows its full details in the bottom panel; hovering
-/// an edge shows the connection in a floating tooltip.
+/// Clicking a node selects it (accent ring) and shows its full details in
+/// the bottom panel; hovering a node or edge shows a floating summary;
+/// the wheel zooms about the cursor and dragging pans the graph.
 /// </summary>
 public partial class NodeViewerDialog : Window
 {

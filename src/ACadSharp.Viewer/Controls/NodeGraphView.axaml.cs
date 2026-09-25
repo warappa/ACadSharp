@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
+using Avalonia.Input;
 using Avalonia.Media;
 using MediaColor = Avalonia.Media.Color;
 using System;
@@ -17,9 +18,9 @@ namespace ACadSharp.Viewer.Controls;
 /// Draws a layered node graph: node boxes (color-coded by kind) in columns
 /// by BFS depth, bezier edges with arrowheads and port-name labels.
 /// The target node (depth 0) gets a highlight ring. Supports zooming
-/// (Scale / ZoomIn / ZoomOut / FitToView) and shows a hover tooltip on
-/// edges. Clicking a node box raises <see cref="OnNodeClicked"/> with its
-/// details.
+/// (Scale / ZoomIn / ZoomOut / FitToView / mouse wheel), panning by
+/// dragging, a hover tooltip on nodes and edges, and node selection
+/// (click: accent ring + <see cref="OnNodeClicked"/> with the details).
 /// </summary>
 public partial class NodeGraphView : UserControl
 {
@@ -30,10 +31,25 @@ public partial class NodeGraphView : UserControl
     private const double Margin = 20;
     private const double MinScale = 0.1;
     private const double MaxScale = 3.0;
+    private const double DragThreshold = 4;
+
+    private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+    private static readonly IBrush HoverBrush = new SolidColorBrush(MediaColor.Parse("#FFD0D0D0"));
 
     private double _scale = 1.0;
     private double _naturalWidth;
     private double _naturalHeight;
+
+    // Interaction state: _panStartOffset is null while not panning; a box
+    // press first parks in _pendingSelectBox and becomes a pan once the
+    // pointer moves past the drag threshold.
+    private Vector? _panStartOffset;
+    private Point _panStartPos;
+    private Border? _pendingSelectBox;
+    private Point _pressPos;
+    private Border? _hoverBox;
+    private Border? _selectedBox;
+    private bool _selectedIsTarget;
 
     /// <summary>
     /// Raised when a node box is clicked, with the node's full dump.
@@ -56,6 +72,14 @@ public partial class NodeGraphView : UserControl
     public NodeGraphView()
     {
         InitializeComponent();
+
+        // Pan: press on empty canvas space and drag; the wheel zooms about
+        // the cursor (handled here so the scroll viewer does not scroll).
+        GraphCanvas.PointerPressed += OnCanvasPointerPressed;
+        GraphCanvas.PointerMoved += OnCanvasPointerMoved;
+        GraphCanvas.PointerReleased += OnCanvasPointerReleased;
+        GraphCanvas.PointerCaptureLost += OnCanvasPointerCaptureLost;
+        GraphCanvas.PointerWheelChanged += OnWheelZoom;
     }
 
     /// <summary>
@@ -93,6 +117,165 @@ public partial class NodeGraphView : UserControl
         Scale = Math.Max(MinScale, factor);
     }
 
+    /// <summary>
+    /// Zooms (1.15× per step) so the point under the cursor stays fixed.
+    /// </summary>
+    public void ZoomAt(Point at, double delta)
+    {
+        if (_naturalWidth <= 0 || delta == 0)
+        {
+            return;
+        }
+
+        double factor = delta > 0 ? 1.15 : 1.0 / 1.15;
+        double newScale = Math.Clamp(_scale * factor, MinScale, MaxScale);
+        if (newScale == _scale)
+        {
+            return;
+        }
+
+        Vector oldOffset = Scroll.Offset;
+        double ratio = newScale / _scale;
+        _scale = newScale;
+        ApplyScale();
+        Scroll.Offset = new Vector(
+            (at.X + oldOffset.X) * ratio - at.X,
+            (at.Y + oldOffset.Y) * ratio - at.Y);
+    }
+
+    private void OnWheelZoom(object? sender, PointerWheelEventArgs e)
+    {
+        ZoomAt(e.GetPosition(Scroll), e.Delta.Y);
+        e.Handled = true; // do not let the scroll viewer scroll
+    }
+
+    private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Handled)
+        {
+            return; // a node box handled the press
+        }
+
+        e.Pointer.Capture(GraphCanvas);
+        _panStartOffset = Scroll.Offset;
+        _panStartPos = e.GetPosition(Scroll);
+        GraphCanvas.Cursor = new Cursor(StandardCursorType.Hand);
+    }
+
+    private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (_panStartOffset is not Vector start)
+        {
+            return;
+        }
+
+        Point pos = e.GetPosition(Scroll);
+        Scroll.Offset = new Vector(
+            start.X + pos.X - _panStartPos.X,
+            start.Y + pos.Y - _panStartPos.Y);
+    }
+
+    private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _panStartOffset = null;
+        GraphCanvas.Cursor = null;
+        e.Pointer.Capture(null);
+    }
+
+    private void OnCanvasPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+    {
+        _panStartOffset = null;
+        _pendingSelectBox = null;
+        GraphCanvas.Cursor = null;
+    }
+
+    /// <summary>
+    /// Selects a node box: accent ring + <see cref="OnNodeClicked"/>.
+    /// </summary>
+    private void SelectNode(Border border, GraphNodeInfo node, bool isTarget)
+    {
+        if (_selectedBox != null)
+        {
+            SetBoxBorder(_selectedBox, _selectedIsTarget, _hoverBox == _selectedBox);
+        }
+
+        _selectedBox = border;
+        _selectedIsTarget = isTarget;
+        SetBoxBorder(border, isTarget, _hoverBox == border);
+        OnNodeClicked?.Invoke(BuildTooltip(node));
+    }
+
+    /// <summary>
+    /// Applies the border for a box's current state: the accent selection
+    /// ring wins, then the hover highlight, then the default (a white ring
+    /// for the target, none otherwise).
+    /// </summary>
+    private void SetBoxBorder(Border border, bool isTarget, bool hovered)
+    {
+        if (_selectedBox == border)
+        {
+            border.BorderBrush = GetAccentBrush();
+            border.BorderThickness = new Thickness(hovered ? 4 : 3);
+            return;
+        }
+
+        if (hovered)
+        {
+            border.BorderBrush = isTarget ? WhiteBrush : HoverBrush;
+            border.BorderThickness = new Thickness(isTarget ? 4 : 2);
+            return;
+        }
+
+        border.BorderBrush = isTarget ? WhiteBrush : null;
+        border.BorderThickness = new Thickness(isTarget ? 3 : 0);
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): the center of
+    /// the n-th node box in the given root's coordinate system (null if
+    /// the boxes have not been laid out yet).
+    /// </summary>
+    public Point? GetNodeBoxCenter(Visual root, int n)
+    {
+        int count = -1;
+        foreach (Control child in GraphCanvas.Children)
+        {
+            if (child is not Border box || box.Bounds.Width <= 0)
+            {
+                continue;
+            }
+
+            count++;
+            if (count != n)
+            {
+                continue;
+            }
+
+            return box.TranslatePoint(
+                new Point(box.Bounds.Width / 2, box.Bounds.Height / 2),
+                root);
+        }
+
+        return null;
+    }
+
+    private static IBrush GetAccentBrush()
+    {
+        // Respect the accent the user picked in the settings flyout
+        // (null theme would resolve the light dictionary — pass the
+        // actual variant explicitly).
+        var app = Application.Current;
+        if (app is not null)
+        {
+            if (app.FindResource(app.ActualThemeVariant, "AccentFillColorDefaultBrush") is IBrush brush)
+            {
+                return brush;
+            }
+        }
+
+        return new SolidColorBrush(MediaColor.Parse("#0078D4"));
+    }
+
     private void ApplyScale()
     {
         if (_naturalWidth <= 0)
@@ -110,6 +293,11 @@ public partial class NodeGraphView : UserControl
 
     public void SetGraph(GraphModel.Result model)
     {
+        _selectedBox = null;
+        _selectedIsTarget = false;
+        _hoverBox = null;
+        _pendingSelectBox = null;
+        _panStartOffset = null;
         GraphCanvas.Children.Clear();
 
         if (model.Nodes.Count == 0)
@@ -200,7 +388,113 @@ public partial class NodeGraphView : UserControl
         border.Child = stack;
         Canvas.SetLeft(border, position.X);
         Canvas.SetTop(border, position.Y);
-        border.PointerPressed += (_, _) => OnNodeClicked?.Invoke(BuildTooltip(node));
+
+        // Interaction: hover highlight + floating card, click to select,
+        // drag to pan. The box captures the pointer so it keeps receiving
+        // moves while the box moves away from the cursor during a pan.
+        border.PointerPressed += (_, e) =>
+        {
+            e.Handled = true; // do not start a canvas pan
+            _pendingSelectBox = border;
+            _pressPos = e.GetPosition(Scroll);
+            e.Pointer.Capture(border);
+            border.Cursor = new Cursor(StandardCursorType.Hand);
+        };
+        border.PointerMoved += (_, e) =>
+        {
+            Point pos = e.GetPosition(Scroll);
+            if (_pendingSelectBox == border)
+            {
+                bool dragged = Math.Abs(pos.X - _pressPos.X) > DragThreshold
+                    || Math.Abs(pos.Y - _pressPos.Y) > DragThreshold;
+                if (!dragged)
+                {
+                    return;
+                }
+
+                // The press became a drag: drop the pending selection and
+                // clear the (possibly stale) hover state, then start panning.
+                _pendingSelectBox = null;
+                _panStartOffset = Scroll.Offset;
+                _panStartPos = pos;
+                if (_hoverBox == border)
+                {
+                    _hoverBox = null;
+                    SetBoxBorder(border, isTarget, false);
+                }
+                HoverTip.IsVisible = false;
+            }
+
+            if (_panStartOffset is not Vector start)
+            {
+                return;
+            }
+
+            Scroll.Offset = new Vector(
+                start.X + pos.X - _panStartPos.X,
+                start.Y + pos.Y - _panStartPos.Y);
+        };
+        border.PointerReleased += (_, e) =>
+        {
+            if (_pendingSelectBox == border)
+            {
+                _pendingSelectBox = null;
+                SelectNode(border, node, isTarget);
+            }
+
+            _panStartOffset = null;
+            border.Cursor = null;
+            e.Pointer.Capture(null);
+
+            // Enter/exited were suppressed while panning; re-evaluate the
+            // hover state from the pointer's final position.
+            Point at = e.GetPosition(border);
+            bool inside = at.X >= 0 && at.Y >= 0
+                && at.X < border.Bounds.Width && at.Y < border.Bounds.Height;
+            _hoverBox = inside ? border : null;
+            SetBoxBorder(border, isTarget, inside);
+            if (inside)
+            {
+                ShowNodeTip(node, e.GetPosition(Overlay));
+            }
+            else
+            {
+                HoverTip.IsVisible = false;
+            }
+        };
+        border.PointerCaptureLost += (_, _) =>
+        {
+            _pendingSelectBox = null;
+            _panStartOffset = null;
+            border.Cursor = null;
+        };
+        border.PointerEntered += (_, e) =>
+        {
+            if (_panStartOffset != null)
+            {
+                return; // the box is moving under the pointer while panning
+            }
+
+            _hoverBox = border;
+            SetBoxBorder(border, isTarget, true);
+            ShowNodeTip(node, e.GetPosition(Overlay));
+        };
+        border.PointerExited += (_, _) =>
+        {
+            if (_panStartOffset != null)
+            {
+                return;
+            }
+
+            if (_hoverBox == border)
+            {
+                _hoverBox = null;
+            }
+
+            SetBoxBorder(border, isTarget, false);
+            HoverTip.IsVisible = false;
+        };
+
         GraphCanvas.Children.Add(border);
     }
 
@@ -252,15 +546,15 @@ public partial class NodeGraphView : UserControl
         {
             line.StrokeThickness = 1.5;
             line.Stroke = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
-            EdgeTip.IsVisible = false;
+            HoverTip.IsVisible = false;
         };
         line.PointerMoved += (_, e) =>
         {
-            if (EdgeTip.IsVisible)
+            if (HoverTip.IsVisible)
             {
                 Point p = e.GetPosition(Overlay);
-                Canvas.SetLeft(EdgeTip, p.X + 14);
-                Canvas.SetTop(EdgeTip, p.Y + 14);
+                Canvas.SetLeft(HoverTip, p.X + 14);
+                Canvas.SetTop(HoverTip, p.Y + 14);
             }
         };
 
@@ -291,6 +585,11 @@ public partial class NodeGraphView : UserControl
         }
     }
 
+    private void ShowNodeTip(GraphNodeInfo node, Point at)
+    {
+        SetHoverTip(BuildTooltip(node), at);
+    }
+
     private void ShowEdgeTip(GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, Point at)
     {
         string tip = $"{fromNode?.Kind ?? "?"} #{edge.FromIndex}  →  {toNode?.Kind ?? "?"} #{edge.ToIndex}";
@@ -300,10 +599,15 @@ public partial class NodeGraphView : UserControl
             tip += "\n(lookup connection)";
         }
 
-        EdgeTipText.Text = tip;
-        EdgeTip.IsVisible = true;
-        Canvas.SetLeft(EdgeTip, at.X + 14);
-        Canvas.SetTop(EdgeTip, at.Y + 14);
+        SetHoverTip(tip, at);
+    }
+
+    private void SetHoverTip(string text, Point at)
+    {
+        HoverTipText.Text = text;
+        HoverTip.IsVisible = true;
+        Canvas.SetLeft(HoverTip, at.X + 14);
+        Canvas.SetTop(HoverTip, at.Y + 14);
     }
 
     private void AddArrowhead(Point at, Vector direction)
