@@ -269,11 +269,13 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 ## Open questions
 
 1. ~~`Edge.TrackedCount` (94)~~ — **decoded** (wires: port connections / grip-binding fallback / lookup columns); the "max vs. fallback" ambiguity needs a sample with both a `GripIds` slot *and* port connections for the same grip to fully disambiguate.
-2. `NodeFlags` — confirm `0x20` is universal or find other values; fix the `NodeFlags` enum.
-3. `96` in the lookup column definition (2 for double, 0 for string) — meaning.
-4. Per-class evaluation formulas (how `140` etc. are computed from the context) — the core of Phase 3.
-5. Unevaluated sentinels per class (only the component's `1.797693134862314E+99` is confirmed so far).
-6. Whether the `98`/`99` tag values are version-dependent (2007: 27/31/25/8; modern: 33/329).
+2. ~~`NodeFlags`~~ — **resolved**: `0x20` is universal across all 10 samples (both DWG and DXF); the `NodeFlags` enum was reworked to neutral names (`None`/`Bit0`–`Bit4`/`Bit5=0x20`/`All`).
+3. `96` in the lookup column definition (2 for double, 0 for string) — meaning (still open).
+4. ~~Per-class evaluation formulas~~ — **resolved** (see [The implemented evaluation engine](#the-implemented-evaluation-engine-phase-3)): grip = displacement, linear = signed distance along the axis, XY = (X, Y) offsets, polar = (distance, angle), rotation/alignment = angle, point = (XΔ, YΔ); `140` is the `LabelOffset` (not a value).
+5. ~~Unevaluated sentinels per class~~ — **partially resolved**: the component's `1.797693134862314E+99` ("not yet evaluated") and the base-component `0` are confirmed; per-class sentinels for the other classes are not yet catalogued.
+6. Whether the `98`/`99` tag values are version-dependent (2007: 27/31/25/8; modern: 33/329) — still open.
+
+**New finding (this session):** the parameter `140` group code is the **`LabelOffset`** (the property is literally named `LabelOffset` in the ObjectARX model), **not** a stored value. Parameter values are **computed on the fly** from the connected grips' displacements during `evaluate()`; they are not persisted in the parameter record. The only persisted "value" is the component's `EvaluatedValue` (code `40`), which is the updated grip coordinate (or the `1.797693134862314E+99` sentinel when not yet evaluated).
 
 ## Research sources
 
@@ -297,6 +299,62 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 
 ---
 
+## The implemented evaluation engine (Phase 3)
+
+The evaluation engine is implemented in `src/ACadSharp/Objects/Evaluations/`, mirroring the ObjectARX `AcDbEval*` model.
+
+### Design
+
+- **`EvaluationContext`** — a value store keyed by `(expression id, port name)`, mirroring `AcDbEvalContext` (the key→value container). `SetValue`/`TryGetValue`/`HasValue`/`Clear`.
+- **`EvaluationGraph.Activate(nodes)` / `IsActivated(node)` / `Evaluate()`** — marks the user-touched nodes and evaluates the **reachable subgraph** (following outgoing edges) in **topological order**, invoking each node's `Evaluate(context)`. Mirrors `AcDbEvalGraph::activate()` + `evaluate()`. A node's failure **aborts** the evaluation (matching ObjectARX); **no activated nodes = a no-op (return true)** (the reachable subgraph is empty, not a cycle).
+- **`EvaluationExpression.Evaluate(context)`** — virtual, **default no-op** (matching `AcDbEvalExpr::evaluate()`). Plus a `CurrentValue` property (the node's value, updated during `evaluate()`, mirroring `AcDbEvalExpr::value()`).
+- **Topological order** (`GetTopologicalOrder`) — a reachability BFS from the activated nodes (skipping `flag=4` lookup/reverse edges to break lookup cycles) + Kahn's algorithm; returns an empty list on a cycle.
+
+### Per-class `Evaluate` formulas
+
+| Class | `CurrentValue` | Writes to the context |
+|-------|---------------|----------------------|
+| `BlockGrip` | `displacement.X` | `DisplacementX/Y` = `(ActivatedLocation ?? Location) − Location` (zero when not activated) |
+| `BlockGripLocationComponent` | the read value | reads the connected parameter's updated coordinate (the port named by `Connection`, e.g. `UpdatedEndX`) → `EvaluatedValue` (code `40`) |
+| `BlockLinearParameter` | the signed **distance** along the axis | `Scale`/`XScale`/`YScale` = `(updatedSecond − updatedFirst)·axis`; `UpdatedBaseX/Y`, `UpdatedEndX/Y` |
+| `BlockXYParameter` | the **X** offset | `XScale`/`YScale` = `(firstDisp.X, firstDisp.Y)`; updated points |
+| `BlockPolarParameter` | the **distance** (radius) | `Scale`/`AngleDelta` = `(‖delta‖, atan2)`; updated points |
+| `BlockRotationParameter` | the **angle** | `AngleDelta` = `atan2`; updated points |
+| `BlockAlignmentParameter` | the **angle** | `AngleDelta` = `atan2`; updated points |
+| `BlockPointParameter` | `displacement.X` | `XDelta`/`YDelta`; `UpdatedX/Y` |
+| `BlockFlipParameter` | the **flip state** (0/1) | `UpdatedFlip` = 0 (default); updated points |
+| `BlockVisibilityParameter` | the **state index** (0) | `Value` = 0 (default); updated location |
+| `BlockLookupParameter` | `displacement.X` | `UpdatedX/Y` (the table is not decoded, so table-driven selection is not implemented) |
+| `BlockScaleAction` | the **scale** factor | reads the `Scale` port |
+| `BlockMoveAction` | the **X** delta | reads `XDelta`/`YDelta` |
+| `BlockRotationAction` | the **angle** | reads `AngleDelta` |
+| `BlockStretchAction` | the **X** delta | reads `EndXDelta`/`EndYDelta` |
+| `BlockPolarStretchAction` | the **X** delta | reads `BaseXDelta`/`BaseYDelta` |
+| `BlockArrayAction` | the base value | reads the `Base` port |
+| `BlockFlipAction` | the **flip** state | reads the `Flip` port |
+| `BlockLookupAction` | the **matched row** index (−1 = none) | reads each column's input value, finds the matching row (simplified; chained lookups / default-on-no-match not implemented) |
+
+**Notes:**
+- `CurrentValue` is a single `double?` (a scalar), so for **multi-valued** parameters (XY, point) and grips (displacement) it holds the **X component** as a representative; the full value lives in the context ports. Single-valued parameters (linear, polar, rotation, alignment, flip, visibility) hold their natural single value. This is a **simplification** of the ObjectARX model, where `value()` returns an `AcDbEvalVariant` that can hold a structured value.
+- **Lookup actions** are **excluded from the forward evaluation**: they are only reachable via `flag=4` (reverse) edges, which the topological order skips. So a lookup action's `CurrentValue` stays unset (`null`) after a forward `evaluate()` — the lookup is a separate (reverse) evaluation.
+- **Actions** read the connected parameter's value and store it as their `CurrentValue`; the full transform application to the block's entities is **out of scope** for the core engine.
+
+## Verified results (Phase 4)
+
+Running the evaluator on all 10 samples (`dotnet run --project src/ACadSharp.Examples -- eval <file>`, activating all grips with zero displacement) produces consistent values:
+
+| Sample | Parameter value | Interpretation |
+|--------|----------------|---------------|
+| `BLOCKLINEARPARAMETER` | 5 | distance between base (0,0,0) and end (5,0,0) |
+| `BLOCKPOLARPARAMETER` | 9.082 | distance between base (2.007,2.346) and end (8.429,8.767) |
+| `BLOCKROTATIONPARAMETER` | 1.571 | angle = atan2 = 90° (1.571 rad) |
+| `BLOCKALIGNMENTPARAMETER` | 0.524 | angle = atan2 = 30° (0.524 rad) |
+| `BLOCKXYPARAMETER` / `BLOCKPOINTPARAMETER` / `BLOCKFLIPPARAMETER` / `BLOCKVISIBILITYPARAMETER` | 0 | zero displacement (grips not moved) / default state |
+
+End-to-end `EvaluationTests` (activate a grip with a known `ActivatedLocation`, evaluate, compare against the geometry) confirm: linear 5→8 (move end grip by (3,0,0)), polar 9.08→10.59 (move by (2,0,0)), rotation 90°→135° (rotate by 45°), point 0→2 (move by (2,3,0)), and that a component's stored `EvaluatedValue` (code `40`) is updated from the `1.797693134862314E+99` sentinel to the computed value.
+
+---
+
 ## Plan
 
 ### Phase 1 — Deepen the format research (resolve the open questions) — *largely done*
@@ -310,30 +368,29 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 
 **Deliverable:** this document, completed — a format spec with all fields documented.
 
-### Phase 2 — Clean up the model (`src/ACadSharp/Objects/Evaluations/`)
+### Phase 2 — Clean up the model (`src/ACadSharp/Objects/Evaluations/`) — ✅ *done (commit `34135617`)*
 
-- Rename `Node.Data1–4` → `FirstInEdge/LastInEdge/FirstOutEdge/LastOutEdge`; `Edge.Data1–5` → `PrevInEdge/NextInEdge/PrevOutEdge/NextOutEdge/ReverseEdge` (DXF code attributes untouched)
-- Fix `NodeFlags` to the real values
-- Add `EvaluationGraph` helpers: build the per-node in/out edge lists from the data, with a consistency validator (node first/last == actual list ends; edge prev/next chains consistent) — used by tests and by the evaluator
-- Fix the DWG reader comment on 96/97 (max ID, not count); verify the explicit DWG node/edge counts against real files
-- Model the decoded connection layout: the `170`/`91`×n `GripIds` + `171–174` per-property connection counts (the reader currently reads a fixed 4-slot layout — needs to honor the counts)
+- ✅ Rename `Node.Data1–4` → `FirstInEdge/LastInEdge/FirstOutEdge/LastOutEdge`; `Edge.Data1–5` → `PrevInEdge/NextInEdge/PrevOutEdge/NextOutEdge/ReverseEdge` (DXF code attributes untouched)
+- ✅ Fix `NodeFlags` to the real values (neutral names; `0x20` confirmed universal)
+- ✅ Add `EvaluationGraph` helpers: build the per-node in/out edge lists from the data, with a consistency validator (`TryValidate`: node first/last == actual list ends; edge prev/next chains consistent) — used by tests and by the evaluator
+- ✅ Fix the DWG reader comment on 96/97 (max ID, not count); verify the explicit DWG node/edge counts against real files
+- ✅ Model the decoded connection layout: the `170`/`91`×n `GripIds` + `171–174` per-property connection counts (the reader now honors the counts)
 
-### Phase 3 — Evaluation engine
+### Phase 3 — Evaluation engine — ✅ *done (commit `41f66449`)*
 
-- **Design** (mirroring ObjectARX): an `EvaluationContext` (expression-ID → value), `Activate(nodes)` + `Evaluate()` traversal in dependency order (topological; lookup reverse-edge cycles handled via the reverse-edge pairing / iterative relaxation), and per-class `Evaluate(context)` methods on the `Block*` classes writing into the context and the stored value fields (`140`/`70`/`1` = `EvaluatedValue`)
-- **Implement per-class semantics**, simplest first:
-  1. `BlockGripLocationComponent` + `BlockGrip` (location = base + displacement)
-  2. `BlockLinearParameter` / `BlockPointParameter` / `BlockXYParameter` / `BlockPolarParameter` / `BlockRotationParameter`
-  3. `BlockScaleAction` / `BlockMoveAction` / `BlockRotationAction`
-  4. `BlockLookupParameter` / `BlockLookupAction` (table-driven, incl. reverse-edge semantics)
-  5. `BlockVisibilityParameter` (the turn-all-off-then-on semantics) / `BlockFlipParameter` / `BlockAlignmentParameter` / `BlockStretchAction` / `BlockArrayAction`
-- Persist evaluated values so round-trips keep them (writers already exist)
+See [The implemented evaluation engine](#the-implemented-evaluation-engine-phase-3) for the design and the per-class `Evaluate` formulas.
 
-### Phase 4 — Validation
+- ✅ `EvaluationContext` (expression-ID → port → value), `Activate(nodes)` + `Evaluate()` topological traversal, per-class `Evaluate(context)` on the `Block*` classes writing into the context and the stored `EvaluatedValue` (code `40`)
+- ✅ Per-class semantics for grips, location components, all parameter types (linear/point/XY/polar/rotation/alignment/flip/visibility/lookup), and all action types (scale/move/rotate/stretch/polar-stretch/array/flip/lookup)
+- ✅ Persist evaluated values so round-trips keep them (writers already exist)
 
-- Extend `DynamicBlockTests`: assert the new invariants (linked-list consistency) on all 10 samples (DWG + DXF)
-- Evaluation tests: for each sample, activate the known "user-moved" node(s), evaluate, and compare results against the stored `EvaluatedValue`s / value fields
-- Keep round-trip tests green (read → evaluate → write → re-read)
+### Phase 4 — Validation — ✅ *done (commits `ade3cc67`, `4014ff4e`)*
+
+See [Verified results](#verified-results-phase-4).
+
+- ✅ `DynamicBlockTests.ValidateEvaluationGraphTest`: assert the invariants (linked-list consistency + valid topological order) on all 10 samples (DWG + DXF)
+- ✅ `EvaluationTests`: for each sample, activate the known "user-moved" node(s) with a known `ActivatedLocation`, evaluate, and compare results against the geometry and the stored `EvaluatedValue`s
+- ✅ Keep round-trip tests green (read → evaluate → write → re-read)
 
 ### Out of scope (for now)
 
@@ -343,3 +400,5 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 ### Order of execution
 
 Phase 1.4–1.6 (the remaining research) → Phase 2 (small) → Phase 3 (iterative per class) → Phase 4.
+
+**Status (this session):** Phases 2, 3, and 4 are **complete** (commits `34135617`, `41f66449`, `ade3cc67`, `4014ff4e`). The evaluation engine is implemented, validated on all 10 samples (DWG + DXF), and the round-trip tests remain green. Phase 1.4–1.6 (collecting more real-world DWGs, differential testing, symbol analysis) remain open.
