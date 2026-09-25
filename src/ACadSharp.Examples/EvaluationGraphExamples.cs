@@ -75,7 +75,7 @@ namespace ACadSharp.Examples
 			Console.WriteLine("--- edges ---");
 			foreach (EvaluationGraph.Edge edge in graph.Edges.OrderBy(e => e.Index))
 			{
-				Console.WriteLine($"E{edge.Index,2} {edge.FromNodeIndex,2}->{edge.ToNodeIndex,2}  flags={edge.Flags} tracked={edge.TrackedCount}  data=({edge.Data1},{edge.Data2},{edge.Data3},{edge.Data4},{edge.Data5})");
+				Console.WriteLine($"E{edge.Index,2} {edge.FromNodeIndex,2}->{edge.ToNodeIndex,2}  flags={edge.Flags} tracked={edge.TrackedCount}  data=({edge.PrevInEdge},{edge.NextInEdge},{edge.PrevOutEdge},{edge.NextOutEdge},{edge.ReverseEdge})");
 			}
 
 			// invariant checks
@@ -85,10 +85,10 @@ namespace ACadSharp.Examples
 				List<int> ins = graph.Edges.Where(e => e.ToNodeIndex == node.Index).Select(e => e.Index).ToList();
 				List<int> outs = graph.Edges.Where(e => e.FromNodeIndex == node.Index).Select(e => e.Index).ToList();
 				(int a, int b, int c, int d) expected = (ins.Count == 0 ? -1 : ins[0], ins.Count == 0 ? -1 : ins[^1], outs.Count == 0 ? -1 : outs[0], outs.Count == 0 ? -1 : outs[^1]);
-				if (node.Data1 != expected.a || node.Data2 != expected.b || node.Data3 != expected.c || node.Data4 != expected.d)
+				if (node.FirstInEdge != expected.a || node.LastInEdge != expected.b || node.FirstOutEdge != expected.c || node.LastOutEdge != expected.d)
 				{
 					nodeFail++;
-					Console.WriteLine($"  NODE MISMATCH {node.Index}: data=({node.Data1},{node.Data2},{node.Data3},{node.Data4}) expected={expected}");
+					Console.WriteLine($"  NODE MISMATCH {node.Index}: data=({node.FirstInEdge},{node.LastInEdge},{node.FirstOutEdge},{node.LastOutEdge}) expected={expected}");
 				}
 			}
 			foreach (EvaluationGraph.Edge edge in graph.Edges)
@@ -98,10 +98,10 @@ namespace ACadSharp.Examples
 				int pi = ins.IndexOf(edge.Index);
 				int po = outs.IndexOf(edge.Index);
 				(int a, int b, int c, int d) expected = (pi > 0 ? ins[pi - 1] : -1, pi + 1 < ins.Count ? ins[pi + 1] : -1, po > 0 ? outs[po - 1] : -1, po + 1 < outs.Count ? outs[po + 1] : -1);
-				if (edge.Data1 != expected.a || edge.Data2 != expected.b || edge.Data3 != expected.c || edge.Data4 != expected.d)
+				if (edge.PrevInEdge != expected.a || edge.NextInEdge != expected.b || edge.PrevOutEdge != expected.c || edge.NextOutEdge != expected.d)
 				{
 					edgeFail++;
-					Console.WriteLine($"  EDGE MISMATCH {edge.Index}: data=({edge.Data1},{edge.Data2},{edge.Data3},{edge.Data4},{edge.Data5}) expected prev/next={expected}");
+					Console.WriteLine($"  EDGE MISMATCH {edge.Index}: data=({edge.PrevInEdge},{edge.NextInEdge},{edge.PrevOutEdge},{edge.NextOutEdge},{edge.ReverseEdge}) expected prev/next={expected}");
 				}
 				// hypothesis: TrackedCount = number of connections on the TO element pointing at the FROM element
 				if (indexToNode.TryGetValue(edge.FromNodeIndex, out EvaluationGraph.Node fromNode) &&
@@ -118,6 +118,12 @@ namespace ACadSharp.Examples
 				}
 			}
 			Console.WriteLine($"invariants: node data {(nodeFail == 0 ? "OK" : $"{nodeFail} FAIL")}  edge data {(edgeFail == 0 ? "OK" : $"{edgeFail} FAIL")}  trackedCount-hyp {(trackedFail == 0 ? "OK" : $"{trackedFail} FAIL")}");
+
+			// new topology helpers
+			bool valid = graph.TryValidate(out string validationError);
+			Console.WriteLine($"TryValidate: {(valid ? "OK" : $"FAIL: {validationError}")}");
+			List<int> topo = graph.GetTopologicalOrder(new[] { 0 });
+			Console.WriteLine($"TopoOrder(from 0): [{string.Join(",", topo)}]");
 		}
 
 		/// <summary>

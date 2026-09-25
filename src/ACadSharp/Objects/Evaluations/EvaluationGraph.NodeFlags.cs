@@ -1,9 +1,18 @@
-﻿using System;
+using System;
 
 namespace ACadSharp.Objects.Evaluations;
 
 public partial class EvaluationGraph
 {
+	/// <summary>
+	/// Flags for an <see cref="EvaluationGraph.Node"/>.
+	/// <para>
+	/// The meaning of the individual bits is not documented by AutoCAD. The only value
+	/// observed in real files (all 10 bundled dynamic-block samples, every node) is
+	/// <see cref="Bit5"/> (0x20). The bit names below are neutral placeholders; they are
+	/// NOT the AutoCAD semantics.
+	/// </para>
+	/// </summary>
 	[Flags]
 	public enum NodeFlags
 	{
@@ -13,42 +22,37 @@ public partial class EvaluationGraph
 		None = 0x00,
 
 		/// <summary>
-		/// This bit is used internally by the xref detach code to keep track of xrefs that have been visited, and can also be used for similar purposes by other callers.
+		/// Bit 0 (0x01) — meaning unknown.
 		/// </summary>
-		Visited = 0x01,
+		Bit0 = 0x01,
 
 		/// <summary>
-		/// This bit is used internally by the xref detach code to keep track of xrefs that have multiple references, and can also be used for similar purposes by other callers.
+		/// Bit 1 (0x02) — meaning unknown.
 		/// </summary>
-		OutsideRefed = 0x02,
+		Bit1 = 0x02,
 
 		/// <summary>
-		/// This bit is used to indicate that the node is selected.
+		/// Bit 2 (0x04) — meaning unknown.
 		/// </summary>
-		Selected = 0x04,
+		Bit2 = 0x04,
 
 		/// <summary>
-		/// This bit is used to indicate that the node is in a list.
+		/// Bit 3 (0x08) — meaning unknown.
 		/// </summary>
-		InList = 0x08,
+		Bit3 = 0x08,
 
 		/// <summary>
-		/// This bit is used to indicate that the node is in all lists.
+		/// Bit 4 (0x10) — meaning unknown.
 		/// </summary>
-		ListAll = 0x0E,
+		Bit4 = 0x10,
 
 		/// <summary>
-		/// This bit is used to indicate that the node is a first-level node.
+		/// Bit 5 (0x20) — the only value observed in real files; meaning unknown.
 		/// </summary>
-		FirstLevel = 0x10,
+		Bit5 = 0x20,
 
 		/// <summary>
-		/// This bit is used to indicate that the node is an unreserved tree node.
-		/// </summary>
-		UnresTree = 0x20,
-
-		/// <summary>
-		/// All flags are set.
+		/// All bits are set.
 		/// </summary>
 		All = 0x2F
 	};

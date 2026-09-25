@@ -1,4 +1,4 @@
-﻿using ACadSharp.Entities;
+using ACadSharp.Entities;
 using ACadSharp.IO.DXF.DxfStreamWriter;
 using ACadSharp.Objects;
 using ACadSharp.Objects.AEC;
@@ -1541,10 +1541,10 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 			this._writer.Write(93, n.Flags);
 			this._writer.Write(95, n.Id);
 			this._writer.WriteHandle(360, n.Expression);
-			this._writer.Write(92, n.Data1);
-			this._writer.Write(92, n.Data2);
-			this._writer.Write(92, n.Data3);
-			this._writer.Write(92, n.Data4);
+			this._writer.Write(92, n.FirstInEdge);
+			this._writer.Write(92, n.LastInEdge);
+			this._writer.Write(92, n.FirstOutEdge);
+			this._writer.Write(92, n.LastOutEdge);
 
 			if (n.Expression != null)
 			{
@@ -1561,11 +1561,11 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 			this._writer.Write(94, e.TrackedCount);
 			this._writer.Write(91, e.FromNodeIndex);
 			this._writer.Write(91, e.ToNodeIndex);
-			this._writer.Write(92, e.Data1);
-			this._writer.Write(92, e.Data2);
-			this._writer.Write(92, e.Data3);
-			this._writer.Write(92, e.Data4);
-			this._writer.Write(92, e.Data5);
+			this._writer.Write(92, e.PrevInEdge);
+			this._writer.Write(92, e.NextInEdge);
+			this._writer.Write(92, e.PrevOutEdge);
+			this._writer.Write(92, e.NextOutEdge);
+			this._writer.Write(92, e.ReverseEdge);
 		}
 	}
 

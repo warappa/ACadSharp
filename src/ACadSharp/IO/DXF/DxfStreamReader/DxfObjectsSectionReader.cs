@@ -1,4 +1,4 @@
-﻿using ACadSharp.Classes;
+using ACadSharp.Classes;
 using ACadSharp.Entities;
 using ACadSharp.IO.Templates;
 using ACadSharp.Objects;
@@ -1321,13 +1321,13 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 					nodeTemplate.ExpressionHandle = this._reader.ValueAsHandle;
 
 					this._reader.ExpectedCode(92);
-					node.Data1 = this._reader.ValueAsInt;
+					node.FirstInEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					node.Data2 = this._reader.ValueAsInt;
+					node.LastInEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					node.Data3 = this._reader.ValueAsInt;
+					node.FirstOutEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					node.Data4 = this._reader.ValueAsInt;
+					node.LastOutEdge = this._reader.ValueAsInt;
 
 					this._reader.ReadNext();
 
@@ -1356,15 +1356,15 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 					edge.ToNodeIndex = this._reader.ValueAsInt;
 
 					this._reader.ExpectedCode(92);
-					edge.Data1 = this._reader.ValueAsInt;
+					edge.PrevInEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					edge.Data2 = this._reader.ValueAsInt;
+					edge.NextInEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					edge.Data3 = this._reader.ValueAsInt;
+					edge.PrevOutEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					edge.Data4 = this._reader.ValueAsInt;
+					edge.NextOutEdge = this._reader.ValueAsInt;
 					this._reader.ExpectedCode(92);
-					edge.Data5 = this._reader.ValueAsInt;
+					edge.ReverseEdge = this._reader.ValueAsInt;
 
 					this._reader.ReadNext();
 

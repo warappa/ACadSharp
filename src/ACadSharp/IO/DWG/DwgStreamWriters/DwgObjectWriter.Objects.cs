@@ -1,4 +1,4 @@
-﻿using ACadSharp.Objects;
+using ACadSharp.Objects;
 using ACadSharp.Objects.AEC;
 using ACadSharp.Objects.Evaluations;
 using CSMath;
@@ -1036,10 +1036,10 @@ internal partial class DwgObjectWriter : DwgSectionIO
 
 			this._writer.HandleReference(DwgReferenceType.HardOwnership, nodesArr[i].Expression);
 
-			this._writer.WriteBitLong(nodesArr[i].Data1);
-			this._writer.WriteBitLong(nodesArr[i].Data2);
-			this._writer.WriteBitLong(nodesArr[i].Data3);
-			this._writer.WriteBitLong(nodesArr[i].Data4);
+			this._writer.WriteBitLong(nodesArr[i].FirstInEdge);
+			this._writer.WriteBitLong(nodesArr[i].LastInEdge);
+			this._writer.WriteBitLong(nodesArr[i].FirstOutEdge);
+			this._writer.WriteBitLong(nodesArr[i].LastOutEdge);
 		}
 
 		var edgesArr = eval.Edges.ToArray();
@@ -1053,11 +1053,11 @@ internal partial class DwgObjectWriter : DwgSectionIO
 			this._writer.WriteBitLong(edgesArr[i].FromNodeIndex);
 			this._writer.WriteBitLong(edgesArr[i].ToNodeIndex);
 
-			this._writer.WriteBitLong(edgesArr[i].Data1);
-			this._writer.WriteBitLong(edgesArr[i].Data2);
-			this._writer.WriteBitLong(edgesArr[i].Data3);
-			this._writer.WriteBitLong(edgesArr[i].Data4);
-			this._writer.WriteBitLong(edgesArr[i].Data5);
+			this._writer.WriteBitLong(edgesArr[i].PrevInEdge);
+			this._writer.WriteBitLong(edgesArr[i].NextInEdge);
+			this._writer.WriteBitLong(edgesArr[i].PrevOutEdge);
+			this._writer.WriteBitLong(edgesArr[i].NextOutEdge);
+			this._writer.WriteBitLong(edgesArr[i].ReverseEdge);
 		}
 
 		this.addObjectsToWriter(eval.Nodes

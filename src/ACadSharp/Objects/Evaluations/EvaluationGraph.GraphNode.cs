@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -10,28 +10,34 @@ public partial class EvaluationGraph
 	public class Node
 	{
 		/// <summary>
-		/// Unknown
+		/// Index of the first edge in this node's incoming-edge list (an edge whose
+		/// <see cref="Edge.ToNodeIndex"/> is this node); <c>-1</c> when the node has no
+		/// incoming edges.
 		/// </summary>
 		[DxfCodeValue(92)]
-		public int Data1 { get; internal set; }
+		public int FirstInEdge { get; internal set; }
 
 		/// <summary>
-		/// Unknown
+		/// Index of the last edge in this node's incoming-edge list; <c>-1</c> when the
+		/// node has no incoming edges.
 		/// </summary>
 		[DxfCodeValue(92)]
-		public int Data2 { get; internal set; }
+		public int LastInEdge { get; internal set; }
 
 		/// <summary>
-		/// Unknown
+		/// Index of the first edge in this node's outgoing-edge list (an edge whose
+		/// <see cref="Edge.FromNodeIndex"/> is this node); <c>-1</c> when the node has no
+		/// outgoing edges.
 		/// </summary>
 		[DxfCodeValue(92)]
-		public int Data3 { get; internal set; }
+		public int FirstOutEdge { get; internal set; }
 
 		/// <summary>
-		/// Unknown
+		/// Index of the last edge in this node's outgoing-edge list; <c>-1</c> when the
+		/// node has no outgoing edges.
 		/// </summary>
 		[DxfCodeValue(92)]
-		public int Data4 { get; internal set; }
+		public int LastOutEdge { get; internal set; }
 
 		/// <summary>
 		/// Gets a <see cref="EvaluationExpression"/> associated with this <see cref="Node"/>.

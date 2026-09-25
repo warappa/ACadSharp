@@ -1,4 +1,4 @@
-﻿using ACadSharp.IO.Templates;
+using ACadSharp.IO.Templates;
 using ACadSharp.Objects;
 using ACadSharp.Objects.Evaluations;
 using System;
@@ -761,7 +761,8 @@ internal partial class DwgObjectReader : DwgSectionIO
 
 		this.readCommonNonEntityData(template);
 
-		//DXF fields 96, 97 contain the value 5, here are three fields returning the same value 5
+		//DXF fields 96, 97 hold the max node ID (the size of the graph's ID space, not the
+		//node count); the DWG additionally stores explicit node and edge counts.
 		evaluationGraph.Value96 = this._objectReader.ReadBitLong();
 		evaluationGraph.Value97 = this._objectReader.ReadBitLong();
 
@@ -783,11 +784,11 @@ internal partial class DwgObjectReader : DwgSectionIO
 			//Code 360
 			nodeTemplate.ExpressionHandle = this.handleReference();
 
-			//Codes 92, x4
-			node.Data1 = this._objectReader.ReadBitLong();
-			node.Data2 = this._objectReader.ReadBitLong();
-			node.Data3 = this._objectReader.ReadBitLong();
-			node.Data4 = this._objectReader.ReadBitLong();
+			//Codes 92, x4 (first/last in/out edge)
+			node.FirstInEdge = this._objectReader.ReadBitLong();
+			node.LastInEdge = this._objectReader.ReadBitLong();
+			node.FirstOutEdge = this._objectReader.ReadBitLong();
+			node.LastOutEdge = this._objectReader.ReadBitLong();
 		}
 
 		//Last node has x5 92 with the last value as 0 instead of x4
@@ -816,12 +817,12 @@ internal partial class DwgObjectReader : DwgSectionIO
 			//91
 			edge.ToNodeIndex = this._objectReader.ReadBitLong();
 
-			//92 x5
-			edge.Data1 = this._objectReader.ReadBitLong();
-			edge.Data2 = this._objectReader.ReadBitLong();
-			edge.Data3 = this._objectReader.ReadBitLong();
-			edge.Data4 = this._objectReader.ReadBitLong();
-			edge.Data5 = this._objectReader.ReadBitLong();
+			//92 x5 (prev/next in/out edge + reverse edge)
+			edge.PrevInEdge = this._objectReader.ReadBitLong();
+			edge.NextInEdge = this._objectReader.ReadBitLong();
+			edge.PrevOutEdge = this._objectReader.ReadBitLong();
+			edge.NextOutEdge = this._objectReader.ReadBitLong();
+			edge.ReverseEdge = this._objectReader.ReadBitLong();
 
 			evaluationGraph.Edges.Add(edge);
 		}
