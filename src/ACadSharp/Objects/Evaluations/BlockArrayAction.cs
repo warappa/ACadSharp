@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -34,6 +34,19 @@ public class BlockArrayAction : BlockAction, IDxfClassDefined
 	public EvalConnection UpdatedBaseConnection { get; set; } = new EvalConnection();
 
 	public EvalConnection UpdatedEndConnection { get; set; } = new EvalConnection();
+
+	/// <summary>
+	/// Evaluates the array action: reads the base connection's value (the "Base" port of
+	/// the connected parameter) from the context and stores it as the action's current
+	/// value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double value = 0;
+		ReadConnectionValue(this.BaseConnection, context, out value);
+		this.CurrentValue = value;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

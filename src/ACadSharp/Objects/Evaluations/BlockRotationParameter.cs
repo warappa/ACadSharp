@@ -1,6 +1,7 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 using CSMath;
+using System;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -34,6 +35,28 @@ public class BlockRotationParameter : Block2PtParameter, IDxfClassDefined
 	public override string SubclassMarker => DxfSubclassMarker.BlockRotationParameter;
 
 	public ParameterValueSet ValueSet { get; set; }
+
+	/// <summary>
+	/// Evaluates the rotation parameter: reads the connected grips' displacements, updates
+	/// the base and end points, and computes the value as the angle from the base to the
+	/// end point.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+
+		XYZ updatedFirst = this.FirstPoint + firstDisp;
+		XYZ updatedSecond = this.SecondPoint + secondDisp;
+
+		XYZ delta = updatedSecond - updatedFirst;
+		double angle = Math.Atan2(delta.Y, delta.X);
+
+		context.SetValue(this.Id, "AngleDelta", angle);
+		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		this.CurrentValue = angle;
+
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

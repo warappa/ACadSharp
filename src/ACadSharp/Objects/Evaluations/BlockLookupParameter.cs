@@ -1,5 +1,6 @@
 using ACadSharp.Attributes;
 using ACadSharp.Classes;
+using CSMath;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -43,6 +44,26 @@ public class BlockLookupParameter : Block1PtParameter, IDxfClassDefined
 
 	/// <inheritdoc/>
 	public override string SubclassMarker => DxfSubclassMarker.BlockLookupParameter;
+
+	/// <summary>
+	/// Evaluates the lookup parameter: reads the connected grip's displacement and writes
+	/// the updated location (the "UpdatedX/Y" ports) into the context.
+	/// <para>
+	/// The lookup table itself is not decoded, so the table-driven value selection is not
+	/// implemented; the evaluation only propagates the grip's displacement.
+	/// </para>
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacement(context, out XYZ displacement);
+
+		XYZ updatedLocation = this.Location + displacement;
+
+		this.WriteUpdatedLocation(context, updatedLocation);
+		this.CurrentValue = displacement.X;
+
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

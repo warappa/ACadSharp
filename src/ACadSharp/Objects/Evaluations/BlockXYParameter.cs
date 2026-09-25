@@ -1,5 +1,6 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
+using CSMath;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -42,6 +43,28 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 	public ParameterValueSet ValueSetX { get; set; }
 
 	public ParameterValueSet ValueSetY { get; set; }
+
+	/// <summary>
+	/// Evaluates the XY parameter: reads the connected grips' displacements and computes the
+	/// X and Y values (the X and Y offsets from the base position).
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+
+		double x = firstDisp.X;
+		double y = firstDisp.Y;
+
+		XYZ updatedFirst = this.FirstPoint + firstDisp;
+		XYZ updatedSecond = this.SecondPoint + secondDisp;
+
+		context.SetValue(this.Id, "XScale", x);
+		context.SetValue(this.Id, "YScale", y);
+		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		this.CurrentValue = x;
+
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

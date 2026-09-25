@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using CSMath;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -35,4 +35,33 @@ public abstract class BlockGrip : BlockElement
 
 	[DxfCodeValue(93)]
 	public int Value93 { get; set; }
+
+	/// <summary>
+	/// The grip's current position after a user interaction (the activated position).
+	/// <para>
+	/// When the grip is not activated, its position is <see cref="Location"/> (the base
+	/// position) and its displacement is zero.
+	/// </para>
+	/// </summary>
+	public XYZ? ActivatedLocation { get; internal set; }
+
+	/// <summary>
+	/// The grip's displacement from its base position (zero when not activated).
+	/// </summary>
+	public XYZ Displacement => (this.ActivatedLocation ?? this.Location) - this.Location;
+
+	/// <summary>
+	/// Evaluates the grip: writes its displacement (the "DisplacementX/Y" output ports) into
+	/// the context. The displacement is zero when the grip is not activated.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		XYZ displacement = this.Displacement;
+
+		context.SetValue(this.Id, "DisplacementX", displacement.X);
+		context.SetValue(this.Id, "DisplacementY", displacement.Y);
+		this.CurrentValue = displacement.X;
+
+		return true;
+	}
 }

@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using CSMath;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -33,4 +33,37 @@ public abstract class Block1PtParameter : BlockParameter
 
 	/// <inheritdoc/>
 	public override string SubclassMarker => DxfSubclassMarker.Block1PtParameter;
+
+	/// <summary>
+	/// Reads the parameter's displacement (the "DisplacementX/Y" ports of the connected
+	/// grip) from the context.
+	/// </summary>
+	protected void GetDisplacement(EvaluationContext context, out XYZ displacement)
+	{
+		double x = 0, y = 0;
+		ReadPort(this.DisplacementX, "DisplacementX", context, out x);
+		ReadPort(this.DisplacementY, "DisplacementY", context, out y);
+
+		displacement = new XYZ(x, y, 0);
+	}
+
+	/// <summary>
+	/// Writes the updated location into the context under the "UpdatedX/Y" ports.
+	/// </summary>
+	protected void WriteUpdatedLocation(EvaluationContext context, XYZ updatedLocation)
+	{
+		context.SetValue(this.Id, "UpdatedX", updatedLocation.X);
+		context.SetValue(this.Id, "UpdatedY", updatedLocation.Y);
+	}
+
+	private static void ReadPort(EvalParameterProperty property, string port, EvaluationContext context, out double value)
+	{
+		value = 0;
+
+		if (property != null && property.Connections.Count > 0)
+		{
+			int id = property.Connections[0].Id;
+			context.TryGetValue(id, port, out value);
+		}
+	}
 }

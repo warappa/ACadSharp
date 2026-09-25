@@ -55,6 +55,57 @@ namespace ACadSharp.Examples
 			}
 		}
 
+		/// <summary>
+		/// Evaluates the graph: activates all grip nodes (with zero displacement, i.e. the
+		/// initial state) and prints each node's computed value.
+		/// </summary>
+		public static void EvaluateGraphs(string filePath)
+		{
+			CadDocument doc = ReadFile(filePath);
+
+			List<(string BlockName, EvaluationGraph Graph)> graphs = doc.BlockRecords
+				.Where(b => b.EvaluationGraph != null)
+				.Select(b => (b.Name, b.EvaluationGraph))
+				.ToList();
+
+			Console.WriteLine($"Evaluating {graphs.Count} graph(s) in {Path.GetFileName(filePath)}");
+
+			foreach ((string blockName, EvaluationGraph graph) in graphs)
+			{
+				EvaluateGraph(blockName, graph);
+			}
+		}
+
+		private static void EvaluateGraph(string blockName, EvaluationGraph graph)
+		{
+			Console.WriteLine();
+			Console.WriteLine($"=== Block '{blockName}' ===");
+
+			// Activate all grip nodes (the user-touched nodes).
+			List<int> gripIndices = graph.Nodes.Where(n => n.Expression is BlockGrip).Select(n => n.Index).ToList();
+			graph.Activate(gripIndices);
+
+			bool ok = graph.Evaluate();
+			Console.WriteLine($"Evaluate: {(ok ? "OK" : "FAILED")}  (activated {gripIndices.Count} grip(s))");
+
+			if (!ok)
+			{
+				return;
+			}
+
+			foreach (EvaluationGraph.Node node in graph.Nodes.OrderBy(n => n.Index))
+			{
+				EvaluationExpression expr = node.Expression;
+				if (expr == null)
+				{
+					continue;
+				}
+
+				string value = expr.CurrentValue.HasValue ? expr.CurrentValue.Value.ToString("0.###") : "-";
+				Console.WriteLine($"  node {node.Index,2} (id {node.Id,2}): {expr.GetType().Name,-28} value={value}");
+			}
+		}
+
 		private static void DumpGraph(string blockName, EvaluationGraph graph)
 		{
 			Console.WriteLine();

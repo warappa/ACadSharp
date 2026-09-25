@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -8,6 +8,18 @@ namespace ACadSharp.Objects.Evaluations;
 public class BlockRotationAction : BlockActionBasePt, IDxfClassDefined
 {
 	public EvalConnection AngleDeltaConnection { get; set; }
+
+	/// <summary>
+	/// Evaluates the rotation action: reads the angle delta (the "AngleDelta" port of the
+	/// connected parameter) from the context and stores it as the action's current value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double angle = 0;
+		ReadConnectionValue(this.AngleDeltaConnection, context, out angle);
+		this.CurrentValue = angle;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public override string ObjectName => DxfFileToken.ObjectBlockRotateAction;

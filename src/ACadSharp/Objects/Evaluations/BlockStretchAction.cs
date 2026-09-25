@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 using CSMath;
 using System.Collections.Generic;
@@ -43,6 +43,20 @@ public class BlockStretchAction : StretchActionBase, IDxfClassDefined
 	/// <inheritdoc/>
 	[DxfCodeValue(280)]
 	public byte UnknownFlag { get; set; }
+
+	/// <summary>
+	/// Evaluates the stretch action: reads the X and Y deltas (the "EndXDelta/EndYDelta"
+	/// ports of the connected parameter) from the context and stores the X delta as the
+	/// action's current value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double x = 0, y = 0;
+		ReadConnectionValue(this.EndXDeltaConnection, context, out x);
+		ReadConnectionValue(this.EndYDeltaConnection, context, out y);
+		this.CurrentValue = x;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

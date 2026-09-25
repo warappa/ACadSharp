@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using ACadSharp.Attributes;
 using ACadSharp.Entities;
 using CSMath;
@@ -27,4 +27,21 @@ public abstract class BlockAction : BlockElement
 	[DxfCodeValue(DxfReferenceType.Count, 70)]
 	[DxfCollectionCodeValue(91)]
 	public List<int> ParametersIds { get; } = new();
+
+	/// <summary>
+	/// Reads a value from the context via an <see cref="EvalConnection"/> (the connection's
+	/// target expression id and port name). Returns false (and <paramref name="value"/> = 0)
+	/// when the connection is empty or the value is not present.
+	/// </summary>
+	protected static bool ReadConnectionValue(EvalConnection connection, EvaluationContext context, out double value)
+	{
+		value = 0;
+
+		if (connection == null || connection.Id == 0 || string.IsNullOrEmpty(connection.Name))
+		{
+			return false;
+		}
+
+		return context.TryGetValue(connection.Id, connection.Name, out value);
+	}
 }

@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -28,6 +28,18 @@ public class BlockFlipAction : BlockAction, IDxfClassDefined
 	public EvalConnection UpdatedEndConnection { get; set; } = new();
 
 	public EvalConnection UpdatedFlipConnection { get; set; } = new();
+
+	/// <summary>
+	/// Evaluates the flip action: reads the flip state (the "Flip" port of the connected
+	/// parameter) from the context and stores it as the action's current value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double flip = 0;
+		ReadConnectionValue(this.FlipConnection, context, out flip);
+		this.CurrentValue = flip;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

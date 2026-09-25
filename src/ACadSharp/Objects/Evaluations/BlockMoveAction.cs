@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -48,6 +48,20 @@ public class BlockMoveAction : BlockAction, IDxfClassDefined
 	/// Gets or sets the evaluation connection for the Y delta displacement.
 	/// </summary>
 	public EvalConnection YDeltaConnection { get; set; }
+
+	/// <summary>
+	/// Evaluates the move action: reads the X and Y deltas (the "XDelta/YDelta" ports of the
+	/// connected parameter) from the context and stores the X delta as the action's current
+	/// value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double x = 0, y = 0;
+		ReadConnectionValue(this.XDeltaConnection, context, out x);
+		ReadConnectionValue(this.YDeltaConnection, context, out y);
+		this.CurrentValue = x;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

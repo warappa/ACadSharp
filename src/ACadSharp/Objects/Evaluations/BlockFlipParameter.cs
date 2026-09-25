@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 using CSMath;
 
@@ -56,6 +56,32 @@ public class BlockFlipParameter : Block2PtParameter, IDxfClassDefined
 	/// Gets or sets the connection.
 	/// </summary>
 	public EvalConnection UpdatedFlipConnection { get; set; }
+
+	/// <summary>
+	/// Evaluates the flip parameter: reads the connected grips' displacements, updates the
+	/// base and end points, and writes the flip state (0 = base state, 1 = flipped state)
+	/// under the "UpdatedFlip" port.
+	/// <para>
+	/// The flip state is not derived from the geometry; it is toggled by the user. The
+	/// default (unevaluated) state is 0 (the base state).
+	/// </para>
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+
+		XYZ updatedFirst = this.FirstPoint + firstDisp;
+		XYZ updatedSecond = this.SecondPoint + secondDisp;
+
+		// The flip state: 0 = base state, 1 = flipped state. Default to 0 (not flipped).
+		double flip = 0;
+
+		context.SetValue(this.Id, "UpdatedFlip", flip);
+		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		this.CurrentValue = flip;
+
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

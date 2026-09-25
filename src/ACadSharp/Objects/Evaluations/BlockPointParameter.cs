@@ -40,6 +40,25 @@ public class BlockPointParameter : Block1PtParameter, IDxfClassDefined
 	/// <inheritdoc/>
 	public override string SubclassMarker => DxfSubclassMarker.BlockPointParameter;
 
+	/// <summary>
+	/// Evaluates the point parameter: reads the connected grip's displacement and writes the
+	/// X/Y deltas (the "XDelta/YDelta" ports) and the updated location (the "UpdatedX/Y"
+	/// ports) into the context.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacement(context, out XYZ displacement);
+
+		XYZ updatedLocation = this.Location + displacement;
+
+		context.SetValue(this.Id, "XDelta", displacement.X);
+		context.SetValue(this.Id, "YDelta", displacement.Y);
+		this.WriteUpdatedLocation(context, updatedLocation);
+		this.CurrentValue = displacement.X;
+
+		return true;
+	}
+
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{

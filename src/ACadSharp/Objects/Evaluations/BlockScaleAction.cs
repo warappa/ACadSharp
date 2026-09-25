@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -20,6 +20,18 @@ public class BlockScaleAction : BlockActionBasePt, IDxfClassDefined
 	public EvalConnection XScaleConnection { get; set; } = new EvalConnection();
 
 	public EvalConnection YScaleConnection { get; set; } = new EvalConnection();
+
+	/// <summary>
+	/// Evaluates the scale action: reads the scale factor (the "Scale" port of the connected
+	/// parameter) from the context and stores it as the action's current value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double scale = 0;
+		ReadConnectionValue(this.ScaleConnection, context, out scale);
+		this.CurrentValue = scale;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

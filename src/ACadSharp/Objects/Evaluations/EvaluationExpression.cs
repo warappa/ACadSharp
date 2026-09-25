@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -32,4 +32,30 @@ public abstract class EvaluationExpression : NonGraphicalObject
 	public int Value99 { get; set; }
 
 	internal int Unknown { get; set; } = -1;
+
+	/// <summary>
+	/// The current value of the expression, updated during <see cref="Evaluate"/>.
+	/// <para>
+	/// Mirrors the ObjectARX <c>AcDbEvalExpr::value()</c> (the node's value, updated during
+	/// evaluation; <c>kNone</c> before the first evaluation).
+	/// </para>
+	/// </summary>
+	public double? CurrentValue { get; internal set; }
+
+	/// <summary>
+	/// Evaluates the expression, writing its output values into the <paramref name="context"/>.
+	/// <para>
+	/// Mirrors the ObjectARX <c>AcDbEvalExpr::evaluate()</c>, whose default implementation is a
+	/// no-op returning success. Subclasses override this to compute their value from the
+	/// values of the nodes they depend on (read from the context) and to write their output
+	/// values (keyed by port name) for the nodes that depend on them.
+	/// </para>
+	/// </summary>
+	/// <param name="context">The evaluation context (the value store).</param>
+	/// <returns>True when the evaluation succeeded; false when it failed (which aborts the
+	/// graph evaluation, matching the ObjectARX behaviour).</returns>
+	public virtual bool Evaluate(EvaluationContext context)
+	{
+		return true;
+	}
 }

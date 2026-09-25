@@ -28,6 +28,22 @@ namespace ACadSharp.Examples
 				return;
 			}
 
+			if (args.Length > 0 && args[0] == "eval")
+			{
+				if (args.Length < 2)
+				{
+					Console.WriteLine("Usage: ACadSharp.Examples eval <file.dwg|file.dxf> [more files...]");
+					return;
+				}
+
+				foreach (string file in args.Skip(1))
+				{
+					EvaluationGraphExamples.EvaluateGraphs(file);
+				}
+
+				return;
+			}
+
 			CadDocument doc;
 			DwgPreview preview;
 			using (DwgReader reader = new DwgReader(_file))

@@ -1,5 +1,8 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
+using CSMath;
+using CSMath.Extensions;
+using System;
 
 namespace ACadSharp.Objects.Evaluations;
 
@@ -60,6 +63,30 @@ public class BlockPolarParameter : Block2PtParameter, IDxfClassDefined
 
 	/// <inheritdoc/>
 	public override string SubclassMarker => DxfSubclassMarker.BlockPolarParameter;
+
+	/// <summary>
+	/// Evaluates the polar parameter: reads the connected grips' displacements, updates the
+	/// base and end points, and computes the value as the (distance, angle) from the base to
+	/// the end point.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+
+		XYZ updatedFirst = this.FirstPoint + firstDisp;
+		XYZ updatedSecond = this.SecondPoint + secondDisp;
+
+		XYZ delta = updatedSecond - updatedFirst;
+		double distance = delta.GetLength();
+		double angle = Math.Atan2(delta.Y, delta.X);
+
+		context.SetValue(this.Id, "Scale", distance);
+		context.SetValue(this.Id, "AngleDelta", angle);
+		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		this.CurrentValue = distance;
+
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

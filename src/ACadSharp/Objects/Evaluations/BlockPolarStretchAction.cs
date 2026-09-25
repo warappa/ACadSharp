@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 using ACadSharp.Entities;
 using CSMath;
@@ -50,6 +50,20 @@ public class BlockPolarStretchAction : StretchActionBase, IDxfClassDefined
 	public EvalConnection UpdatedBaseConnection { get; set; }
 
 	public EvalConnection UpdatedEndConnection { get; set; }
+
+	/// <summary>
+	/// Evaluates the polar stretch action: reads the X and Y deltas (the "BaseXDelta/
+	/// BaseYDelta" ports of the connected parameter) from the context and stores the X
+	/// delta as the action's current value.
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		double x = 0, y = 0;
+		ReadConnectionValue(this.BaseXDeltaConnection, context, out x);
+		ReadConnectionValue(this.BaseYDeltaConnection, context, out y);
+		this.CurrentValue = x;
+		return true;
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

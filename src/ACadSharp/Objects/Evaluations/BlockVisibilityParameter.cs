@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using ACadSharp.Attributes;
 using ACadSharp.Classes;
+using CSMath;
 using ACadSharp.Entities;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -66,6 +67,30 @@ public partial class BlockVisibilityParameter : Block1PtParameter, IDxfClassDefi
 	public void AddState(State state)
 	{
 		this._states.Add(state.Name, state);
+	}
+
+	/// <summary>
+	/// Evaluates the visibility parameter: reads the connected grip's displacement, updates
+	/// the location, and writes the selected state index under the "Value" port.
+	/// <para>
+	/// The selected state is not derived from the geometry; it is chosen by the user. The
+	/// default (unevaluated) state is index 0 (the first state).
+	/// </para>
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		this.GetDisplacement(context, out XYZ displacement);
+
+		XYZ updatedLocation = this.Location + displacement;
+
+		// The selected state index: 0 = the first state (default).
+		double stateIndex = 0;
+
+		context.SetValue(this.Id, "Value", stateIndex);
+		this.WriteUpdatedLocation(context, updatedLocation);
+		this.CurrentValue = stateIndex;
+
+		return true;
 	}
 
 	/// <inheritdoc/>
