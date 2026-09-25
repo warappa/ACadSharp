@@ -823,26 +823,36 @@ public partial class NodeGraphView : UserControl
                 }
             };
 
-            // Label: to the left of input ports, to the right of output ports.
+            // Permanent label: to the left of input ports, to the right of
+            // output ports. Fully opaque white, 11px, with a background
+            // mask so it stays readable over edge lines.
             if (port.Name.Length > 0)
             {
                 var label = new TextBlock
                 {
-                    FontSize = 10,
-                    Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
+                    FontSize = 11,
+                    Foreground = Brushes.White,
                     Text = port.Name,
+                    IsHitTestVisible = false,
+                };
+                var mask = new Border
+                {
+                    Background = GetCanvasBackgroundBrush(),
+                    CornerRadius = new CornerRadius(2),
+                    Padding = new Thickness(2, 0),
+                    Child = label,
                     IsHitTestVisible = false,
                 };
                 if (isInput)
                 {
-                    Canvas.SetLeft(label, edgeX - radius - port.Name.Length * 6 - 2);
+                    Canvas.SetLeft(mask, edgeX - radius - port.Name.Length * 6.5 - 4);
                 }
                 else
                 {
-                    Canvas.SetLeft(label, edgeX + radius + 2);
+                    Canvas.SetLeft(mask, edgeX + radius + 2);
                 }
-                Canvas.SetTop(label, y - 7);
-                GraphCanvas.Children.Add(label);
+                Canvas.SetTop(mask, y - 8);
+                GraphCanvas.Children.Add(mask);
             }
         }
     }
