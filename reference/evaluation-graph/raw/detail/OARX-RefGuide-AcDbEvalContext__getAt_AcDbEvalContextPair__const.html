@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?><html><head><title>AcDbEvalContext::getAt</title><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"></meta><meta name="generator" content="Doc-O-Matic"></meta><meta http-equiv="Content-Style-Type" content="text/css"></meta><link rel="STYLESHEET" href="default.css" type="text/css"></link>
+<meta name="topicid" content="OARX-RefGuide-AcDbEvalContext__getAt_AcDbEvalContextPair__const"></meta>
+<meta name="canonical" content="http://help.autodesk.com/cloudhelp/2025/ENU/OARX-RefGuide/files/OARX-RefGuide-AcDbEvalContext__getAt_AcDbEvalContextPair__const.html#!"></meta>
+<meta name="helpsystempath" content="/view/OARX/2025/ENU"></meta>
+<meta name="product" content="OARX"></meta>
+<meta name="release" content="2025"></meta>
+<meta name="language" content="ENU"></meta>
+<meta name="book" content="Developer"></meta>
+<meta name="component" content="OARX-RefGuide"></meta>
+<meta name="created" content="04/01/2016"></meta>
+<meta name="modified" content="04/01/2016"></meta>
+<meta name="experiencelevel" content="expert"></meta>
+<meta name="audience" content="programmer"></meta>
+<meta name="user-comments" content="enable"></meta>
+<link rel="stylesheet" type="text/css" href="/view/clientframework/client.css"></link>
+<script type="text/javascript" src="/view/clientframework/client.js"><!--filler--></script>
+<script type="text/javascript" src="//google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script></head>
+<body>
+<script type="text/javascript" src="/view/athena/lib/prettify/lang-vb.js"></script>
+
+<div class="head-block"><h1>AcDbEvalContext::getAt</h1></div>
+<div class="body">
+
+<h3 class="h3 title sectiontitle">&#xD;
+C++</h3>
+<pre class="pre codeblock prettyprint">virtual Acad::ErrorStatus getAt(&#xD;
+    AcDbEvalContextPair&amp; pair&#xD;
+) const;</pre>
+<h3 class="title sectiontitle">
+Description</h3><p>
+Returns an <samp class="ph codeph">AcDbEvalContextPair</samp> stored in the context.</p><p>
+The <samp class="ph codeph">pair</samp> passed in should be initialized with the desired key to return in the context. If the key exists, <samp class="ph codeph">pair</samp> is updated with the value from the context.</p><p>
+Returns <samp class="ph codeph">Acad::eOk</samp> if successful. Returns <samp class="ph codeph">Acad::eKeyNotFound</samp> if no entry exists with the specified key.</p><h3 class="title sectiontitle">
+Parameters</h3><div class="Element252">
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" class="table" width="100%" frame="border" border="1" rules="all"><tr><th align="left">
+Parameters</th><th align="left">
+Description</th></tr><tr><td>
+pair</td><td>
+Input/output AcDbEvalContextPair to insert into the context</td></tr></table></div></div><h3 class="title sectiontitle">
+Links</h3><p><a href="OARX-RefGuide-AcDbEvalContext.html">AcDbEvalContext</a></p></div></body></html>

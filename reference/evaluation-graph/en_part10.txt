@@ -1,0 +1,61 @@
+A.Lazebny. Mysteries of Autodesk's Caves
+
+Part 10. Cottage having neither windows nor doors
+
+Dear Messrs tourists and pretending to be them, let us together move to blockeditor space and solve a very important 
+task. Choose some parameter, grip or activator and try to find mapping to this object in the room ACAD_EVALUATION_GRAPH. 
+What for? To be able create such incantations that would process some required actions with these parameters, grips and 
+activators. Do you remeber what I wrote earlier?
+
+...
+
+If one opens an entity with the entget function in block editor space then code -1 will be similar to codes 331 and 332 
+in this dictionary. Codes 360 of functions in the ACAD_EVALUATION_GRAPH dictionary are equal to codes 333 in the 
+BLOCKVISIBILITYPARAMETER dictionary.
+
+...
+
+Ah, I have forgotten! Children, if you pronounce (entget (car (entsel))) in block editor 
+space and hit your hand-made production (parameters were not made by you but by castle and do not hit them), then to be 
+opened will have the same number that the doors in the BLOCKVISIBILITYPARAMETER room.
+
+And if we pronounce this incantation and hit some parameter, grop or activator then we will get:
+
+((-1 . <Entity name: 7ef97118>))
+
+- unpretentious room where find nothing. We can convert this door to vla-door and look at properties and methods but we 
+will reach nothing. We won't answer the question "how to know the door number corresponding to this parameter in 
+ACAD_EVALUATION_GRAPH?". Better to say, it is not absolutely so. Parameters and activators have names. By names you can 
+find room name in the doors list of ACAD_EVALUATION_GRAPH. Next you can watch links from codes 92 and calculate grips 
+and activators, but it very laborious - like to put on trousers over the head.
+
+What, you did not try to put on trousers over the head? Try indeed. It will enrich yor experience and enlarge your 
+vocabulary.
+
+We will pass to other path. Well! In rhyme! We'll gather all the elements including parameters, grips and activators 
+into a common heap with the help of incantation (ssget "_X") and form a list of gathered 
+objects for providing exclusion of those elements that after (entget (car (entsel)) reply 
+with a list having more than 1 pair. (All the text will be presented in my collection of works).
+
+And we will also come into the ACAD_EVALUATION_GRAPH room and there make up a list of all the doors to dynamic 
+parameters so that in the list there would be no room numbers pointing to position and the first door would be the first 
+in the list. Usually shamans do so: (setq la-la-la (append la-la-la (list tru-la-la))), and 
+list will be have an opposite order. You should either gather in a right manner: (setq la-la-la 
+(append (list tru-la-la) la-la-la)), or use shamanism: (setq la-la-la (reverse la-la-la)). 
+It is very important!
+Because you will get such a list that is identical to the list created from the gathered heap in block editor space!
+What is there on the first place is on the first place here? what is on the second is on the second and so on.
+
+As soon as you move pair 91 with record number in the ACAD_EVALUATION_GRAPH room then at once in block editor space a 
+set is being created with modified position. Moved there - relocated here.
+
+Strictly speaking, it's all. 
+
+Previous | Next
+
+NP CAD Page | Articles 
+|| Introduction | 1 | 2 
+| 3 | 4 | 5 
+| 6 | 7 | 8 
+| 9 | 11 | 12
+|| Russian

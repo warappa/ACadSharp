@@ -1,0 +1,80 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+  <META NAME="Keywords" CONTENT="Andrey Lazebny, dynamic blocks, AutoCAD, AutoLISP">
+<title>Mysteries of Autodesk's Caves (part 10)</title>
+</head>
+
+<body bgcolor=#000000 alink=#FF0066 vlink=#FF0066 link=#0099FF>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod07e.htm">7</a> | <a href="tainypod08e.htm">8</a> 
+| <a href="tainypod09e.htm">9</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod10.htm">Russian</a></p>
+
+<FONT SIZE=5>
+<P align=center><B>A.Lazebny. Mysteries of Autodesk's Caves</B></P></FONT>
+<font size=4><P align=center><B>Part 10. Cottage having neither windows nor doors</B></P></FONT>
+<P>Dear Messrs tourists and pretending to be them, let us together move to blockeditor space and solve a very important 
+task. Choose some parameter, grip or activator and try to find mapping to this object in the room ACAD_EVALUATION_GRAPH. 
+What for? To be able create such incantations that would process some required actions with these parameters, grips and 
+activators. Do you remeber what I wrote earlier?</p>
+<p><b><i>
+...<br>
+If one opens an entity with the entget function in block editor space then code -1 will be similar to codes 331 and 332 
+in this dictionary. Codes 360 of functions in the ACAD_EVALUATION_GRAPH dictionary are equal to codes 333 in the 
+BLOCKVISIBILITYPARAMETER dictionary.<br>
+...</i></b></p>
+<p>Ah, I have forgotten! Children, if you pronounce <font color=#FFFF00>(entget (car (entsel)))</font> in block editor 
+space and hit your hand-made production (parameters were not made by you but by castle and do not hit them), then to be 
+opened will have the same number that the doors in the BLOCKVISIBILITYPARAMETER room.<br>
+And if we pronounce this incantation and hit some parameter, grop or activator then we will get:<br>
+<font color=#66FFFF>((-1 . &lt;Entity name: 7ef97118&gt;))</font><br>
+- unpretentious room where find nothing. We can convert this door to vla-door and look at properties and methods but we 
+will reach nothing. We won't answer the question &quot;how to know the door number corresponding to this parameter in 
+ACAD_EVALUATION_GRAPH?&quot;. Better to say, it is not absolutely so. Parameters and activators have names. By names you can 
+find room name in the doors list of ACAD_EVALUATION_GRAPH. Next you can watch links from codes 92 and calculate grips 
+and activators, but it very laborious - like to put on trousers over the head.<br>
+What, you did not try to put on trousers over the head? Try indeed. It will enrich yor experience and enlarge your 
+vocabulary.</p>
+<p>We will pass to other path. Well! In rhyme! We'll gather all the elements including parameters, grips and activators 
+into a common heap with the help of incantation <font color=#FFFF00>(ssget &quot;_X&quot;)</font> and form a list of gathered 
+objects for providing exclusion of those elements that after <font color=#FFFF00>(entget (car (entsel))</font> reply 
+with a list having more than 1 pair. (All the text will be presented in my collection of works).</p>
+<p>And we will also come into the ACAD_EVALUATION_GRAPH room and there make up a list of all the doors to dynamic 
+parameters so that in the list there would be no room numbers pointing to position and the first door would be the first 
+in the list. Usually shamans do so: <font color=#FFFF00>(setq la-la-la (append la-la-la (list tru-la-la)))</font>, and 
+list will be have an opposite order. You should either gather in a right manner: <font color=#FFFF00>(setq la-la-la 
+(append (list tru-la-la) la-la-la))</font>, or use shamanism: <font color=#FFFF00>(setq la-la-la (reverse la-la-la))</font>. 
+It is very important!
+<font size=3><b>Because you will get such a list that is identical to the list created from the gathered heap in block editor space!</b></font>
+What is there on the first place is on the first place here? what is on the second is on the second and so on.</p>
+<p>As soon as you move pair 91 with record number in the ACAD_EVALUATION_GRAPH room then at once in block editor space a 
+set is being created with modified position. Moved there - relocated here.<br>
+Strictly speaking, it's all. 
+</p>
+</font>
+
+<hr>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="tainypod09e.htm">Previous</a> | <a href="tainypod11e.htm">Next</a></p>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod07e.htm">7</a> | <a href="tainypod08e.htm">8</a> 
+| <a href="tainypod09e.htm">9</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod10.htm">Russian</a></p>
+</font>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-2957013-1";
+urchinTracker();
+</script>
+</body>
+
+</html>

@@ -1,0 +1,469 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=koi8r">
+  <META NAME="Keywords" CONTENT="Андрей Лазебный, динамические блоки, AutoCAD, AutoLISP">
+<title>Тайны подземелий Autodesk (часть 8)</title>
+</head>
+
+<body bgcolor=#000000 alink=#FF0066 vlink=#FF0066 link=#0099FF>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="../index.html" >CAD-страница НП</a> | <a href="../articles.htm">Статьи</a> 
+|| <a href="tainypod.htm">Введение</a> | <a href="tainypod01.htm">1</a> | <a href="tainypod02.htm">2</a> 
+| <a href="tainypod03.htm">3</a> | <a href="tainypod04.htm">4</a> | <a href="tainypod05.htm">5</a> 
+| <a href="tainypod06.htm">6</a> | <a href="tainypod07.htm">7</a> | <a href="tainypod09.htm">9</a> 
+| <a href="tainypod10.htm">10</a> | <a href="tainypod11.htm">11</a> | <a href="tainypod12.htm">12</a>
+|| <a href="tainypod08e.htm">English</a></p>
+
+<FONT SIZE=5>
+<P align=center><B>А.Лазебный. Тайны подземелий Autodesk</B></P></FONT>
+<font size=4><P align=center><B>Часть 8. Где закопаны элементы блока</B></P></FONT>
+<P>Ну какой замок без картинных галерей? Или без статуй? Гобелены где? Где коллекции оружия, доспехов, охотничьих трофеев? Все есть. 
+Любая мало-мальски ценная вещь попадает в нашем замке в коллекцию. Даже копии вещей, и те тоже попадают в коллекции. Можно смело 
+сказать, что все вещи в замке принадлежат тем или иным коллекциям. Есть даже коллекции из коллекций.</p>
+<p>Вот что такое одна марка, да еще и не редкая - так это примитив. А если у вас собрана коллекция почтовых марок одной какой-то 
+страны, да еще за определенный год - даже самая простая и далеко не редкая марка в этой коллекции нужна. Без нее эта коллекция 
+будет не полной и не такой ценной. А когда вы собрали марки за несколько лет, да еще нескольких стран - это коллекция коллекций.</p>
+<p>Блоки - вещи ценные, после их создания на фасад они не вывешиваются. Туда вывешиваются копии. Вообще, вся система замка устроена 
+так, что что бы вы ни захотели, замок норовит вам всучить копию, вместо оригинала. Оригинал лежит в запаснике и для свободного 
+обозрения не доступен.</p>
+<p>Наша следующая цель - залезть в хранилище оригиналов и найти там нужный нам блок. Заранее оговорюсь. На фасаде висит только 
+один блок и более ничего (см. <a href="../Download/DblockSample2007.zip">DblockSample2007.dwg</a>). В нем одна линия и
+Visibility Set. То есть блок динамический.</p>
+<p>В замке есть своя, главная дверь. Если до сих пор мы лазили в замок через двери в пристройках к нему, то теперь попробуем 
+зайти через главную дверь. Эта дверь может быть вызвана только одним заклинанием, но зато из любого места и указывать ни на что 
+не надо (так, забыл. Полез в колдовскую книгу. Ага!).</p>
+<p><font color=#FFFF00>(vlax-get-acad-object)</font><br>
+Видим <font color=#66FFFF>#&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;</font> - vla-дверь.<br>
+Делаем <font color=#FFFF00>(vlax-vla-object->ename (vlax-get-acad-object))</font>.<br>
+Видим <font color=#66FFFF>nil</font>. <font color=#66FFFF>Nil</font> - это такое изощренное издевательство замка или его создателей. 
+В одних случаях это означает, что все прошло хорошо, а в других пустоту, даже не 0, а что-то вообще не имеющееся в наличии. 
+В данном случае я получил именно ее. Значит, не все двери могут быть именованными! Запомним.</p>
+<p>Тогда применим другое заклинание, возвращающее нам список всех свойств объекта. Действует оно только на vla-двери.<br>
+<font color=#FFFF00>(vlax-dump-object (vlax-get-acad-object))</font><br>
+Если добавить после имени двери букву <font color=#FFFF00>Т</font>, только английскую, то мы получим еще и методы, которые можно 
+применить к данному помещению. Напомню, методы - это такие заклинания, которые действуют только на определенные комнаты.<br>
+<font color=#FFFF00>(vlax-dump-object (vlax-get-acad-object) T)</font></p>
+<p>Только вот беда: в отличие от <font color=#FFFF00>entget</font>, мы получаем не что-то вещественное, что можно в памяти 
+сохранить и в дальнейшем использовать, а только эхо, которое ты слышишь, а потрогать не можешь.</p>
+<p><font color=#66FFFF>
+; IAcadApplication: An instance of the AutoCAD application<br>
+; Property values:<br>
+;   ActiveDocument = #&lt;VLA-OBJECT IAcadDocument 01400420&gt;<br>
+;   Application (RO) = #&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;<br>
+;   Caption (RO) = "AutoCAD 2007 - [Drawing1.dwg]"<br>
+;   Documents (RO) = #&lt;VLA-OBJECT IAcadDocuments 05e6c3b0&gt;<br>
+;   FullName (RO) = "C:\\Program Files\\AutoCAD 2007\\acad.exe"<br>
+;   Height = 774<br>
+;   HWND (RO) = 1704798<br>
+;   LocaleId (RO) = 1033<br>
+;   MenuBar (RO) = #&lt;VLA-OBJECT IAcadMenuBar 05e71044&gt;<br>
+;   MenuGroups (RO) = #&lt;VLA-OBJECT IAcadMenuGroups 01408948&gt;<br>
+;   Name (RO) = "AutoCAD"<br>
+;   Path (RO) = "C:\\Program Files\\AutoCAD 2007"<br>
+;   Preferences (RO) = #&lt;VLA-OBJECT IAcadPreferences 05e738dc><br>
+;   StatusId (RO) = ...Indexed contents not shown...<br>
+;   VBE (RO) = #&lt;VLA-OBJECT VBE 01b95aa4&gt;<br>
+;   Version (RO) = "17.0s (LMS Tech)"<br>
+;   Visible = -1<br>
+;   Width = 1288<br>
+;   WindowLeft = -4<br>
+;   WindowState = 3<br>
+;   WindowTop = -4<br>
+; Methods supported:<br>
+;   Eval (1)<br>
+;   GetAcadState ()<br>
+;   GetInterfaceObject (1)<br>
+;   ListArx ()<br>
+;   LoadArx (1)<br>
+;   LoadDVB (1)<br>
+;   Quit ()<br>
+;   RunMacro (1)<br>
+;   UnloadArx (1)<br>
+;   UnloadDVB (1)<br>
+;   Update ()<br>
+;   ZoomAll ()<br>
+;   ZoomCenter (2)<br>
+;   ZoomExtents ()<br>
+;   ZoomPickWindow ()<br>
+;   ZoomPrevious ()<br>
+;   ZoomScaled (2)<br>
+;   ZoomWindow (2)<br>
+T</font>
+</p>
+<p>Здесь все как в офисе какой-нибудь фирмы: бухгалтерия, отдел кадров, производственный отдел и т.д. Нас интересует 
+кабинет <font color=#FF9900>ActiveDocument</font>. Это отдел, заведующий текущими пространствами модели, листа и другими 
+важными текущими делами. Чтобы войти в эту дверь, надо произнести заклинание, включающее в себя имя этой двери:<br>
+<font color=#FFFF00>(vla-get-ActiveDocument (vlax-get-acad-object))</font><br>
+Получим <font color=#66FFFF>#&lt;VLA-OBJECT IAcadDocument 01400420&gt;</font> или что-то в этом роде. Циферки в конце все 
+время меняются.<br>
+Смотрим все, что там есть.<br>
+<font color=#FFFF00>(vlax-dump-object (vla-get-ActiveDocument (vlax-get-acad-object)) T)</font></p>
+<p><font color=#66FFFF>
+; IAcadDocument: An AutoCAD drawing<br>
+; Property values:<br>
+;   Active (RO) = -1<br>
+;   ActiveDimStyle = #&lt;VLA-OBJECT IAcadDimStyle 05e73a84&gt;<br>
+;   ActiveLayer = #&lt;VLA-OBJECT IAcadLayer 05e75904&gt;<br>
+;   ActiveLayout = #&lt;VLA-OBJECT IAcadLayout 05e73544&gt;<br>
+;   ActiveLinetype = #&lt;VLA-OBJECT IAcadLineType 05e73914&gt;<br>
+;   ActiveMaterial = #&lt;VLA-OBJECT IAcadMaterial 05e76074&gt;<br>
+;   ActivePViewport = AutoCAD: No active viewport in paperspace<br>
+;   ActiveSelectionSet (RO) = #&lt;VLA-OBJECT IAcadSelectionSet 05e76b24&gt;<br>
+;   ActiveSpace = 1<br>
+;   ActiveTextStyle = #&lt;VLA-OBJECT IAcadTextStyle 05e6f714&gt;<br>
+;   ActiveUCS = AutoCAD: Null object ID<br>
+;   ActiveViewport = #&lt;VLA-OBJECT IAcadViewport 05e6f494&gt;<br>
+;   Application (RO) = #&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;<br>
+;   Blocks (RO) = #&lt;VLA-OBJECT IAcadBlocks 05e6c094&gt;<br>
+;   Database (RO) = #&lt;VLA-OBJECT IAcadDatabase 05e6ef14&gt;<br>
+;   Dictionaries (RO) = #&lt;VLA-OBJECT IAcadDictionaries 05e6e0e4&gt;<br>
+;   DimStyles (RO) = #&lt;VLA-OBJECT IAcadDimStyles 05e6ff84&gt;<br>
+;   ElevationModelSpace = 0.0<br>
+;   ElevationPaperSpace = 0.0<br>
+;   FileDependencies (RO) = #&lt;VLA-OBJECT IAcadFileDependencies 05e6ed04&gt;<br>
+;   FullName (RO) = ""<br>
+;   Groups (RO) = #&lt;VLA-OBJECT IAcadGroups 05e760d4&gt;<br>
+;   Height = 434<br>
+;   HWND (RO) = 656614<br>
+;   Layers (RO) = #&lt;VLA-OBJECT IAcadLayers 05e768c4&gt;<br>
+;   Layouts (RO) = #&lt;VLA-OBJECT IAcadLayouts 05e763f4&gt;<br>
+;   Limits = (0.0 0.0 420.0 297.0)<br>
+;   Linetypes (RO) = #&lt;VLA-OBJECT IAcadLineTypes 05e77a34&gt;<br>
+;   Materials (RO) = #&lt;VLA-OBJECT IAcadMaterials 05e77df4&gt;<br>
+;   ModelSpace (RO) = #&lt;VLA-OBJECT IAcadModelSpace 01299e34&gt;<br>
+;   MSpace = AutoCAD: Invalid mode<br>
+;   Name (RO) = "Drawing1.dwg"<br>
+;   ObjectSnapMode = 0<br>
+;   PaperSpace (RO) = #&lt;VLA-OBJECT IAcadPaperSpace 012a2cc4&gt;<br>
+;   Path (RO) = "C:\\Documents and Settings\\АНДРЕЙ\\Мои документы"<br>
+;   PickfirstSelectionSet (RO) = #&lt;VLA-OBJECT IAcadSelectionSet 02681e14&gt;<br>
+;   Plot (RO) = #&lt;VLA-OBJECT IAcadPlot 012a27fc&gt;<br>
+;   PlotConfigurations (RO) = #&lt;VLA-OBJECT IAcadPlotConfigurations 012a4f64&gt;<br>
+;   Preferences (RO) = #&lt;VLA-OBJECT IAcadDatabasePreferences 05e6eee4&gt;<br>
+;   ReadOnly (RO) = 0<br>
+;   RegisteredApplications (RO) = #&lt;VLA-OBJECT IAcadRegisteredApplications 05e78b64&gt;<br>
+;   Saved (RO) = -1<br>
+;   SectionManager (RO) = Ошибка<br>
+;   SelectionSets (RO) = #&lt;VLA-OBJECT IAcadSelectionSets 05e76034&gt;<br>
+;   SummaryInfo (RO) = #&lt;VLA-OBJECT IAcadSummaryInfo 05e6ecd4&gt;<br>
+;   TextStyles (RO) = #&lt;VLA-OBJECT IAcadTextStyles 05e78014&gt;<br>
+;   UserCoordinateSystems (RO) = #&lt;VLA-OBJECT IAcadUCSs 05e784a4&gt;<br>
+;   Utility (RO) = #&lt;VLA-OBJECT IAcadUtility 05e78534&gt;<br>
+;   Viewports (RO) = #&lt;VLA-OBJECT IAcadViewports 05e78264&gt;<br>
+;   Views (RO) = #&lt;VLA-OBJECT IAcadViews 05e79ab4&gt;<br>
+;   Width = 1210<br>
+;   WindowState = 3<br>
+;   WindowTitle (RO) = "Drawing1.dwg"<br>
+; Methods supported:<br>
+;   Activate ()<br>
+;   AuditInfo (1)<br>
+;   Close (2)<br>
+;   CopyObjects (3)<br>
+;   EndUndoMark ()<br>
+;   Export (3)<br>
+;   GetVariable (1)<br>
+;   HandleToObject (1)<br>
+;   Import (3)<br>
+;   LoadShapeFile (1)<br>
+;   New (1)<br>
+;   ObjectIdToObject (1)<br>
+;   Open (2)<br>
+;   PurgeAll ()<br>
+;   Regen (1)<br>
+;   Save ()<br>
+;   SaveAs (3)<br>
+;   SendCommand (1)<br>
+;   SetVariable (2)<br>
+;   StartUndoMark ()<br>
+;   Wblock (2)<br>
+T</font></p>
+<p>Смотришь на это количество кабинетов и думаешь: "Да, и сюда бюрократия добралась". Но нас интересует все, что связано с блоками. 
+Идем в кабинет "Блоки", то есть <font color=#FF9900>Blocks</font>.<br>
+<font color=#FFFF00>(vlax-dump-object (vla-get-Blocks (vla-get-ActiveDocument (vlax-get-acad-object))) T)</font></p>
+<p><font color=#66FFFF>
+; IAcadBlocks: The collection of all blocks in the drawing<br>
+; Property values:<br>
+;   Application (RO) = #&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;<br>
+;   Count (RO) = 3<br>
+;   Document (RO) = #&lt;VLA-OBJECT IAcadDocument 01400420&gt;<br>
+;   Handle (RO) = "1"<br>
+;   HasExtensionDictionary (RO) = 0<br>
+;   ObjectID (RO) = 2130271240<br>
+;   ObjectName (RO) = "AcDbBlockTable"<br>
+;   OwnerID (RO) = 0<br>
+; Methods supported:<br>
+;   Add (2)<br>
+;   Delete ()<br>
+;   GetExtensionDictionary ()<br>
+;   GetXData (3)<br>
+;   Item (1)<br>
+;   SetXData (2)<br>
+T</font></p>
+<p>И к моему величайшему удивлению, за этой дверью сидит один плешивый старичок и ковыряется спичкой в ухе. Ни тебе стеллажей 
+с блоками, ни тебе двери к этим стеллажам - пусто. Две двери есть, но дурных нет, мы эти приколы уже знаем. Так во всех 
+бюрократических системах. Идешь из кабинета в кабинет, обливаешься потом, а в конце ничего так и не получаешь.</p>
+<p>Но ведь это кабинет, на котором явно написано - БЛОКИ! В верхней строчке что написано? <font color=#66FFFF>IAcadBlocks: 
+The collection of all blocks in the drawing.</font><br>
+Что в переводе на наш родной язык означает "Это коллекция всех блоков в замке". Так где же они? Оказывается, что это просто 
+декорация для отвода глаз. Есть такое заклинание, которое сбрасывает пелену с глаз, и ты можешь увидеть все элементы, лежащие 
+в таких, скрытых от людских глаз местах. Это <font color=#FFFF00>vlax-for</font>. Только применять его нужно к самой двери, 
+а точнее не к ней, а ко всему складу блоков, куда она ведет.</p>
+<p>Само по себе это заклинание не действует, не хватает его на все, что можно придумать, поэтому оно только помогает применять 
+заклинания по отношению к тем элементам, которые лежат на этом складе. Но, поскольку во всех заклинаниях требуется присутствие
+ссылки на имя объекта, к которому это заклинание применяется, то после <font color=#FFFF00>vlax-for</font> нужно указывать 
+символ, который и будет являться представителем объекта в заклинании. Например:</p>
+<p><font color=#FFFF00>
+(setq sss nil)<br>
+(vlax-for x (vla-get-Blocks (vla-get-ActiveDocument (vlax-get-acad-object)))<br>
+<dd>(setq sss (append sss (list x))))</font></p>
+<p>Что глаза выпучили? В книжку смотрите, в книжку! Где ваша колдовская книжка? Я что, должен ее тут всю переписать? Там 919
+страниц мелким почерком!<br>
+Кто читает это и "Wer versteht nicht", дуйте в магазин за литературой.<br>
+А для тех, кто "в теме", продолжу. Получили мы список того, что в этой кладовой есть.</p>
+<p><font color=#66FFFF>
+(<br>
+#&lt;VLA-OBJECT IAcadModelSpace 06192424&gt;<br>
+#&lt;VLA-OBJECT IAcadPaperSpace 06191854&gt;<br>
+#&lt;VLA-OBJECT IAcadBlock 06190444&gt;<br>
+#&lt;VLA-OBJECT IAcadBlock 061921f4&gt;<br>
+)</font></p>
+<p>Первое в дословном переводе:<br>
+<font color=#00CC00>- Специальный объект Блока, содержащий все образцовые космические юридические лица</font><br>
+Ну, я ж про космос не сам, как видите, придумал. Короче, оригиналы того, что мы видим на фасаде, собранные в блок.</p>
+<p>Второе:<br>
+<font color=#00CC00>- Специальный объект Блока, содержащий все юридические лица в активном бумажном космическом расположении</font></p>
+<p>Коряво, зато про космос на бумаге не требует объяснений. Или требует?<br>
+Мальчик! Прекрати в носу колупаться! Тут дядя про космос рассказывает!<br>
+Ради бога извините, и кто только детей на экскурсии без родителей отпускает!<br>
+Итак, продолжу.</p>
+<p>Третье и четвертое:<br>
+<font color=#00CC00>- Определение блока, содержащее название и ряд объектов</font></p>
+<p>У меня только один блок на фасаде. Откуда второй блок? Неучтенка, однако. И тут на складе, как на любом складе, какие-то левые
+товары. Рассмотрим поближе первый в списке.<br>
+<font color=#FFFF00>(entget (vlax-vla-object->ename (cadr (reverse sss))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdbef0&gt;)<br>
+(0 . "BLOCK_RECORD")<br>
+(330 . &lt;Entity name: 7efdbc08&gt;)<br>
+(5 . "D6")<br>
+(100 . "AcDbSymbolTableRecord")<br>
+(100 . "AcDbBlockTableRecord")<br>
+(2 . "*Paper_Space0")<br>
+(360 . &lt;Entity name: 7efdbf00&gt;)<br>
+(340 . &lt;Entity name: 7efdbef8&gt;)<br>
+(70 . 0)<br>
+(280 . 1)<br>
+(281 . 0))</font></p>
+<p>Что за чертовщина! Пару с номером 2 видите? Опять бумага? Вторая дверь во все ту же бумагу? Что я там забыл? А тут еще вон
+сколько дверей. Если поглубже зайти в эти катакомбы, то можно услышать далеко-далеко крики заблудившихся туристов. Я туда не пойду.<br>
+Вы что думаете, я уже везде бывал, а теперь вас гружу избыточными распечатками? Ничего подобного. Вот лажу и записываю, как в 
+дневник. Я, конечно, знаю, что ищу, но давно я сюда не лазил, вот сейчас и залез.<br>
+Итак, последний блок:<br>
+<font color=#FFFF00>(entget (vlax-vla-object->ename (car (reverse sss))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7ef97080&gt;)<br>
+(0 . "BLOCK_RECORD")<br>
+(330 . &lt;Entity name: 7ef95c08&gt;)<br>
+(5 . "110")<br>
+(100 . "AcDbSymbolTableRecord")<br>
+(100 . "AcDbBlockTableRecord")<br>
+(2 . "линия")<br>
+(360 . &lt;Entity name: 7ef97088&gt;)<br>
+(340 . &lt;Entity name: 0&gt;)<br>
+<span style="font-size: 2.0pt; font-family: Arial">
+(310 . &quot;2800000020000000200000000100080000000000000400000000000000000000000000000000000000000000000080000080000000808000800000008000800080800000C0C0C000C0DCC000F0CAA6000020400000206000002080000020A0000020C0000020E00000400000004020000040400000406000004080000040A0&quot;)
+<br>(310 . &quot;000040C0000040E00000600000006020000060400000606000006080000060A0000060C0000060E00000800000008020000080400000806000008080000080A0000080C0000080E00000A0000000A0200000A0400000A0600000A0800000A0A00000A0C00000A0E00000C0000000C0200000C0400000C0600000C0800000C0&quot;)
+<br>(310 . &quot;A00000C0C00000C0E00000E0000000E0200000E0400000E0600000E0800000E0A00000E0C00000E0E00040000000400020004000400040006000400080004000A0004000C0004000E00040200000402020004020400040206000402080004020A0004020C0004020E000404000004040200040404000404060004040800040&quot;)
+<br>(310 . &quot;40A0004040C0004040E00040600000406020004060400040606000406080004060A0004060C0004060E00040800000408020004080400040806000408080004080A0004080C0004080E00040A0000040A0200040A0400040A0600040A0800040A0A00040A0C00040A0E00040C0000040C0200040C0400040C0600040C08000&quot;)
+<br>(310 . &quot;40C0A00040C0C00040C0E00040E0000040E0200040E0400040E0600040E0800040E0A00040E0C00040E0E00080000000800020008000400080006000800080008000A0008000C0008000E00080200000802020008020400080206000802080008020A0008020C0008020E00080400000804020008040400080406000804080&quot;)
+<br>(310 . &quot;008040A0008040C0008040E00080600000806020008060400080606000806080008060A0008060C0008060E00080800000808020008080400080806000808080008080A0008080C0008080E00080A0000080A0200080A0400080A0600080A0800080A0A00080A0C00080A0E00080C0000080C0200080C0400080C0600080C0&quot;)
+<br>(310 . &quot;800080C0A00080C0C00080C0E00080E0000080E0200080E0400080E0600080E0800080E0A00080E0C00080E0E000C0000000C0002000C0004000C0006000C0008000C000A000C000C000C000E000C0200000C0202000C0204000C0206000C0208000C020A000C020C000C020E000C0400000C0402000C0404000C0406000C0&quot;)
+<br>(310 . &quot;408000C040A000C040C000C040E000C0600000C0602000C0604000C0606000C0608000C060A000C060C000C060E000C0800000C0802000C0804000C0806000C0808000C080A000C080C000C080E000C0A00000C0A02000C0A04000C0A06000C0A08000C0A0A000C0A0C000C0A0E000C0C00000C0C02000C0C04000C0C06000&quot;)
+<br>(310 . &quot;C0C08000C0C0A000F0FBFF00A4A0A000808080000000FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . &quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . &quot;0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000&quot;)
+<br>(310 . &quot;000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFFFF0000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . &quot;FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000&quot;)
+<br>(310 . &quot;000000000000000000FFFFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF00000000000000000000000000&quot;)
+<br>(310 . &quot;00000000000000000000000000000000000000FFFF00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . &quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . &quot;0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+</span><br>
+(102 . "{BLKREFS") (331 . &lt;Entity name: 7ef970a0&gt;) (102 . "}")<br>
+(70 . 4)<br>
+(280 . 1)<br>
+(281 . 0))</font></p>
+<p>У-у, какой банзай! Я специально шрифт уменьшил в середине, чтобы у вас сердечного приступа не случилось.
+Это уже точно не бумага, и вторая точечная пара говорит, что это мой блок "Line".<br>
+Но что-то он какой-то странный. Может быть, это коллекция?</p>
+<p><font color=#FFFF00>
+(setq ssd nil)<br>
+(vlax-for x (car (reverse sss)) <br>
+<dd>(setq ssd (append ssd (list x))))</font></p>
+<p>Получаем:<br>
+<font color=#66FFFF>(#&lt;VLA-OBJECT IAcadLWPolyline 06195fa4&gt;)</font><br>
+Точно, коллекция. В нем только одна полилиния. И первая дверь в модель - тоже коллекция.</p>
+<p><font color=#FFFF00>
+(setq ssd nil)<br>
+(vlax-for x (car sss)<br>
+<dd>(setq ssd (append ssd (list x))))</font></p>
+<p>Получаем:<br>
+<font color=#66FFFF>(#&lt;VLA-OBJECT IAcadBlockReference 06194d94&gt;)</font><br>
+Это мой блок с линией.</p>
+<p>Вернемся к блоку-коллекции. А что это там за 360 дверь?</p>
+<p><font color=#FFFF00>(entget (cdr (assoc 360 (entget (vlax-vla-object->ename (car (reverse sss)))))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd0d0&gt;)<br>
+(0 . "DICTIONARY")<br>
+(330 . &lt;Entity name: 7efdd080&gt;)<br>
+(5 . "11A")<br>
+(100 . "AcDbDictionary")<br>
+(280 . 1)<br>
+(281 . 1)<br>
+(3 . "ACAD_ENHANCEDBLOCK")<br>
+(360 . &lt;Entity name: 7efdd0d8&gt;)<br>
+(3 . "AcDbDynamicBlockRoundTripPurgePreventer")<br>
+(360 . &lt;Entity name: 7efdd138&gt;))</font></p>
+<p>А тут еще две 360 двери. Глянем в первую:<br>
+<font color=#FFFF00>
+(entget<br>
+<dd>(cdr (assoc 360 
+<dd><dd>(entget (cdr (assoc 360 (entget (vlax-vla-object->ename (car (reverse sss)))))))
+<dd><dd><dd>)))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd0d8&gt;)<br>
+(0 . "ACAD_EVALUATION_GRAPH")<br>
+(5 . "11B")<br>
+(102 . "{ACAD_REACTORS") (330 . &lt;Entity name: 7efdd0d0&gt;) (102 . "}")<br>
+(330 . &lt;Entity name: 7efdd0d0&gt;)<br>
+(100 . "AcDbEvalGraph")<br>
+(96 . 4)<br>
+(97 . 4)<br>
+(91 . 0) (93 . 32) (95 . 1) (360 . &lt;Entity name: 7efdd0e8&gt;) (92 . 0) (92 . 0) (92 . 1) (92 . 2)<br>
+(91 . 1) (93 . 32) (95 . 2) (360 . &lt;Entity name: 7efdd0f0&gt;) (92 . -1) (92 . -1) (92 . 0) (92 . 0)<br>
+(91 . 2) (93 . 32) (95 . 3) (360 . &lt;Entity name: 7efdd0f8&gt;) (92 . 1) (92 . 1) (92 . -1) (92 . -1)<br>
+(91 . 3) (93 . 32) (95 . 4) (360 . &lt;Entity name: 7efdd100&gt;) (92 . 2) (92 . 2) (92 . -1) (92 . -1)<br>
+(92 . 0) (93 . 0) (94 . 1) (91 . 1) (91 . 0) (92 . -1) (92 . -1) (92 . -1) (92 . -1) (92 . -1)<br>
+(92 . 1) (93 . 0) (94 . 1) (91 . 0) (91 . 2) (92 . -1) (92 . -1) (92 . -1) (92 . 2) (92 . -1)<br>
+(92 . 2) (93 . 0) (94 . 1) (91 . 0) (91 . 3) (92 . -1) (92 . -1) (92 . 1) (92 . -1) (92 . -1)</font></p>
+<p>Ты ба! Знакомое место!<br>
+Собственно, это я и искал. Составим карту:<br>
+<font color=#00CC00>Зайти в главный вход<br>
+<dd>&#9492;&gt; Далее в кабинет ActiveDocument<br>
+<dd><dd>&#9492;&gt; Далее в коллекцию Blocks<br>
+<dd><dd><dd>&#9492;&gt; Найти блок с нужным именем<br>
+<dd><dd><dd><dd>&#9492;&gt; Достать из DXF-описания этого блока точечную пару 360 - (0 . "DICTIONARY")<br>
+<dd><dd><dd><dd><dd>&#9492;&gt; Оттуда 360 пару - (0 . "ACAD_EVALUATION_GRAPH")</font></p>
+<p>И что самое интересное: получение блока по эффективному имени и дальнейший спуск в его подвал, о чем я в начале писал,
+приводит нас к той же двери, что и вход через коллекцию: <font color=#00CC00>(-1 . &lt;Entity name: 7efdd0d8&gt;)</font>,
+а через редактор блоков - уже другой номер двери.</p>
+<p>Итак, мы уже можем тремя способами войти в комнату с параметрами блока. Давайте же теперь спустимся еще глубже. В сами 
+параметры. Он тут один - <font color=#FF9900>Visibility Set</font>, вот в него мы и залезем.</p>
+<p><font color=#FFFF00>
+(setq eval-graf (entget<br>
+<dd>(cdr (assoc 360<br>
+<dd><dd>(entget (cdr (assoc 360 (entget (vlax-vla-object->ename (car (reverse sss)))))))<br>
+<dd><dd>))))<br>
+(entget (cdr (assoc 360 eval-graf)))</font></p>
+<p>Получаем:<br>
+<font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd0e8&gt;)<br>
+(0 . "BLOCKVISIBILITYPARAMETER")<br>
+(330 . &lt;Entity name: 7efdd0d8&gt;)<br>
+(5 . "11D")<br>
+(100 . "AcDbEvalExpr")<br>
+(90 . 1)<br>
+(98 . 27)<br>
+(99 . 1)<br>
+(100 . "AcDbBlockElement")<br>
+(300 . "Visibility State")<br>
+(98 . 27)<br>
+(99 . 1)<br>
+(1071 . 16) (100 . "AcDbBlockParameter")<br>
+(280 . 1)<br>
+(281 . 0)<br>
+(100 . "AcDbBlock1PtParameter")<br>
+(1010 561.266 110.92 0.0)<br>
+(93 . 2)<br>
+(170 . 0)<br>
+(171 . 0)<br>
+(100 . "AcDbBlockVisibilityParameter")<br>
+(281 . 1)<br>
+(301 . "Visibility")<br>
+(302 . "")<br>
+(91 . 0)<br>
+(93 . 1)<br>
+(331 . &lt;Entity name: 7efdd0c0&gt;)<br>
+(92 . 1)<br>
+(303 . "VisibilityState0") 
+(94 . 1) 
+(332 . &lt;Entity name: 7efdd0c0&gt;)<br>
+(95 . 0))</font></p>
+<p>Тут я опять процитирую текст из <a href="http://forum.dwg.ru/showthread.php?t=24597">темы "Создание дополнительных параметров
+Visibility Set в динамических блоках"</a> на dwg.ru. (Дети, все дружно стали у стеночки и сделали пи-пи. Пока взрослые дяди и
+тети вчитываются в мои каракули, есть время. Потом не будет.)</p>
+<p><i><b>...<br>
+Рассмотрим эти коды:<br>
+Начиная с кода -1 и по код 302 только два кода имеют интерес, это код 300 и код 301.<br>
+300 - наименование параметра Parameter name из списка свойств объекта Visibility Set. Если открыть редактор блока и подсветить
+ручками объект Visibility Set, то в таблице свойств вы найдете этот параметр и можете его отредактировать.<br>
+301 - там же - Visibility label. То, что мы видим в редакторе блоков, написанное на объекте Visibility Set.<br>
+302 - там же - Visibility description. Тоже текстовая строка. Обозначение в списке свойств блока - наименования раскрывающегося
+списка Visibility Set. То, что пишется слева от раскрывающегося списка.<br>
+И, забегая немного вперед: 303 - наименование представления видимости. Таких 303 столько, сколько у вас в списке представлений.<br>
+Все остальные коды до 91 не имеют особого интереса для пионеров по ковырянию блоков.<br>
+91 код - текущее представление (Visibility State): 0 - первое, 1 - второе и т.д.<br>
+93 код (не путать с 93 кодом в начале списка) - количество графических и текстовых элементов в блоке, включая и атрибуты. Общее,
+так сказать, количество элементов.<br>
+За этим кодом следует 331 коды с указателями на сами элементы. Свойств в этом списке нет. Для чего иметь этот перечень, расскажу позже.<br>
+92 код - количество представлений в данном Visibility Set-e.<br>
+А вот дальше - самое интересное.<br>
+303 код - имя представления (самое первое представление в данном списке имеет N 0).<br>
+94 код - количество элементов в этом представлении.<br>
+332 коды - перечень указателей на те элементы, которые видны в этом представлении.<br>
+95 код - количество свойств, видимых в этом представлении (свойство Visibility Set не считается).<br>
+И если, помимо Visibility Set, есть еще какие-нибудь свойства, то далее идут 333 коды с указателями на эти свойства.<br>
+Если представлений много, то запись 303, 94, 332-е, 95, 333-ие повторяется и повторяется.<br>
+Если в представлении нет элементов, то есть (94 . 0), то и 332 кодов тоже нет. Если в представлении нет свойств, то есть (95 . 0),
+то и 333 кодов тоже нет.<br>
+Теперь коротко, что и для чего сделано.<br>
+Полный список элементов блока, как и свойств его, нужен, чтобы видимость выключать при переходе из одного представления в другое,
+а список элементов в записи под именем представления - для того, чтобы видимость элементам включать. То есть Автокад при каждом
+переключении видимости сначала все, что в записи с 331 кодами, и все свойства блока выключает, а затем по записи с 332 кодами
+и 95-ми, следующими после точечной пары с именем представления, все, что там указано, включает.<br>
+Я удалял из списка всех элементов и из списка элементов в записи представления отдельный элемент (поменяв при этом и значение
+93 и 94 точечной пары с количеством элементов на меньшее), и все именно так и работает. Есть реальная возможность частью
+элементов блока управлять из одного "BLOCKVISIBILITYPARAMETER", а частью - из другого, и они не будут мешать друг другу
+(если только в общих списках не будет одинаковых элементов).<br>
+То, что редактор блока не в состоянии обрабатывать несколько Visibility Set-ов, не беда, при помощи нехитрой программы все
+разруливается самым наилучшим способом.<br>
+Если в пространстве редактора блока функцией entget открыть примитив, то его -1 код и есть тот 331 и 332 код в этом словаре.
+360 коды функций в словаре "ACAD_EVALUATION_GRAPH" и есть 333 коды в словаре "BLOCKVISIBILITYPARAMETER".<br>
+...
+</b></i></p>
+<p>Сопоставление параметров в пространстве редактора блоков с параметрами в "ACAD_EVALUATION_GRAPH" я изложу позже. То, что
+в теме, - не совсем красивое решение.
+</p>
+</font>
+
+<hr>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="tainypod07.htm">Предыдущая</a> | <a href="tainypod09.htm">Следующая</a></p>
+<p align=center><a href="../index.html" >CAD-страница НП</a> | <a href="../articles.htm">Статьи</a> 
+|| <a href="tainypod.htm">Введение</a> | <a href="tainypod01.htm">1</a> | <a href="tainypod02.htm">2</a> 
+| <a href="tainypod03.htm">3</a> | <a href="tainypod04.htm">4</a> | <a href="tainypod05.htm">5</a> 
+| <a href="tainypod06.htm">6</a> | <a href="tainypod07.htm">7</a> | <a href="tainypod09.htm">9</a> 
+| <a href="tainypod10.htm">10</a> | <a href="tainypod11.htm">11</a> | <a href="tainypod12.htm">12</a>
+|| <a href="tainypod08e.htm">English</a></p>
+</font>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-2957013-1";
+urchinTracker();
+</script>
+</body>
+
+</html>

@@ -1,0 +1,127 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+  <META NAME="Keywords" CONTENT="Andrey Lazebny, dynamic blocks, AutoCAD, AutoLISP">
+<title>Mysteries of Autodesk's Caves (part 9)</title>
+</head>
+
+<body bgcolor=#000000 alink=#FF0066 vlink=#FF0066 link=#0099FF>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod07e.htm">7</a> | <a href="tainypod08e.htm">8</a> 
+| <a href="tainypod10e.htm">10</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod09.htm">Russian</a></p>
+
+<FONT SIZE=5>
+<P align=center><B>A.Lazebny. Mysteries of Autodesk's Caves</B></P></FONT>
+<font size=4><P align=center><B>Part 9. Lookup and his friends</B></P></FONT>
+<P>Now it's time to rell about 95th dotted pair in ACAD_EVALUATION_GRAPH and <font color=#FF9900>Lookup</font> parameter 
+where there is a link opening doors into never seen dynamism.</p>
+<p>First of all what is <font color=#FF9900>Lookup</font>? <font color=#FF9900>Lookup</font> is such a parameter that 
+controls all the rest parameters. Suppose that you need simultaneously to move eyes and to remove nose. Hence it is 
+necessary to make a parameter for moving eyes and Visibility parameter for managing nose visibility.</p>
+<p>This can be made in three steps. First state: nose yes, eyes look up.<br>
+Second state: eyes look straight, nose yet yes.<br>
+Third state: eyes came to nose, nose disappeared.<br>
+<font color=#FF9900>Lookup</font> is a table where in the first column you choose parameter moving the first eye. In the 
+second column there is a parameter to move second eye and the third one there is a Visibility parameter switching 
+representations. In the column to the right we put parameters naming states: &quot;look up&quot;, &quot;look straight&quot;, &quot;look to the 
+nose&quot;.</p>
+<p>If we select block then in the empty zone a cyan triangle appears. If we click it a popup menu with three items 
+(&quot;look up&quot;, &quot;look straight&quot;, &quot;look to the nose&quot;) opens. Click at any state and Lookup transforms all the parameters to 
+required mode.<br>
+<font size=3><b>And this was till the moment when I decided to pick this Lookup.</b></font></p>
+<p>A little digression. The fact is sorcerers from Autodesk blocked possibility to set mre than one activator to Lookup 
+parameter. And table is such an activator.</p>
+<p>How activator is linked with parameter? It turns out that only by one dotted pair. Let's add Lookup to our block and 
+try to see its links. (I killed Visibility Set - it is unneeded).</p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd248&gt;)<br>
+(0 . &quot;ACAD_EVALUATION_GRAPH&quot;)<br>
+(5 . &quot;149&quot;)<br>
+(102 . &quot;{ACAD_REACTORS&quot;) (330 . &lt;Entity name: 7efdd240&gt;) (102 . &quot;}&quot;)<br>
+(330 . &lt;Entity name: 7efdd240&gt;)<br>
+(100 . &quot;AcDbEvalGraph&quot;)<br>
+(96 . 9)<br>
+(97 . 9)<br>
+(91 . 0) (93 . 32) <font color=#FF3300>(95 . 5)</font> (360 . &lt;Entity name: 7efdd288&gt;) (92 . 0) (92 . 3) (92 . 1) (92 . 
+2)<br>
+(91 . 1) (93 . 32) (95 . 6) (360 . &lt;Entity name: 7efdd290&gt;) (92 . -1) (92 . -1) (92 . 0) (92 . 0)<br>
+(91 . 2) (93 . 32) (95 . 7) (360 . &lt;Entity name: 7efdd298&gt;) (92 . 1) (92 . 1) (92 . -1) (92 . -1)<br>
+(91 . 3) (93 . 32) (95 . 8) (360 . &lt;Entity name: 7efdd2a0&gt;) (92 . 2) (92 . 2) (92 . -1) (92 . -1)<br>
+(91 . 4) (93 . 32) (95 . 9) (360 . &lt;Entity name: 7efdd2b8&gt;) (92 . -1) (92 . -1) (92 . 3) (92 . 3)<br>
+(92 . 0) (93 . 0) (94 . 1) (91 . 1) (91 . 0) (92 . -1) (92 . 3) (92 . -1) (92 . -1) (92 . -1)<br>
+(92 . 1) (93 . 0) (94 . 1) (91 . 0) (91 . 2) (92 . -1) (92 . -1) (92 . -1) (92 . 2) (92 . -1)<br>
+(92 . 2) (93 . 0) (94 . 1) (91 . 0) (91 . 3) (92 . -1) (92 . -1) (92 . 1) (92 . -1) (92 . -1)<br>
+(92 . 3) (93 . 0) (94 . 1) (91 . 4) (91 . 0) (92 . 0) (92 . -1) (92 . -1) (92 . -1) (92 . -1))</font></p>
+<p><font color=#66FFFF>&lt;Entity name: 7efdd288&gt;</font> is Lookup parameter.<br>
+<font color=#66FFFF>&lt;Entity name: 7efdd290&gt;</font> is its grip.<br>
+<font color=#66FFFF>&lt;Entity name: 7efdd298&gt;</font> is X position.<br>
+<font color=#66FFFF>&lt;Entity name: 7efdd2a0&gt;</font> is Y position.<br>
+<font color=#66FFFF>&lt;Entity name: 7efdd2b8&gt;</font> is activator.</p>
+<p>We open activator:<br>
+<font color=#FFFF00>(entget (cdr (assoc 360 (reverse EVAL_GRAPH))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd2b8&gt;)<br>
+(0 . &quot;BLOCKLOOKUPACTION&quot;)<br>
+(330 . &lt;Entity name: 7efdd248&gt;)<br>
+(5 . &quot;157&quot;)<br>
+(100 . &quot;AcDbEvalExpr&quot;)<br>
+(90 . 9)<br>
+(98 . 27)<br>
+(99 . 1)<br>
+(100 . &quot;AcDbBlockElement&quot;)<br>
+(300 . &quot;Lookup1&quot;)<br>
+(98 . 27)<br>
+(99 . 1)<br>
+(1071 . 8)<br>
+(100 . &quot;AcDbBlockAction&quot;)<br>
+(70 . 0)<br>
+(71 . 0)<br>
+(1010 471.79 -132.523 0.0)<br>
+(100 . &quot;AcDbBlockLookupAction&quot;)<br>
+(92 . 0)<br>
+(93 . 1)<br>
+(301 . &quot;&quot;)<br>
+(303 . &quot;&quot;)<br>
+<font color=#FF3300>(94 . 5)</font><br>
+(95 . 1)<br>
+(96 . 0)<br>
+(282 . 1)<br>
+(305 . &quot;Custom&quot;)<br>
+(281 . 0)<br>
+(304 . &quot;lookupString&quot;)<br>
+(280 . 1))</font></p>
+<p>Pay attention to pair 94 in the activator. It always points to 95th pair value in that parameter record of 
+ACAD_EVALUATION_GRAPH to which activator is linked. If you change this pair in the activator to another pair pointing to 
+other parameter then cativatot will work for it.</p>
+<p>Now I described movement of the first eye by table in one activator, movement of the other eye in another activaator 
+and nose visibility in the third one. All of them are connected to one parameter and I am not obliged to select statue 
+states from the list. I take the eye and pull. Firstly both eyes go to the middle part, after that they go down and nose 
+disappears.
+</p>
+</font>
+
+<hr>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="tainypod08e.htm">Previous</a> | <a href="tainypod10e.htm">Next</a></p>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod07e.htm">7</a> | <a href="tainypod08e.htm">8</a> 
+| <a href="tainypod10e.htm">10</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod09.htm">Russian</a></p>
+</font>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-2957013-1";
+urchinTracker();
+</script>
+</body>
+
+</html>

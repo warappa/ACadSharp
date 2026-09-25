@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?><html><head><title>AcDbEvalGraph::isSubgraphOf</title><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"></meta><meta name="generator" content="Doc-O-Matic"></meta><meta http-equiv="Content-Style-Type" content="text/css"></meta><link rel="STYLESHEET" href="default.css" type="text/css"></link>
+<meta name="topicid" content="OARX-RefGuide-AcDbEvalGraph__isSubgraphOf_AcDbEvalGraph__const"></meta>
+<meta name="canonical" content="http://help.autodesk.com/cloudhelp/2025/ENU/OARX-RefGuide/files/OARX-RefGuide-AcDbEvalGraph__isSubgraphOf_AcDbEvalGraph__const.html#!"></meta>
+<meta name="helpsystempath" content="/view/OARX/2025/ENU"></meta>
+<meta name="product" content="OARX"></meta>
+<meta name="release" content="2025"></meta>
+<meta name="language" content="ENU"></meta>
+<meta name="book" content="Developer"></meta>
+<meta name="component" content="OARX-RefGuide"></meta>
+<meta name="created" content="04/01/2016"></meta>
+<meta name="modified" content="04/01/2016"></meta>
+<meta name="experiencelevel" content="expert"></meta>
+<meta name="audience" content="programmer"></meta>
+<meta name="user-comments" content="enable"></meta>
+<link rel="stylesheet" type="text/css" href="/view/clientframework/client.css"></link>
+<script type="text/javascript" src="/view/clientframework/client.js"><!--filler--></script>
+<script type="text/javascript" src="//google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script></head>
+<body>
+<script type="text/javascript" src="/view/athena/lib/prettify/lang-vb.js"></script>
+
+<div class="head-block"><h1>AcDbEvalGraph::isSubgraphOf</h1></div>
+<div class="body">
+
+<h3 class="h3 title sectiontitle">&#xD;
+C++</h3>
+<pre class="pre codeblock prettyprint">virtual bool isSubgraphOf(&#xD;
+    const AcDbEvalGraph* pOther&#xD;
+) const;</pre>
+<h3 class="title sectiontitle">
+Description</h3><p>
+This function determines whether this graph is a subgraph of <samp class="ph codeph">pOther</samp>. Before making this determination, the graph verifies that the node ID of each node in this graph matches that of a node in <samp class="ph codeph">pOther</samp>. If any node ID in this graph is not found in <samp class="ph codeph">pOther</samp>, this function returns false.</p><p>
+If every node in this graph can be mapped to a node in <samp class="ph codeph">pOther</samp>, the order and types of both the incoming and outgoing edges from each node in this graph must be found to be a subset of the incoming and outgoing edges for the corresponding mapped node in <samp class="ph codeph">pOther</samp>. If this is true, this graph is a subgraph of <samp class="ph codeph">pOther</samp>, and this function returns true. Otherwise, this function returns false.</p><h3 class="title sectiontitle">
+Parameters</h3><div class="Element252">
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" class="table" width="100%" frame="border" border="1" rules="all"><tr><th align="left">
+Parameters</th><th align="left">
+Description</th></tr><tr><td>
+pOther</td><td>
+Input graph to be tested as a superset of this graph</td></tr></table></div></div><h3 class="title sectiontitle">
+Links</h3><p><a href="OARX-RefGuide-AcDbEvalGraph.html">AcDbEvalGraph</a></p></div></body></html>

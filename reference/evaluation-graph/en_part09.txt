@@ -1,0 +1,160 @@
+A.Lazebny. Mysteries of Autodesk's Caves
+
+Part 9. Lookup and his friends
+
+Now it's time to rell about 95th dotted pair in ACAD_EVALUATION_GRAPH and Lookup parameter 
+where there is a link opening doors into never seen dynamism.
+
+First of all what is Lookup? Lookup is such a parameter that 
+controls all the rest parameters. Suppose that you need simultaneously to move eyes and to remove nose. Hence it is 
+necessary to make a parameter for moving eyes and Visibility parameter for managing nose visibility.
+
+This can be made in three steps. First state: nose yes, eyes look up.
+
+Second state: eyes look straight, nose yet yes.
+
+Third state: eyes came to nose, nose disappeared.
+
+Lookup is a table where in the first column you choose parameter moving the first eye. In the 
+second column there is a parameter to move second eye and the third one there is a Visibility parameter switching 
+representations. In the column to the right we put parameters naming states: "look up", "look straight", "look to the 
+nose".
+
+If we select block then in the empty zone a cyan triangle appears. If we click it a popup menu with three items 
+("look up", "look straight", "look to the nose") opens. Click at any state and Lookup transforms all the parameters to 
+required mode.
+
+And this was till the moment when I decided to pick this Lookup.
+
+A little digression. The fact is sorcerers from Autodesk blocked possibility to set mre than one activator to Lookup 
+parameter. And table is such an activator.
+
+How activator is linked with parameter? It turns out that only by one dotted pair. Let's add Lookup to our block and 
+try to see its links. (I killed Visibility Set - it is unneeded).
+
+((-1 . <Entity name: 7efdd248>)
+
+(0 . "ACAD_EVALUATION_GRAPH")
+
+(5 . "149")
+
+(102 . "{ACAD_REACTORS") (330 . <Entity name: 7efdd240>) (102 . "}")
+
+(330 . <Entity name: 7efdd240>)
+
+(100 . "AcDbEvalGraph")
+
+(96 . 9)
+
+(97 . 9)
+
+(91 . 0) (93 . 32) (95 . 5) (360 . <Entity name: 7efdd288>) (92 . 0) (92 . 3) (92 . 1) (92 . 
+2)
+
+(91 . 1) (93 . 32) (95 . 6) (360 . <Entity name: 7efdd290>) (92 . -1) (92 . -1) (92 . 0) (92 . 0)
+
+(91 . 2) (93 . 32) (95 . 7) (360 . <Entity name: 7efdd298>) (92 . 1) (92 . 1) (92 . -1) (92 . -1)
+
+(91 . 3) (93 . 32) (95 . 8) (360 . <Entity name: 7efdd2a0>) (92 . 2) (92 . 2) (92 . -1) (92 . -1)
+
+(91 . 4) (93 . 32) (95 . 9) (360 . <Entity name: 7efdd2b8>) (92 . -1) (92 . -1) (92 . 3) (92 . 3)
+
+(92 . 0) (93 . 0) (94 . 1) (91 . 1) (91 . 0) (92 . -1) (92 . 3) (92 . -1) (92 . -1) (92 . -1)
+
+(92 . 1) (93 . 0) (94 . 1) (91 . 0) (91 . 2) (92 . -1) (92 . -1) (92 . -1) (92 . 2) (92 . -1)
+
+(92 . 2) (93 . 0) (94 . 1) (91 . 0) (91 . 3) (92 . -1) (92 . -1) (92 . 1) (92 . -1) (92 . -1)
+
+(92 . 3) (93 . 0) (94 . 1) (91 . 4) (91 . 0) (92 . 0) (92 . -1) (92 . -1) (92 . -1) (92 . -1))
+
+<Entity name: 7efdd288> is Lookup parameter.
+
+<Entity name: 7efdd290> is its grip.
+
+<Entity name: 7efdd298> is X position.
+
+<Entity name: 7efdd2a0> is Y position.
+
+<Entity name: 7efdd2b8> is activator.
+
+We open activator:
+
+(entget (cdr (assoc 360 (reverse EVAL_GRAPH))))
+
+((-1 . <Entity name: 7efdd2b8>)
+
+(0 . "BLOCKLOOKUPACTION")
+
+(330 . <Entity name: 7efdd248>)
+
+(5 . "157")
+
+(100 . "AcDbEvalExpr")
+
+(90 . 9)
+
+(98 . 27)
+
+(99 . 1)
+
+(100 . "AcDbBlockElement")
+
+(300 . "Lookup1")
+
+(98 . 27)
+
+(99 . 1)
+
+(1071 . 8)
+
+(100 . "AcDbBlockAction")
+
+(70 . 0)
+
+(71 . 0)
+
+(1010 471.79 -132.523 0.0)
+
+(100 . "AcDbBlockLookupAction")
+
+(92 . 0)
+
+(93 . 1)
+
+(301 . "")
+
+(303 . "")
+
+(94 . 5)
+
+(95 . 1)
+
+(96 . 0)
+
+(282 . 1)
+
+(305 . "Custom")
+
+(281 . 0)
+
+(304 . "lookupString")
+
+(280 . 1))
+
+Pay attention to pair 94 in the activator. It always points to 95th pair value in that parameter record of 
+ACAD_EVALUATION_GRAPH to which activator is linked. If you change this pair in the activator to another pair pointing to 
+other parameter then cativatot will work for it.
+
+Now I described movement of the first eye by table in one activator, movement of the other eye in another activaator 
+and nose visibility in the third one. All of them are connected to one parameter and I am not obliged to select statue 
+states from the list. I take the eye and pull. Firstly both eyes go to the middle part, after that they go down and nose 
+disappears.
+
+Previous | Next
+
+NP CAD Page | Articles 
+|| Introduction | 1 | 2 
+| 3 | 4 | 5 
+| 6 | 7 | 8 
+| 10 | 11 | 12
+|| Russian

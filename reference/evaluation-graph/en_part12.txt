@@ -1,0 +1,88 @@
+Appendix to "Mysteries of Autodesk's Caves"
+
+Incantations (AutoLISP functions) of digger Supermax
+
+You can dowload and unzip visibility-add-eng.lsp file with source texts of the following A.Lazebny's programs:
+
+1. eval_graf_output - getting ACAD_EVALUATION_GRAPH dictionary from the block editor space
+
+2. visibility_add - adding a new Visibility Set parameter
+
+3. visibility-up - setting selected Visibility Set as current
+
+4. eddedd - switching grips on for all the elements of the current Visibility Set
+
+5. tecuch_visibility - retrieving name of the current Visibility Set
+
+6. blk-visib-param-auditor - auditing BLOCKVISIBILITYPARAMETER dictionary
+
+7. element-sel-current-del - removing selected elements from the current Visibility Set
+
+8. element-all-current-del - removing all the elements from the current Visibility Set
+
+9. element-sel-current-insert - adding selected elements to current Visibility Set
+
+10. visibility_clear - complete cleaning current state from all the elements, dynamic properties
+and states
+
+11. properties_add_all_visibility - setting visibility of all the dynamic properties and grips in
+all the states of all Visibility Sets
+
+12. sootvetstvie - determining accordance of element pointer in the block editor space with
+ACAD_EVALUATION_GRAPH and BLOCKVISIBILITYPARAMETER dictionaries
+
+Versions for download:
+
+29.01.09. Version 1.0.
+
+15.02.09. Version 1.1 (and
+move-to-visibilityset function is added).
+
+24.07.09. Version 1.2
+(element-sel-current-insert function was changed).
+
+24.10.09. Version 1.3
+(eval_graf_output function was changed).
+
+11.02.10. visibility-add-eng-v1.4, move-properties-eng-v1.4 - support of properties tables in AutoCAD 2010 dynamic blocks added.
+
+22.10.15. visibility-add-eng_1_6.zip (update by DBdJ1) can work in AutoCAD 2016.
+
+And now an example of dynamic block with 10 visibility parameters (vp01, vp02, ..., vp10):
+
+This DWG file is here. To create such a block from a usual dynamic block
+with one visibility parameter you should run steps:
+
+1. Load visibility-add-eng.lsp in the block editor window containing your usual dynamic block
+2. Add a new visibility parameter with (visibility_add)
+3. Move new visibility parameter up with (visibility-up)
+4. Add and edit visibility parameter states
+5. Repeat steps 2-4 for other visibility parameters
+6. Save your dynamic block
+Enjoy!
+
+17.02.09. Addition: function move-properties for moving custom properties
+up or down in dynamic blocks (e.g., in blocks used for commercial products).
+
+Note
+
+Some dynamic blocks have many custom properties and user cannot see them all in the PROPERTIES palette.
+You can move the most useful properties up and make their visibility more convenient.
+
+Launch: (move-properties). Download from here.
+
+11.02.10. See above on a new version.
+
+24.07.09. 
+One more example of dynamic block with several visibility parameters (by T.Bennett).
+
+22.10.15. Good news: thanks to DBdJ1 the program works in AutoCAD 2016! Download: visibility-add-eng_1_6.zip, sample file Brandmelders_Dynamic_MVSP1.dwg.
+
+Previous | Introduction
+
+NP CAD Page | Articles 
+|| Introduction | 1 | 2 
+| 3 | 4 | 5 
+| 6 | 7 | 8 
+| 9 | 10 | 11
+|| Russian

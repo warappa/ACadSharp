@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?><html><head><title>AcDbEvalExpr</title><meta http-equiv="Content-Type" content="text/html; charset=windows-1252"></meta><meta name="generator" content="Doc-O-Matic"></meta><meta http-equiv="Content-Style-Type" content="text/css"></meta><link rel="STYLESHEET" href="default.css" type="text/css"></link>
+<meta name="topicid" content="OARX-RefGuide-AcDbEvalExpr"></meta>
+<meta name="canonical" content="http://help.autodesk.com/cloudhelp/2025/ENU/OARX-RefGuide/files/OARX-RefGuide-AcDbEvalExpr.html#!"></meta>
+<meta name="helpsystempath" content="/view/OARX/2025/ENU"></meta>
+<meta name="product" content="OARX"></meta>
+<meta name="release" content="2025"></meta>
+<meta name="language" content="ENU"></meta>
+<meta name="book" content="Developer"></meta>
+<meta name="component" content="OARX-RefGuide"></meta>
+<meta name="created" content="04/01/2016"></meta>
+<meta name="modified" content="04/01/2016"></meta>
+<meta name="experiencelevel" content="expert"></meta>
+<meta name="audience" content="programmer"></meta>
+<meta name="user-comments" content="enable"></meta>
+<link rel="stylesheet" type="text/css" href="/view/clientframework/client.css"></link>
+<script type="text/javascript" src="/view/clientframework/client.js"><!--filler--></script>
+<script type="text/javascript" src="//google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script></head>
+<body>
+<script type="text/javascript" src="/view/athena/lib/prettify/lang-vb.js"></script>
+
+<div class="head-block"><h1>AcDbEvalExpr</h1></div>
+<div class="body">
+<h3 class="title sectiontitle">
+Class Hierarchy</h3><pre class="pre codeblock prettyprint"><a href="OARX-RefGuide-AcRxObject.html">AcRxObject</a>&#xD;
+    <a href="OARX-RefGuide-AcGiDrawable.html">AcGiDrawable</a>&#xD;
+        <a href="OARX-RefGuide-AcDbObject.html">AcDbObject</a>&#xD;
+            AcDbEvalExpr&#xD;
+                <a href="OARX-RefGuide-AcDbEvalConnectable.html">AcDbEvalConnectable</a></pre>
+
+<h3 class="h3 title sectiontitle">&#xD;
+C++</h3>
+<pre class="pre codeblock prettyprint">class AcDbEvalExpr : public AcDbObject;</pre>
+<h3 class="title sectiontitle">
+File</h3><p>
+dbeval.h</p><h3 class="title sectiontitle">
+Description</h3><p>
+This class represents a single node in an <samp class="ph codeph">AcDbEvalGraph</samp>. The node represents an action (or expression). The owning graph calls the node's <samp class="ph codeph">evaluate()</samp> method when visiting the node during a traversal of the graph from within the graph's <samp class="ph codeph">evaluate()</samp> method.</p><h3 class="title sectiontitle">
+Links</h3><p><a href="OARX-RefGuide-__MEMBERTYPE_Methods_AcDbEvalExpr.html">AcDbEvalExpr Methods</a></p></div></body></html>

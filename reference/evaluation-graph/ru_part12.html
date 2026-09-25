@@ -1,0 +1,97 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=koi8r">
+  <META NAME="Keywords" CONTENT="Андрей Лазебный, динамические блоки, AutoCAD, AutoLISP">
+<title>Тайны подземелий Autodesk (приложение)</title>
+</head>
+
+<body bgcolor=#000000 alink=#FF0066 vlink=#FF0066 link=#0099FF>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="../index.html" >CAD-страница НП</a> | <a href="../articles.htm">Статьи</a> 
+|| <a href="tainypod.htm">Введение</a> | <a href="tainypod01.htm">1</a> | <a href="tainypod02.htm">2</a> 
+| <a href="tainypod03.htm">3</a> | <a href="tainypod04.htm">4</a> | <a href="tainypod05.htm">5</a> 
+| <a href="tainypod06.htm">6</a> | <a href="tainypod07.htm">7</a> | <a href="tainypod08.htm">8</a> 
+| <a href="tainypod09.htm">9</a> | <a href="tainypod10.htm">10</a> | <a href="tainypod11.htm">11</a>
+|| <a href="tainypod12e.htm">English</a></p>
+
+<FONT SIZE=5>
+<P align=center><B>Приложение к "Тайнам подземелий Autodesk"</B></P></FONT>
+<font size=4><P align=center><B>Заклинания (AutoLISP-функции) диггера Supermaxа</B></P></FONT>
+<P>Можно загрузить и разархивировать файл <font color=#0099FF>visibility-add-rus.lsp</font> с исходными текстами следующих функций А.Лазебного:<br>
+1. <font color=#FFFF00>eval_graf_output</font> - получение словаря ACAD_EVALUATION_GRAPH из пространства редактора блоков<br>
+2. <font color=#FFFF00>visibility_add</font> - добавление нового параметра Visibility<br>
+3. <font color=#FFFF00>visibility-up</font> - установка выбранного Visibility Set текущим<br>
+4. <font color=#FFFF00>eddedd</font> - включение ручек всех элементов текущего Visibility Set<br>
+5. <font color=#FFFF00>tecuch_visibility</font> - определение наименования текущего Visibility Set<br>
+6. <font color=#FFFF00>blk-visib-param-auditor</font> - проверка корректности словаря BLOCKVISIBILITYPARAMETER<br>
+7. <font color=#FFFF00>element-sel-current-del</font> - удаление выбранных элементов из текущего Visibility Set<br>
+8. <font color=#FFFF00>element-all-current-del</font> - удаление всех элементов из текущего Visibility Set<br>
+9. <font color=#FFFF00>element-sel-current-insert</font> - добавление в текущий Visibility Set выбранных элементов<br>
+10. <font color=#FFFF00>visibility_clear</font> - полная очистка текущего представления от всех элементов, динамических свойств
+и представлений<br>
+11. <font color=#FFFF00>properties_add_all_visibility</font> - установка видимости выбранных динамических свойств и ручек
+во всех представлениях всех Visibility Set-ов<br>
+12. <font color=#FFFF00>sootvetstvie</font> - определение соответствия указателя элемента в пространстве редактора блоков
+и словарей ACAD_EVALUATION_GRAPH и BLOCKVISIBILITYPARAMETER</p>
+<p>Версии для загрузки:<br>
+<b>29.01.09</b>. <a href="../Download/visibility-add-rus.zip">Версия 1.0</a>.<br>
+<b>15.02.09</b>. <a href="../Download/visibility-add-rus-v1.1.zip">Версия 1.1</a> (кроме того, добавлена функция
+<font color=#FFFF00>move-to-visibilityset</font>).<br>
+<b>24.07.09</b>. <a href="../Download/visibility-add-rus-v1.2.zip">Версия 1.2</a> (изменена функция
+<font color=#FFFF00>element-sel-current-insert</font>).<br>
+<b>24.10.09</b>. <a href="../Download/visibility-add-rus-v1.3.zip">Версия 1.3</a> (изменена функция
+<font color=#FFFF00>eval_graf_output</font>).<br>
+<b>11.02.10</b>. <a href="../Download/visibility-add-rus-v1.4.zip">visibility-add-rus-v1.4</a>, <a href="../Download/move-properties-rus-v1.4.zip">move-properties-rus-v1.4</a> - добавлена поддержка таблиц свойств в динамических
+блоках AutoCAD 2010.<br>
+<b>22.10.15</b>. <a href="../Download/visibility-add-eng_1_6.zip">visibility-add-eng_1_6.zip</a> (изменения DBdJ1) может работать в AutoCAD 2016.
+</p>
+<p>А вот пример динамического блока с 10 параметрами видимости (vp01, vp02, ..., vp10):<br>
+<img src="superblock.png"></p>
+<p>Этот DWG-файл находится <a href="../Download/OneBlock-MultipleVisPars!.zip">здесь</a>. Для создания такого блока из обычного
+динамического блока с одним параметром видимости надо выполнить шаги:<br>
+<ul>1. Загрузите файл visibility-add-rus.lsp в окне редактора блоков с вашим обычным динамическим блоком</ul>
+<ul>2. Добавьте новый параметр видимости с помощью <font color=#FFFF00>(visibility_add)</font></ul>
+<ul>3. Перенесите в списке новый параметр видимости вверх с помощью <font color=#FFFF00>(visibility-up)</font></ul>
+<ul>4. Добавьте и отредактируйте состояния видимости для параметра видимости</ul>
+<ul>5. Повторите шаги 2-4 для других параметров видимости</ul>
+<ul>6. Сохраните свой динамический блок</ul>
+Наслаждайтесь!</p>
+<hr>
+<a name=moveProps>
+<p><b>17.02.09</b>.</a> Дополнение: функция <font color=#FFFF00>move-properties</font> перемещения вверх или вниз свойств
+в динамических блоках (например, в блоках для коммерческих изделий).</p>
+<p><u>Примечание</u><br>
+Некоторые динамические блоки имеют много дополнительных свойств и пользователь не может видеть их все сразу в палитре свойств.
+Вы можете перенести вверх наиболее нужные свойства и сделать их видимость более удобной.<br>
+Запуск программы: <font color=#FFFF00>(move-properties)</font>. Скачать можно <a href="../Download/move-properties-rus.zip">отсюда</a>.</p>
+<p><b>11.02.10</b>. О новой версии см. выше.
+</p>
+<hr>
+<a name=tben>
+<p><b>24.07.09</b>. <a href="http://discussion.autodesk.com/forums/thread.jspa?threadID=736387&tstart=0">Еще один пример блока с несколькими параметрами видимости (автор Т.Беннетт)</a>.
+</p><hr>
+<p><b>22.10.15</b>. Хорошие новости: <a href="http://forums.autodesk.com/t5/dynamic-blocks/multiple-visibility-lisp-routine/m-p/5872400#M19188">благодаря DBdJ1 программа заработала в AutoCAD 2016!</a> Скачать: <a href="../Download/visibility-add-eng_1_6.zip">visibility-add-eng_1_6.zip</a>, <a href="../Download/Brandmelders_Dynamic_MVSP1.zip">пример блока Brandmelders_Dynamic_MVSP1.dwg</a>.
+</p>
+
+</font>
+<hr>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="tainypod11.htm">Предыдущая</a> | <a href="tainypod.htm">Введение</a></p>
+<p align=center><a href="../index.html" >CAD-страница НП</a> | <a href="../articles.htm">Статьи</a> 
+|| <a href="tainypod.htm">Введение</a> | <a href="tainypod01.htm">1</a> | <a href="tainypod02.htm">2</a> 
+| <a href="tainypod03.htm">3</a> | <a href="tainypod04.htm">4</a> | <a href="tainypod05.htm">5</a> 
+| <a href="tainypod06.htm">6</a> | <a href="tainypod07.htm">7</a> | <a href="tainypod08.htm">8</a> 
+| <a href="tainypod09.htm">9</a> | <a href="tainypod10.htm">10</a> | <a href="tainypod11.htm">11</a>
+|| <a href="tainypod12e.htm">English</a></p>
+</font>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-2957013-1";
+urchinTracker();
+</script>
+</body>
+
+</html>

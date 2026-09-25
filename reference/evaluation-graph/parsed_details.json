@@ -1,0 +1,1567 @@
+[
+  {
+    "file": "OARX-RefGuide-AcDbEvalContextPair__AcDbEvalContextPair.html",
+    "title": "AcDbEvalContextPair::AcDbEvalContextPair",
+    "signature": "AcDbEvalContextPair();",
+    "description": "Default constructor.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContextPair__AcDbEvalContextPair_ACHAR__void__.html",
+    "title": "AcDbEvalContextPair::AcDbEvalContextPair",
+    "signature": "AcDbEvalContextPair(\nconst ACHAR* szKey, \nvoid * pValue\n);",
+    "description": "Constructor.",
+    "parameters": [
+      {
+        "name": "szKey",
+        "desc": "Input key used to look up the pair in an AcDbEvalContext"
+      },
+      {
+        "name": "pValue",
+        "desc": "Input pointer to the data stored in the context pair"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContextPair__key.html",
+    "title": "AcDbEvalContextPair::key",
+    "signature": "const ACHAR* key() const;",
+    "description": "Returns the key used to look up the pair in an AcDbEvalContext .",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContextPair__setKey_ACHAR_.html",
+    "title": "AcDbEvalContextPair::setKey",
+    "signature": "void setKey(\nconst ACHAR* szKey\n);",
+    "description": "Sets the key used to look up the pair in an AcDbEvalContext .",
+    "parameters": [
+      {
+        "name": "szKey",
+        "desc": "Input key used to look up the pair in an AcDbEvalContext"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContextPair__setValue.html",
+    "title": "AcDbEvalContextPair::setValue",
+    "signature": "void setValue(\nvoid* pValue\n);",
+    "description": "Sets the values stored with the pair in an AcDbEvalContext . The memory pointed to by pValue must be allocated and freed by the caller.",
+    "parameters": [
+      {
+        "name": "pValue",
+        "desc": "Value to store in the AcDbEvalContextPair"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContextPair__value.html",
+    "title": "AcDbEvalContextPair::value",
+    "signature": "void* value() const;",
+    "description": "Returns the values stored with the pair in an AcDbEvalContext .",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContext__getAt_AcDbEvalContextPair__const.html",
+    "title": "AcDbEvalContext::getAt",
+    "signature": "virtual Acad::ErrorStatus getAt(\nAcDbEvalContextPair& pair\n) const;",
+    "description": "Returns an AcDbEvalContextPair stored in the context. The pair passed in should be initialized with the desired key to return in the context. If the key exists, pair is updated with the value from the context. Returns Acad::eOk if successful. Returns Acad::eKeyNotFound if no entry exists with the specified key.",
+    "parameters": [
+      {
+        "name": "pair",
+        "desc": "Input/output AcDbEvalContextPair to insert into the context"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContext__insertAt_AcDbEvalContextPair_.html",
+    "title": "AcDbEvalContext::insertAt",
+    "signature": "virtual void insertAt(\nconst AcDbEvalContextPair& pair\n);",
+    "description": "Inserts an AcDbEvalContextPair into the context. If an AcDbEvalContextPair with the specified key already exists, it is replaced with the new pair.",
+    "parameters": [
+      {
+        "name": "pair",
+        "desc": "Input AcDbEvalContextPair to insert into the context"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContext__newIterator.html",
+    "title": "AcDbEvalContext::newIterator",
+    "signature": "virtual AcDbEvalContextIterator* newIterator() const;",
+    "description": "Returns a new AcDbEvalContextIterator for the context. Returns a new AcDbEvalContextIterator . Callers must delete the iterator when it is no longer needed by calling delete() .",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalContext__removeAt_ACHAR_.html",
+    "title": "AcDbEvalContext::removeAt",
+    "signature": "virtual void removeAt(\nconst ACHAR* szKey\n);",
+    "description": "Removes an AcDbEvalContextPair from the context.",
+    "parameters": [
+      {
+        "name": "szKey",
+        "desc": "Input key of the AcDbEvalContextPair to remove from the context"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__activated_AcDbEvalNodeIdArray_.html",
+    "title": "AcDbEvalExpr::activated",
+    "signature": "virtual void activated(\nAcDbEvalNodeIdArray& argumentActiveList\n);",
+    "description": "Called on graph-resident nodes that become active. This method is called by AcDbEvalGraph::activate() , or by AcDbEvalGraph::evaluate() when it is called with a non-null node activation arrray, on every node being activated by the call.",
+    "parameters": [
+      {
+        "name": "argumentActiveList",
+        "desc": "Input array of AcDbEvalNodeId objects of the nodes being activated in the graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__addedToGraph_AcDbEvalGraph_.html",
+    "title": "AcDbEvalExpr::addedToGraph",
+    "signature": "virtual void addedToGraph(\nAcDbEvalGraph* pGraph\n);",
+    "description": "Called when a node is added to a graph. AcDbEvalGraph::addNode() calls this method on the node after it has been added to the graph.",
+    "parameters": [
+      {
+        "name": "pGraph",
+        "desc": "Input pointer to the graph to which the node is added"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__adjacentEdgeAdded_AcDbEvalNodeId__AcDbEvalNodeId__bool.html",
+    "title": "AcDbEvalExpr::adjacentEdgeAdded",
+    "signature": "virtual void adjacentEdgeAdded(\nconst AcDbEvalNodeId& fromId, \nconst AcDbEvalNodeId& toId, \nbool bIsInvertible\n);",
+    "description": "This notification callback function is called when an edge is added to the graph. Both versions of the AcDbEvalGraph::addEdge() function call this function on each of the nodes at either end of the edge being added. For example, when an invertible edge is added, four notifications occur.",
+    "parameters": [
+      {
+        "name": "fromId",
+        "desc": "Output the \"from\" AcDbEvalNodeId of the node whose shared edge is being added"
+      },
+      {
+        "name": "toId",
+        "desc": "Output the \"to\" AcDbEvalNodeId of the node whose shared edge is being added"
+      },
+      {
+        "name": "bIsInvertible",
+        "desc": "Output value indicating whether the edge is invertible"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__adjacentEdgeRemoved_AcDbEvalNodeId_.html",
+    "title": "AcDbEvalExpr::adjacentEdgeRemoved",
+    "signature": "virtual void adjacentEdgeRemoved(\nconst AcDbEvalNodeId& adjEdgeNodeId\n);",
+    "description": "Called when an edge on the node is removed. AcDbEvalGraph::removeEdge() calls this method on the nodes at either end of the edge being removed.",
+    "parameters": [
+      {
+        "name": "adjEdgeNodeId",
+        "desc": "Input AcDbEvalNodeId of the node whose shared edge is being removed"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__adjacentNodeRemoved_AcDbEvalNodeId_.html",
+    "title": "AcDbEvalExpr::adjacentNodeRemoved",
+    "signature": "virtual void adjacentNodeRemoved(\nconst AcDbEvalNodeId& adjNodeId\n);",
+    "description": "Called when a node with a shared edge to this node is removed from the graph. AcDbEvalGraph::removeNode() calls this method on nodes that share edges with the node being removed.",
+    "parameters": [
+      {
+        "name": "adjNodeId",
+        "desc": "Input AcDbEvalNodeId of the removed node"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__copiedIntoGraph_AcDbEvalGraph_.html",
+    "title": "AcDbEvalExpr::copiedIntoGraph",
+    "signature": "virtual void copiedIntoGraph(\nAcDbEvalGraph* pIntoGraph\n);",
+    "description": "Called when a node is finished being inserted because of a copy operation from one graph to another. AcDbEvalGraph::copyFrom() calls this method on the nodes that are copies of the argument graph nodes. Because all the nodes from the argument graph as well as their edges are copied, the graph structure in this becomes isomorphic to the graph structure in the source graph.",
+    "parameters": [
+      {
+        "name": "pIntoGraph",
+        "desc": "Graph into which the node is being added"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__equals_AcDbEvalExpr__const.html",
+    "title": "AcDbEvalExpr::equals",
+    "signature": "virtual bool equals(\nconst AcDbEvalExpr* pOther\n) const;",
+    "description": "Determines if two AcDbEvalExpr objects are equal. The default implementation simply checks that the concrete class types are the same, as in the following code: this->isA() == pOther->isA()",
+    "parameters": [
+      {
+        "name": "pOther",
+        "desc": "Input object to test for equality to this object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__evaluate_AcDbEvalContext_.html",
+    "title": "AcDbEvalExpr::evaluate",
+    "signature": "virtual Acad::ErrorStatus evaluate(\nconst AcDbEvalContext* ctxt\n);",
+    "description": "Causes the expression represented by the node to be evaluated. Called for a graph-resident node when the node is visited during a call to AcDbEvalGraph::evaluate() . The default implementation does nothing and returns Acad::eOk . Any nonsuccessful result terminates the graph traversal.",
+    "parameters": [
+      {
+        "name": "ctxt",
+        "desc": "Input pointer to the AcDbEvalContext object used for the graph evaluation; may be null"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__getGraph_AcDbEvalGraph___AcDb__OpenMode_const.html",
+    "title": "AcDbEvalExpr::getGraph",
+    "signature": "Acad::ErrorStatus getGraph(\nAcDbEvalGraph** pGraph, \nAcDb::OpenMode mode\n) const;",
+    "description": "Returns a pointer to the graph owning the node. The caller is responsible for calling close() on the returned graph pointer. Returns Acad::eOk if successful. Returns Acad::eNulNodeId if the node is not graph resident.",
+    "parameters": [
+      {
+        "name": "pGraph",
+        "desc": "Output pointer to the graph owning the node"
+      },
+      {
+        "name": "mode",
+        "desc": "Input AcDb::OpenMode in which to open the owning graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__graphEvalAbort_bool.html",
+    "title": "AcDbEvalExpr::graphEvalAbort",
+    "signature": "virtual void graphEvalAbort(\nbool bNodeIsActive\n);",
+    "description": "Called on graph-resident nodes after aborting the traversal of the graph in a call to AcDbEvalGraph::evaluate() . This method is called by AcDbEvalGraph::evaluate() for nodes that were in the traversal list of an aborted graph evaluation.",
+    "parameters": [
+      {
+        "name": "bNodeIsActive",
+        "desc": "True if the node has been activated for the traversal"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__graphEvalEnd_bool.html",
+    "title": "AcDbEvalExpr::graphEvalEnd",
+    "signature": "virtual void graphEvalEnd(\nbool bNodeIsActive\n);",
+    "description": "Called on graph-resident nodes after traversing the graph in a call to AcDbEvalGraph::evaluate() . This method is called by AcDbEvalGraph::evaluate() for nodes that were visited during the traversal of the graph.",
+    "parameters": [
+      {
+        "name": "bNodeIsActive",
+        "desc": "True if the node has been activated for the traversal"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__graphEvalStart_bool.html",
+    "title": "AcDbEvalExpr::graphEvalStart",
+    "signature": "virtual void graphEvalStart(\nbool bNodeIsActive\n);",
+    "description": "Called on graph-resident nodes before traversing the graph in a call to AcDbEvalGraph::evaluate() . This method is called by AcDbEvalGraph::evaluate() for nodes that will be traversed during the graph evaluation.",
+    "parameters": [
+      {
+        "name": "bNodeIsActive",
+        "desc": "True if the node has been activated for the traversal"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__isActivatable.html",
+    "title": "AcDbEvalExpr::isActivatable",
+    "signature": "virtual bool isActivatable();",
+    "description": "Returns a value indicating whether this expression can be activated. The base class version always returns true.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__movedFromGraph_AcDbEvalGraph_.html",
+    "title": "AcDbEvalExpr::movedFromGraph",
+    "signature": "virtual void movedFromGraph(\nAcDbEvalGraph* pFromGraph\n);",
+    "description": "Called when a node is about to be moved from pFromGraph to another graph. AcDbEvalGraph::addGraph() calls this method on the node just before it is added to the destination graph.",
+    "parameters": [
+      {
+        "name": "pFromGraph",
+        "desc": "Graph from which the node is being transplanted"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__movedIntoGraph_AcDbEvalGraph_.html",
+    "title": "AcDbEvalExpr::movedIntoGraph",
+    "signature": "virtual void movedIntoGraph(\nAcDbEvalGraph* pIntoGraph\n);",
+    "description": "Called when a node is finished being moved into pIntoGraph from another graph. AcDbEvalGraph::addGraph() calls this method on the node just after it is added to the destination graph. Because addGraph() copies a disjoint subgraph into the destination graph, the newly added subgraph is isomorphic to the source graph in the addGraph operation.",
+    "parameters": [
+      {
+        "name": "pIntoGraph",
+        "desc": "Graph into which the node is being transplanted"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__nodeId.html",
+    "title": "AcDbEvalExpr::nodeId",
+    "signature": "AcDbEvalNodeId nodeId() const;",
+    "description": "Returns the ID of the node. When a node is added to a graph, it is assigned an ID that is unique among all nodes in the graph. If the node is not graph resident, the ID is AcDbEvalGraph::kNullNodeId . Returns the ID of the node if it is graph resident. Returns AcDbGraph::kNullId if the node is not graph resident.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__postInDatabase_AcDbObjectId__AcDbDatabase_.html",
+    "title": "AcDbEvalExpr::postInDatabase",
+    "signature": "virtual Acad::ErrorStatus postInDatabase(\nAcDbObjectId& objId, \nAcDbDatabase* pDb\n);",
+    "description": "This function adds this object to the database, giving it a handle and an object ID. The new object ID is returned in the objId argument. This function does not establish ownership of this object. Subclasses with child objects should override this function to add them to the database at this time and establish ownership. Returns Acad::eOk if successful.",
+    "parameters": [
+      {
+        "name": "objId",
+        "desc": "Output new object ID obtained by this function"
+      },
+      {
+        "name": "pDb",
+        "desc": "Input destination database"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__remappedNodeIds_AcDbEvalIdMap_.html",
+    "title": "AcDbEvalExpr::remappedNodeIds",
+    "signature": "virtual void remappedNodeIds(\nAcDbEvalIdMap& idMap\n);",
+    "description": "AcDbEvalGraph::addGraph() calls this method on each node in the to-be-added graph just after all nodes have been added to the destination graph. The default behavior is to do nothing. Some subclasses of AcDbEvalExpr should override this function to update their references to other nodes. Nodes should not alter the map. This function is called exactly once for each node in a graph after all node IDs in a graph are changed.",
+    "parameters": [
+      {
+        "name": "idMap",
+        "desc": "Map from old node IDs within pGraphToAdd to their new IDs within this graph. Should be empty initially and be the size of the number of nodes on successful return."
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__removedFromGraph_AcDbEvalGraph_.html",
+    "title": "AcDbEvalExpr::removedFromGraph",
+    "signature": "virtual void removedFromGraph(\nAcDbEvalGraph* pGraph\n);",
+    "description": "Called when a node is removed from a graph. AcDbEvalGraph::removeNode() calls this method on the node after it has been removed from the graph.",
+    "parameters": [
+      {
+        "name": "pGraph",
+        "desc": "Pointer to the graph from which the node is removed"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalExpr__value.html",
+    "title": "AcDbEvalExpr::value",
+    "signature": "AcDbEvalVariant value() const;",
+    "description": "The value of the variant node. The value is usually updated during the AcDbEvalExpr::evaluate() call. The default value is uninitialized ( AcDbEvalVariant::Type::kNone ). Returns an AcDbEvalVariant representing the value of the evaluated expression.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__NodeId.html",
+    "title": "NodeId",
+    "signature": "enum NodeId {\nkNullNodeId = 0\n};",
+    "sections": [
+      "&#xD; C++",
+      "File",
+      "Members",
+      "Description"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__activate_AcDbEvalNodeIdArray__AcDbEvalNodeIdArray__AcDbEvalNodeIdArray__const.html",
+    "title": "AcDbEvalGraph::activate",
+    "signature": "virtual Acad::ErrorStatus activate(\nconst AcDbEvalNodeIdArray& activatedNodes, \nAcDbEvalNodeIdArray* pActiveSubgraph, \nAcDbEvalNodeIdArray* pCycleNodes\n) const;",
+    "description": "Activates a collection of nodes in a graph. Applications must activate nodes in a graph before calling AcDbEvalGraph::evaluate() . Active nodes are used as the starting point for the directed traversal of the graph during graph evaluation. If activatedNodes is empty, all of the nodes in the graph are deactivated. Returns Acad::eOk if successful. Returns Acad::eGraphCyclesFound if the node activation resulted in a cyclic graph.",
+    "parameters": [
+      {
+        "name": "activatedNodes",
+        "desc": "Input array of AcDbEvalNodeId objects of the nodes in the graph to activate"
+      },
+      {
+        "name": "pActiveSubgraph",
+        "desc": "Array of nodes that would be visited given the activated nodes"
+      },
+      {
+        "name": "pCycleNodes",
+        "desc": "Array of nodes that are cyclic given the activated nodes"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__activate_AcDbEvalNodeIdArray__AcDbEvalNodeIdArray__const.html",
+    "title": "AcDbEvalGraph::activate",
+    "signature": "virtual Acad::ErrorStatus activate(\nconst AcDbEvalNodeIdArray& activatedNodes, \nAcDbEvalNodeIdArray* pActiveSubgraph\n) const;",
+    "description": "Activates a collection of nodes in a graph. Applications must activate nodes in a graph before calling AcDbEvalGraph::evaluate() . Active nodes are used as the starting point for the directed traversal of the graph during graph evaluation. If activatedNodes is empty, all of the nodes in the graph are deactivated. Returns Acad::eOk if successful. Returns Acad::eGraphCyclesFound if the node activation resulted in a cyclic graph.",
+    "parameters": [
+      {
+        "name": "activatedNodes",
+        "desc": "Input array of AcDbEvalNodeId objects of the nodes in the graph to activate"
+      },
+      {
+        "name": "pActiveSubgraph",
+        "desc": "Array of nodes that would be visited given the activated nodes"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__activate_AcDbEvalNodeIdArray__const.html",
+    "title": "AcDbEvalGraph::activate",
+    "signature": "virtual Acad::ErrorStatus activate(\nconst AcDbEvalNodeIdArray& activatedNodes\n) const;",
+    "description": "Activates a collection of nodes in a graph. Applications must activate nodes in a graph before calling AcDbEvalGraph::evaluate() . Active nodes are used as the starting point for the directed traversal of the graph during graph evaluation. If activatedNodes is empty, all of the nodes in the graph are deactivated. Returns Acad::eOk if successful. Returns Acad::eGraphCyclesFound if the node activation resulted in a cyclic graph.",
+    "parameters": [
+      {
+        "name": "activatedNodes",
+        "desc": "Input array of AcDbEvalNodeId objects of the nodes in the graph to activate"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__addEdge_AcDbEvalNodeId__AcDbEvalNodeId_.html",
+    "title": "AcDbEvalGraph::addEdge",
+    "signature": "virtual Acad::ErrorStatus addEdge(\nconst AcDbEvalNodeId& idFrom, \nconst AcDbEvalNodeId& idTo\n);",
+    "description": "Adds a non-invertible edge between two nodes in the graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if either of the nodes is not resident in the graph.",
+    "parameters": [
+      {
+        "name": "idFrom",
+        "desc": "Input AcDbEvalNodeId of the node from which the edge originates"
+      },
+      {
+        "name": "idTo",
+        "desc": "Input AcDbEvalNodeId of the node at which the edge terminates"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__addEdge_AcDbEvalNodeId__AcDbEvalNodeId__bool.html",
+    "title": "AcDbEvalGraph::addEdge",
+    "signature": "virtual Acad::ErrorStatus addEdge(\nconst AcDbEvalNodeId& idFrom, \nconst AcDbEvalNodeId& idTo, \nbool bInvertible\n);",
+    "description": "Adds an edge between two nodes in the graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if either of the nodes is not resident in the graph.",
+    "parameters": [
+      {
+        "name": "idFrom",
+        "desc": "Input AcDbEvalNodeId of the node from which the edge originates"
+      },
+      {
+        "name": "idTo",
+        "desc": "Input AcDbEvalNodeId of the node at which the edge terminates"
+      },
+      {
+        "name": "bInvertible",
+        "desc": "Input Boolean indicating whether the edge can be inverted depending on which of the nodes has been activated"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__addGraph_AcDbEvalGraph__AcDbEvalIdMap__.html",
+    "title": "AcDbEvalGraph::addGraph",
+    "signature": "virtual Acad::ErrorStatus addGraph(\nAcDbEvalGraph* pGraphToAdd, \nAcDbEvalIdMap*& idMap\n);",
+    "description": "Adds the nodes from one graph to another graph by moving the nodes and edges from the source graph to this graph. All nodes and edges in pGraphToAdd are moved to the destination graph. Returns Acad::eOk if successful.",
+    "parameters": [
+      {
+        "name": "pGraphToAdd",
+        "desc": "Input graph containing the nodes and edges to add to this graph"
+      },
+      {
+        "name": "idMap",
+        "desc": "Output pointer to map from old node ids within pGraphToAdd to their new ids within this graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__addNode_AcDbEvalExpr__AcDbEvalNodeId_.html",
+    "title": "AcDbEvalGraph::addNode",
+    "signature": "virtual Acad::ErrorStatus addNode(\nAcDbEvalExpr* pNode, \nAcDbEvalNodeId& id\n);",
+    "description": "Adds a node to the graph and returns the AcDbEvalNodeId of the newly added node. If the graph is database resident, the caller must call close() on pNode when it is no longer needed. Returns Acad::eOk if successful.",
+    "parameters": [
+      {
+        "name": "pNode",
+        "desc": "Input pointer to the node to add to the graph"
+      },
+      {
+        "name": "id",
+        "desc": "Output ID of newly added node"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__createGraph_AcDbDatabase__ACHAR_.html",
+    "title": "AcDbEvalGraph::createGraph",
+    "signature": "static Acad::ErrorStatus createGraph(\nAcDbDatabase* pDb, \nconst ACHAR* pKey\n);",
+    "description": "Creates a graph for the database at the specified key. This method provides the ability to associate a graph with a database instead of with a specific object in the database. Returns Acad::eOk if successful.",
+    "parameters": [
+      {
+        "name": "pDb",
+        "desc": "Input database from which to create the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which to associate the new graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__createGraph_AcDbObject__ACHAR_.html",
+    "title": "AcDbEvalGraph::createGraph",
+    "signature": "static Acad::ErrorStatus createGraph(\nAcDbObject* pObj, \nconst ACHAR* pKey\n);",
+    "description": "Creates a graph on the object at the supplied key. The object must be database resident. Returns Acad::eOk if successful. Returns eAlreadyInDb if the graph already exists on the object.",
+    "parameters": [
+      {
+        "name": "pObj",
+        "desc": "Input object on which to create a graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which to associate the new graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__equals_AcDbEvalGraph__const.html",
+    "title": "AcDbEvalGraph::equals",
+    "signature": "virtual bool equals(\nconst AcDbEvalGraph* pOther\n) const;",
+    "description": "Determines whether two graphs are equal. Graph A is said to equal Graph B if A is a subgraph of B and B is a subgraph of A. See the isSubgraphOf() function for a definition of subgraphs. Returns true if this graph equals pOther . Otherwise, returns false.",
+    "parameters": [
+      {
+        "name": "pOther",
+        "desc": "Input object to test for equality to this object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__evaluate_AcDbEvalContext__AcDbEvalNodeIdArray__const.html",
+    "title": "AcDbEvalGraph::evaluate",
+    "signature": "virtual Acad::ErrorStatus evaluate(\nconst AcDbEvalContext* pContext, \nconst AcDbEvalNodeIdArray* activatedNodes\n) const;",
+    "description": "Evaluates the class by traversing the graph and invoking AcDbEvalExpr::evaluate() on all of the visited nodes. Applications can activate and evaluate nodes in one step by providing a non-null activatedNodes array pointer. Otherwise, applications must activate one or more nodes in the graph by calling AcDbEvalGraph::activate() before calling this method. Returns Acad::eOk if succssful. If any of the calls to AcDbEvalExpr::evaluate() fail, the error returned by AcDbEvalExpr::evaluate() is returned by this method.",
+    "parameters": [
+      {
+        "name": "pContext",
+        "desc": "Input pointer to an AcDbEvalContext object that is passed to each node as it is visited when calling its AcDbEvalExpr::evaluate() method"
+      },
+      {
+        "name": "activatedNodes",
+        "desc": "Input array of AcDbEvalNodeId objects to activate when performing the evaluation"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__evaluate_AcDbEvalContext__const.html",
+    "title": "AcDbEvalGraph::evaluate",
+    "signature": "virtual Acad::ErrorStatus evaluate(\nconst AcDbEvalContext* pContext\n) const;",
+    "description": "Evaluates the class by traversing the graph and invoking AcDbEvalExpr::evaluate() on all of the visited nodes. Applications must activate one or more nodes in the graph by calling AcDbEvalGraph::activate() before calling this method. Returns Acad::eOk if succssful. If any of the calls to AcDbEvalExpr::evaluate() fail, the error returned by AcDbEvalExpr::evaluate() is returned by this method.",
+    "parameters": [
+      {
+        "name": "pContext",
+        "desc": "Input pointer to an AcDbEvalContext object that is passed to each node as it is visited when calling its AcDbEvalExpr::evaluate() method"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__evaluate_const.html",
+    "title": "AcDbEvalGraph::evaluate",
+    "signature": "virtual Acad::ErrorStatus evaluate() const;",
+    "description": "Evaluates the class by traversing the graph and invoking AcDbEvalExpr::evaluate() on all of the visited nodes. Applications must activate one or more nodes in the graph by calling AcDbEvalGraph::activate() before calling this method. Returns Acad::eOk if successful. If any of the calls to AcDbEvalExpr::evaluate() fail, the error returned by AcDbEvalExpr::evaluate() is returned by this method.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getAllNodes_AcDbEvalNodeIdArray__const.html",
+    "title": "AcDbEvalGraph::getAllNodes",
+    "signature": "virtual Acad::ErrorStatus getAllNodes(\nAcDbEvalNodeIdArray& nodes\n) const;",
+    "description": "Returns an array of all node IDs contained in the graph. Returns Acad::eOk if successful.",
+    "parameters": [
+      {
+        "name": "nodes",
+        "desc": "Output array of AcDbEvalNodeId objects for all of the nodes in the graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getEdgeInfo_AcDbEvalNodeId__AcDbEvalNodeId__AcDbEvalEdgeInfo__const.html",
+    "title": "AcDbEvalGraph::getEdgeInfo",
+    "signature": "virtual Acad::ErrorStatus getEdgeInfo(\nconst AcDbEvalNodeId& nodeFrom, \nconst AcDbEvalNodeId& nodeTo, \nAcDbEvalEdgeInfo& einfo\n) const;",
+    "description": "Returns information about an edge between two nodes in a graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if a node with either of the specified IDs does not exist in the graph. Returns Acad::eGraphEdgeNotFound if no edge exists between the nodes.",
+    "parameters": [
+      {
+        "name": "nodeFrom",
+        "desc": "Input AcDbEvalNodeId of the orginating node for the edge"
+      },
+      {
+        "name": "nodeTo",
+        "desc": "Input AcDbEvalNodeId of the destination node for the edge"
+      },
+      {
+        "name": "einfo",
+        "desc": "Output AcDbEvalEdgeInfo object describing the edge"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getGraph_AcDbDatabase__ACHAR__AcDbEvalGraph___AcDb__OpenMode.html",
+    "title": "AcDbEvalGraph::getGraph",
+    "signature": "static Acad::ErrorStatus getGraph(\nAcDbDatabase* pDb, \nconst ACHAR* pKey, \nAcDbEvalGraph** pGraph, \nconst AcDb::OpenMode mode\n);",
+    "description": "Retrieves the graph from the database. This method provides the ability to associate a graph with a database instead of with a specific object in the database. The calling application is responsible for calling close() on the returned graph when it is no longer needed. Returns Acad::eOk if successful. Returns Acad::eKeyNotFound if the specified key could not be found.",
+    "parameters": [
+      {
+        "name": "pDb",
+        "desc": "Input database from which to retrieve the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is associated"
+      },
+      {
+        "name": "pGraph",
+        "desc": "Output graph at the specified key, or null if the graph does not exist"
+      },
+      {
+        "name": "mode",
+        "desc": "Input mode in which to open the graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getGraph_AcDbObject__ACHAR__AcDbEvalGraph___AcDb__OpenMode.html",
+    "title": "AcDbEvalGraph::getGraph",
+    "signature": "static Acad::ErrorStatus getGraph(\nconst AcDbObject* pObj, \nconst ACHAR* pKey, \nAcDbEvalGraph** pGraph, \nconst AcDb::OpenMode mode\n);",
+    "description": "Retrieves a graph, if one exists, from the supplied object with the requested open mode. The object must be database resident. The calling application is responsible for calling close() on the returned graph when it is no longer needed. Returns Acad::eOk if successful. Returns Acad::eKeyNotFound if the graph with the specified key name does not exist.",
+    "parameters": [
+      {
+        "name": "pObj",
+        "desc": "Input object from which to retrieve the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is associated (multiple graphs can be associated with one object)"
+      },
+      {
+        "name": "pGraph",
+        "desc": "Output resultant graph; *pGraph is set to null if not found"
+      },
+      {
+        "name": "mode",
+        "desc": "Input mode in which to open the graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getIncomingEdges_AcDbEvalNodeId__AcDbEvalEdgeInfoArray__const.html",
+    "title": "AcDbEvalGraph::getIncomingEdges",
+    "signature": "virtual Acad::ErrorStatus getIncomingEdges(\nconst AcDbEvalNodeId& nodeId, \nAcDbEvalEdgeInfoArray& edges\n) const;",
+    "description": "Returns a list of incoming edges to a node in the graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if a node with the specified ID does not exist in the graph.",
+    "parameters": [
+      {
+        "name": "nodeId",
+        "desc": "Input AcDbEvalNodeId of the node for which to retrieve incoming edges"
+      },
+      {
+        "name": "edges",
+        "desc": "Output array of AcDbEvalEdgeInfo objects describing incoming edges for the node"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getIsActive_AcDbEvalNodeId__bool__const.html",
+    "title": "AcDbEvalGraph::getIsActive",
+    "signature": "virtual Acad::ErrorStatus getIsActive(\nconst AcDbEvalNodeId& id, \nbool& bIsActive\n) const;",
+    "description": "Determines whether the specified node is activated in the graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if a node with the specified ID does not exist in the graph.",
+    "parameters": [
+      {
+        "name": "id",
+        "desc": "Input AcDbEvalNodeId of a node in the graph"
+      },
+      {
+        "name": "bIsActive",
+        "desc": "Output true if the specified node exists in the graph and is active, or false otherwise"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getNode_AcDbEvalNodeId__AcDb__OpenMode_AcDbObject___const.html",
+    "title": "AcDbEvalGraph::getNode",
+    "signature": "virtual Acad::ErrorStatus getNode(\nconst AcDbEvalNodeId& nodeId, \nAcDb::OpenMode mode, \nAcDbObject** ppNode\n) const;",
+    "description": "Opens a node in the graph given its node ID. Callers must call close() on the returned node pointer when it is no longer needed. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if a node with the specified ID does not exist in the graph.",
+    "parameters": [
+      {
+        "name": "nodeId",
+        "desc": "Input AcDbEvalNodeId of the node to open"
+      },
+      {
+        "name": "mode",
+        "desc": "Input AcDb::OpenMode with which to open the node"
+      },
+      {
+        "name": "ppNode",
+        "desc": "Output pointer to the opened node"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__getOutgoingEdges_AcDbEvalNodeId__AcDbEvalEdgeInfoArray__const.html",
+    "title": "AcDbEvalGraph::getOutgoingEdges",
+    "signature": "virtual Acad::ErrorStatus getOutgoingEdges(\nconst AcDbEvalNodeId& nodeId, \nAcDbEvalEdgeInfoArray& edges\n) const;",
+    "description": "Returns a list of outgoing edges from a node in the graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if a node with the specified ID does not exist in the graph.",
+    "parameters": [
+      {
+        "name": "nodeId",
+        "desc": "Input AcDbEvalNodeId of the node for which to retrieve outgoing edges"
+      },
+      {
+        "name": "edges",
+        "desc": "Output array of AcDbEvalEdgeInfo objects describing outgoing edges for the node"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__hasGraph_AcDbDatabase__ACHAR_.html",
+    "title": "AcDbEvalGraph::hasGraph",
+    "signature": "static bool hasGraph(\nAcDbDatabase* pDb, \nconst ACHAR* pKey\n);",
+    "description": "Determines if a graph exists at the supplied key in the database. Returns true if the graph exists.",
+    "parameters": [
+      {
+        "name": "pDb",
+        "desc": "Input database from which to retrieve the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is registered in the database"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__hasGraph_AcDbObject__ACHAR_.html",
+    "title": "AcDbEvalGraph::hasGraph",
+    "signature": "static bool hasGraph(\nconst AcDbObject* pObj, \nconst ACHAR* pKey\n);",
+    "description": "Determines if a graph exists on the supplied object. The object must be database resident. Returns true if the graph exists.",
+    "parameters": [
+      {
+        "name": "pObj",
+        "desc": "Input object from which to retrieve the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is associated (multiple graphs can be associated with one object)"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__isSubgraphOf_AcDbEvalGraph__const.html",
+    "title": "AcDbEvalGraph::isSubgraphOf",
+    "signature": "virtual bool isSubgraphOf(\nconst AcDbEvalGraph* pOther\n) const;",
+    "description": "This function determines whether this graph is a subgraph of pOther . Before making this determination, the graph verifies that the node ID of each node in this graph matches that of a node in pOther . If any node ID in this graph is not found in pOther , this function returns false. If every node in this graph can be mapped to a node in pOther , the order and types of both the incoming and outgoing edges from each node in this graph must be found to be a subset of the incoming and outgoing edges for the corresponding mapped node in pOther . If this is true, this graph is a subgraph of pOther , and this function returns true. Otherwise, this function returns false.",
+    "parameters": [
+      {
+        "name": "pOther",
+        "desc": "Input graph to be tested as a superset of this graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__postInDatabase_AcDbObjectId__AcDbDatabase_.html",
+    "title": "AcDbEvalGraph::postInDatabase",
+    "signature": "virtual Acad::ErrorStatus postInDatabase(\nAcDbObjectId& objId, \nAcDbDatabase* pDb\n);",
+    "description": "Adds this graph to the database, giving it a handle and an object ID. The new object ID is returned in the objId argument. All of this graph's nodes are added to the database and this graph is made their owner. This function does not establish ownership of this graph. Returns Acad::eOk if successful.",
+    "parameters": [
+      {
+        "name": "objId",
+        "desc": "Output new object ID obtained by this function"
+      },
+      {
+        "name": "pDb",
+        "desc": "Input destination database"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__removeEdge_AcDbEvalNodeId__AcDbEvalNodeId_.html",
+    "title": "AcDbEvalGraph::removeEdge",
+    "signature": "virtual Acad::ErrorStatus removeEdge(\nconst AcDbEvalNodeId& idFrom, \nconst AcDbEvalNodeId& idTo\n);",
+    "description": "Removes an edge between two nodes in the graph. Returns Acad::eOk if successful. Returns Acad::eGraphEdgeNotFound if an edge between the nodes does not exist.",
+    "parameters": [
+      {
+        "name": "idFrom",
+        "desc": "Input AcDbEvalNodeId of the node from which the edge originates"
+      },
+      {
+        "name": "idTo",
+        "desc": "Input AcDbEvalNodeId of the node at which the edge terminates"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__removeGraph_AcDbDatabase__ACHAR_.html",
+    "title": "AcDbEvalGraph::removeGraph",
+    "signature": "static Acad::ErrorStatus removeGraph(\nAcDbDatabase* pDb, \nconst ACHAR* pKey\n);",
+    "description": "Removes a graph at the specified key for the database. Returns Acad::eOk if successful. Returns Acad::eKeyNotFound if there is no graph with that key associated with the database.",
+    "parameters": [
+      {
+        "name": "pDb",
+        "desc": "Input database from which to remove the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is associated"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__removeGraph_AcDbObject__ACHAR_.html",
+    "title": "AcDbEvalGraph::removeGraph",
+    "signature": "static Acad::ErrorStatus removeGraph(\nAcDbObject* pObj, \nconst ACHAR* pKey\n);",
+    "description": "Removes the graph, if one exists, at the supplied key. The object must be database resident. Returns Acad::eOk if successful. Returns Acad::eKeyNotFound if the graph does not exist.",
+    "parameters": [
+      {
+        "name": "pObj",
+        "desc": "Input object from which to remove the graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is associated with the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__removeNode_AcDbEvalExpr_.html",
+    "title": "AcDbEvalGraph::removeNode",
+    "signature": "virtual Acad::ErrorStatus removeNode(\nAcDbEvalExpr* pNode\n);",
+    "description": "Removes a node from the graph. This method assumes that the object is already opened for read or write. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if the node does not exist in the graph.",
+    "parameters": [
+      {
+        "name": "pNode",
+        "desc": "Input node to remove from the graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__removeNode_AcDbEvalNodeId_.html",
+    "title": "AcDbEvalGraph::removeNode",
+    "signature": "virtual Acad::ErrorStatus removeNode(\nconst AcDbEvalNodeId& id\n);",
+    "description": "Removes a node from the graph. Returns Acad::eOk if successful. Returns Acad::eGraphNodeNotFound if a node with the specified ID does not exist in the graph.",
+    "parameters": [
+      {
+        "name": "id",
+        "desc": "Input ID of the node to remove from the graph"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalGraph__replaceGraph_AcDbObject__ACHAR__AcDbObjectId.html",
+    "title": "AcDbEvalGraph::replaceGraph",
+    "signature": "static Acad::ErrorStatus replaceGraph(\nAcDbObject* pObj, \nconst ACHAR* pKey, \nAcDbObjectId grphId\n);",
+    "description": "Replaces a graph on the object. Returns Acad::eOk if successful, Acad::eWrongObjectType if wrong type of object (i.e. not an AcDbEvalGraph ).",
+    "parameters": [
+      {
+        "name": "pObj",
+        "desc": "Input object on which to create a graph"
+      },
+      {
+        "name": "pKey",
+        "desc": "Input key at which the graph is associated"
+      },
+      {
+        "name": "graphId",
+        "desc": "Input ID of the graph that will be the replacement"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalIdMap__find_AcDbEvalNodeId_.html",
+    "title": "AcDbEvalIdMap::find",
+    "signature": "virtual AcDbEvalNodeId find(\nconst AcDbEvalNodeId& key\n) = 0;",
+    "description": "Find the node ID that key maps to.",
+    "parameters": [
+      {
+        "name": "key",
+        "desc": "Input node ID"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalIdMap__kill.html",
+    "title": "AcDbEvalIdMap::kill",
+    "signature": "virtual void kill() = 0;",
+    "description": "Delete this map.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant();",
+    "description": "Default constructor. Allocates the resbuf and initializes the variant type to AcDbEvalVariant::kNone .",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_ACHAR_.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nconst ACHAR* szVal\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping a string value. The variant type is set to AcDbEvalVariant::kString .",
+    "parameters": [
+      {
+        "name": "szVal",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_AcDbEvalVariant_.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nconst AcDbEvalVariant& other\n);",
+    "description": "Copy constructor.",
+    "parameters": [
+      {
+        "name": "other",
+        "desc": "Object to copy from"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_AcDbEvalVariant_1.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nconst AcDbEvalVariant* pOther\n);",
+    "description": "Copy constructor.",
+    "parameters": [
+      {
+        "name": "pOther",
+        "desc": "Input pointer to the object to copy from"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_AcDbEvalVariant__.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant (AcDbEvalVariant&amp;&amp;) Constructor",
+    "signature": "ACDBCORE2D_PORT AcDbEvalVariant(\nAcDbEvalVariant&& other\n);",
+    "description": "Move constructor.",
+    "parameters": [
+      {
+        "name": "other",
+        "desc": "Object to move from"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_AcDbObjectId_.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nconst AcDbObjectId& id\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping an AcDbObjectId . The variant type is set to AcDbEvalVariant::kOldId .",
+    "parameters": [
+      {
+        "name": "id",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_AcGePoint2d_.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nconst AcGePoint2d& pt\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping a 2D point. The variant type is set to AcDbEvalVariant::kPoint2d .",
+    "parameters": [
+      {
+        "name": "pt",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_AcGePoint3d_.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nconst AcGePoint3d& pt\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping a 3D point. The variant type is set to AcDbEvalVariant::kPoint3d .",
+    "parameters": [
+      {
+        "name": "pt",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_Adesk__Int32.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nAdesk::Int32 lVal\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping a long value. The variant type is set to AcDbEvalVariant::kLong .",
+    "parameters": [
+      {
+        "name": "lVal",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links",
+      "Declaration"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_double.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\ndouble dVal\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping a double value. The variant type is set to AcDbEvalVariant::kDouble .",
+    "parameters": [
+      {
+        "name": "dVal",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_resbuf_.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant (resbuf&amp;) Constructor",
+    "signature": "AcDbEvalVariant(\nconst resbuf& rb\n);",
+    "description": "Constructs an AcDbEvalVariant from a resbuf. The variant type is set to rb.restype .",
+    "parameters": [
+      {
+        "name": "rb",
+        "desc": "Value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__AcDbEvalVariant_short.html",
+    "title": "AcDbEvalVariant::AcDbEvalVariant",
+    "signature": "AcDbEvalVariant(\nshort iVal\n);",
+    "description": "Constructs an AcDbEvalVariant wrapping a short integer value. The variant type is set to AcDbEvalVariant::kShort .",
+    "parameters": [
+      {
+        "name": "iVal",
+        "desc": "Input value to assign to the object"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__clear.html",
+    "title": "AcDbEvalVariant::clear",
+    "signature": "void clear();",
+    "description": "Clears the contents of the AcDbEvalVariant and frees any allocated memory, including resbuf chains descending from this AcDbEvalVariant . Changes the AcDbEvalVariant::restype to AcDbEvalVariant::kNone .",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__copyFrom_AcRxObject_.html",
+    "title": "AcDbEvalVariant::copyFrom",
+    "signature": "Acad::ErrorStatus copyFrom(\nconst AcRxObject* pOther\n) override;",
+    "description": "Copies the value and data from a source AcDbEvalVariant object into this object. Returns Acad::eOk if successful. Returns Acad::eWrongObjectType if pObject is not an AcDbEvalVariant .",
+    "parameters": [
+      {
+        "name": "pOther",
+        "desc": "Input pointer to the AcDbEvalVariant from which to copy"
+      }
+    ],
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Parameters",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__fromAcRxValue_AcRxValue_.html",
+    "title": "AcDbEvalVariant::fromAcRxValue Method",
+    "signature": "Acad::ErrorStatus fromAcRxValue(\nconst AcRxValue& value\n);",
+    "description": "This is fromAcRxValue, a member of class AcDbEvalVariant.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__init.html",
+    "title": "AcDbEvalVariant::init",
+    "signature": "void init();",
+    "description": "Initializes the contents of the AcDbEvalVariant . This protected method is called by constructor overloads to initialize the base resbuf memory.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-AcDbEvalVariant__toAcRxValue_AcRxValueType__AcRxValue__const.html",
+    "title": "AcDbEvalVariant::toAcRxValue Method",
+    "signature": "Acad::ErrorStatus toAcRxValue(\nconst AcRxValueType& type, \nAcRxValue& value\n) const;",
+    "description": "This is toAcRxValue, a member of class AcDbEvalVariant.",
+    "sections": [
+      "&#xD; C++",
+      "Description",
+      "Links"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED___AcDbEvalVariant.html",
+    "title": "= Operator",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_activate_AcDbEvalGraph.html",
+    "title": "activate Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_addEdge_AcDbEvalGraph.html",
+    "title": "addEdge Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_createGraph_AcDbEvalGraph.html",
+    "title": "createGraph Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_evaluate_AcDbEvalGraph.html",
+    "title": "evaluate Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_getGraph_AcDbEvalGraph.html",
+    "title": "getGraph Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_hasGraph_AcDbEvalGraph.html",
+    "title": "hasGraph Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_removeGraph_AcDbEvalGraph.html",
+    "title": "removeGraph Method",
+    "sections": [
+      "Overload List"
+    ]
+  },
+  {
+    "file": "OARX-RefGuide-__OVERLOADED_removeNode_AcDbEvalGraph.html",
+    "title": "removeNode Method",
+    "sections": [
+      "Overload List"
+    ]
+  }
+]

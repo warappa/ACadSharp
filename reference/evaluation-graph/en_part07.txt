@@ -1,0 +1,52 @@
+A.Lazebny. Mysteries of Autodesk's Caves
+
+Part 7. Secrets of ACAD_EVALUATION_GRAPH room
+
+Many users tried many times to swap parameter names in the block properties list but with no success. In what 
+sequence these parameters were created - in that sequence they were displayed. My first task was to swap parameters.
+
+As I have already written by swapping 95th pairs I razed all. Then I swapped two whole records but they returned to 
+their places. Then I swapped only record numbers - numbers returned to theirs places and swapped records. Aha, I think, 
+it is a step forward. Looked at block properties list - no visible changes. How is that? I changed dictionary in fact, 
+hence somewhere something should vary! I got angry and started pestering block. I began with the swapped property. I 
+opened the door leading to that room and dully made Entmod to all the room (entmod in 
+AutoLISP means "modify entity"). AutoCAD swore - he said that dotted pairs like 1071 and 1010 were unknown. I removed 
+them and made Entmod again. I see - hurrah! Block properties have swapped places!
+
+Now I'll do a digression. The point is that there is such an incantation (it is rather intricate so I will miss it) 
+that gets all the properties list for the dynamic block - but after swapping block properties the list remained 
+unchanged! Then I shaked the whole block having made Entmod to it. And after that everything 
+changed everywhere as it should be.
+
+Now, after long time I think that I would probably shake the whole block at once? I don't know. Let another digger 
+test this.
+
+My second sick callus was that block editor allowed only one Visibility Set. If you have for examle 10 objects that 
+you want to see in all different visibility states then you must describe 1024 visibilities. And if one could insert 
+many Visibility Sets then having taken 10 sets you would need to describe object visibilty only in one of them, that is 
+10 times instead of 1024. And as one Visibility Set can describe visibility for a group of elements the total number of 
+combinations is beyond all mind calculations.
+
+I tried to create a new Visibility Set parameter and created it as a copy of an existing one. Inserted. My block 
+acquired an amazing quality. If I come in there is no Visibility Set. If I come out it exists in model and in block 
+properties. I come in again - none. I set a new one - it is taken. I come out - one more appeared. I come in - again 
+desappeared. And so on ad infinitum. Thus I conclude that I may have many such parameters.
+
+After some time I removed my "clumsy" Visibility Set and - oh, wonder! Block editor saw the first in order Visibility 
+Set. Moreover editor began to work with it as it should. And since I was already able to swap places of block property 
+parameters it turned out that moving to very top any of added Visibility Sets alows to edit it with block editor.
+
+I think that I made not a "clumsy" Visibility Set but AutoCAD correctly inserts only its own-made parameters and my 
+dummies simply confuse AutoCAD. But it gave some harvest. In such a form my incantations work. Firstly I do a dummy then 
+I put it to AutoCAD whose head gets confused and it allows to add one more parameter, and when I remove my dummy, 
+AutoCAD recovers and allows to add parameter and when I remove my dummy AutoCAD comes to its senses, but it cannot undo 
+and is to handle what it made itself.
+
+Previous | Next
+
+NP CAD Page | Articles 
+|| Introduction | 1 | 2 
+| 3 | 4 | 5 
+| 6 | 8 | 9 
+| 10 | 11 | 12
+|| Russian

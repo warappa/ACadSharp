@@ -1,0 +1,795 @@
+A.Lazebny. Mysteries of Autodesk's Caves
+
+Part 8. Where block elements are buried
+
+But what is a castle without picture galleries? Or without statues? Where are collections of weapons, armours, 
+hunting trophies? All is present. Any somewhat valuable thing gets in our castle to a collection. Even thing copies go 
+to collections. One can dare to say that all the things in the castle belong to one or another collection. Even there 
+are collections of collections.
+
+Postage stamp that is not rare is really an entity. And if you gathered a stamp collection of some country and for 
+some year then the simplest and not rare stamp is required for the collection. Without this stamp your collection will 
+not be full and not so valuable. And when you gathered stamps for several years and for several countries then it will 
+be collection of collections.
+
+Blocks are important things and after creation they are not hanged. Copies are being hanged there. In general all the 
+castle system is designed in ssuch a manner that whatever you want the castle tries to give you a copy instead of 
+original. The original lies in a store and for free view is inaccessible.
+
+Our next aim is to go to originals store and to find there necessary block. I'll make reservation in advance. On the 
+facade only one block is hanging and nothing else (see DblockSample2007.dwg). 
+It has a line and a Visibility Set. That is the block is dynamic.
+
+The castle has its main door. Before we climbed into the castle through the doors attached to it in additional 
+buildings but now we will try to come in through the main door. This door can be evoked only with one incantation but 
+from any place and you need not to point to anything (so, forgot... See in the sorcerers book. Aha!).
+
+(vlax-get-acad-object)
+
+We see #<VLA-OBJECT IAcadApplication 00d077b4> - vla-door.
+
+We do (vlax-vla-object->ename (vlax-get-acad-object)).
+
+We see nil. Nil is a subtle mockery of the castle or its creators. 
+In some cases it denotes that everything ended well, in other cases it means vacuum (even not 0, but something that deos 
+not exist). In our case I got it indeed. Hence Not all the doors can be named! We'll remember.
+
+Then we apply other incantation returning to us a list of all the object's properties. It affects only on vla-doors.
+
+(vlax-dump-object (vlax-get-acad-object))
+
+If we add after the name an English letter Т, then as a suppliment we'll get methods to be 
+applied to this room. I will remind that methods are incantations acting only to definite rooms.
+
+(vlax-dump-object (vlax-get-acad-object) T)
+
+What a misfortune: apart from entget we do not receive anything real to be saved in memory 
+and to be used later but only echo that you hear but can't touch.
+
+; IAcadApplication: An instance of the AutoCAD application
+
+; Property values:
+
+; ActiveDocument = #<VLA-OBJECT IAcadDocument 01400420>
+
+; Application (RO) = #<VLA-OBJECT IAcadApplication 00d077b4>
+
+; Caption (RO) = "AutoCAD 2007 - [Drawing1.dwg]"
+
+; Documents (RO) = #<VLA-OBJECT IAcadDocuments 05e6c3b0>
+
+; FullName (RO) = "C:\\Program Files\\AutoCAD 2007\\acad.exe"
+
+; Height = 774
+
+; HWND (RO) = 1704798
+
+; LocaleId (RO) = 1033
+
+; MenuBar (RO) = #<VLA-OBJECT IAcadMenuBar 05e71044>
+
+; MenuGroups (RO) = #<VLA-OBJECT IAcadMenuGroups 01408948>
+
+; Name (RO) = "AutoCAD"
+
+; Path (RO) = "C:\\Program Files\\AutoCAD 2007"
+
+; Preferences (RO) = #<VLA-OBJECT IAcadPreferences 05e738dc>
+
+; StatusId (RO) = ...Indexed contents not shown...
+
+; VBE (RO) = #<VLA-OBJECT VBE 01b95aa4>
+
+; Version (RO) = "17.0s (LMS Tech)"
+
+; Visible = -1
+
+; Width = 1288
+
+; WindowLeft = -4
+
+; WindowState = 3
+
+; WindowTop = -4
+
+; Methods supported:
+
+; Eval (1)
+
+; GetAcadState ()
+
+; GetInterfaceObject (1)
+
+; ListArx ()
+
+; LoadArx (1)
+
+; LoadDVB (1)
+
+; Quit ()
+
+; RunMacro (1)
+
+; UnloadArx (1)
+
+; UnloadDVB (1)
+
+; Update ()
+
+; ZoomAll ()
+
+; ZoomCenter (2)
+
+; ZoomExtents ()
+
+; ZoomPickWindow ()
+
+; ZoomPrevious ()
+
+; ZoomScaled (2)
+
+; ZoomWindow (2)
+
+T
+
+Here is all as in office of a firm: accounts department, personnel department, functional department, etc. We are 
+interested in the study ActiveDocument. It is a department managing current model and paper 
+spaces and other important things. To enter through the door you should pronounce incantation including door name:
+
+(vla-get-ActiveDocument (vlax-get-acad-object))
+
+We get #<VLA-OBJECT IAcadDocument 01400420> or something similar. Cifers at the end change 
+all the time.
+
+Let's look at all there.
+
+(vlax-dump-object (vla-get-ActiveDocument (vlax-get-acad-object)) T)
+
+; IAcadDocument: An AutoCAD drawing
+
+; Property values:
+
+; Active (RO) = -1
+
+; ActiveDimStyle = #<VLA-OBJECT IAcadDimStyle 05e73a84>
+
+; ActiveLayer = #<VLA-OBJECT IAcadLayer 05e75904>
+
+; ActiveLayout = #<VLA-OBJECT IAcadLayout 05e73544>
+
+; ActiveLinetype = #<VLA-OBJECT IAcadLineType 05e73914>
+
+; ActiveMaterial = #<VLA-OBJECT IAcadMaterial 05e76074>
+
+; ActivePViewport = AutoCAD: No active viewport in paperspace
+
+; ActiveSelectionSet (RO) = #<VLA-OBJECT IAcadSelectionSet 05e76b24>
+
+; ActiveSpace = 1
+
+; ActiveTextStyle = #<VLA-OBJECT IAcadTextStyle 05e6f714>
+
+; ActiveUCS = AutoCAD: Null object ID
+
+; ActiveViewport = #<VLA-OBJECT IAcadViewport 05e6f494>
+
+; Application (RO) = #<VLA-OBJECT IAcadApplication 00d077b4>
+
+; Blocks (RO) = #<VLA-OBJECT IAcadBlocks 05e6c094>
+
+; Database (RO) = #<VLA-OBJECT IAcadDatabase 05e6ef14>
+
+; Dictionaries (RO) = #<VLA-OBJECT IAcadDictionaries 05e6e0e4>
+
+; DimStyles (RO) = #<VLA-OBJECT IAcadDimStyles 05e6ff84>
+
+; ElevationModelSpace = 0.0
+
+; ElevationPaperSpace = 0.0
+
+; FileDependencies (RO) = #<VLA-OBJECT IAcadFileDependencies 05e6ed04>
+
+; FullName (RO) = ""
+
+; Groups (RO) = #<VLA-OBJECT IAcadGroups 05e760d4>
+
+; Height = 434
+
+; HWND (RO) = 656614
+
+; Layers (RO) = #<VLA-OBJECT IAcadLayers 05e768c4>
+
+; Layouts (RO) = #<VLA-OBJECT IAcadLayouts 05e763f4>
+
+; Limits = (0.0 0.0 420.0 297.0)
+
+; Linetypes (RO) = #<VLA-OBJECT IAcadLineTypes 05e77a34>
+
+; Materials (RO) = #<VLA-OBJECT IAcadMaterials 05e77df4>
+
+; ModelSpace (RO) = #<VLA-OBJECT IAcadModelSpace 01299e34>
+
+; MSpace = AutoCAD: Invalid mode
+
+; Name (RO) = "Drawing1.dwg"
+
+; ObjectSnapMode = 0
+
+; PaperSpace (RO) = #<VLA-OBJECT IAcadPaperSpace 012a2cc4>
+
+; Path (RO) = "C:\\Documents and Settings\\user\\My documents"
+
+; PickfirstSelectionSet (RO) = #<VLA-OBJECT IAcadSelectionSet 02681e14>
+
+; Plot (RO) = #<VLA-OBJECT IAcadPlot 012a27fc>
+
+; PlotConfigurations (RO) = #<VLA-OBJECT IAcadPlotConfigurations 012a4f64>
+
+; Preferences (RO) = #<VLA-OBJECT IAcadDatabasePreferences 05e6eee4>
+
+; ReadOnly (RO) = 0
+
+; RegisteredApplications (RO) = #<VLA-OBJECT IAcadRegisteredApplications 05e78b64>
+
+; Saved (RO) = -1
+
+; SectionManager (RO) = Ошибка
+
+; SelectionSets (RO) = #<VLA-OBJECT IAcadSelectionSets 05e76034>
+
+; SummaryInfo (RO) = #<VLA-OBJECT IAcadSummaryInfo 05e6ecd4>
+
+; TextStyles (RO) = #<VLA-OBJECT IAcadTextStyles 05e78014>
+
+; UserCoordinateSystems (RO) = #<VLA-OBJECT IAcadUCSs 05e784a4>
+
+; Utility (RO) = #<VLA-OBJECT IAcadUtility 05e78534>
+
+; Viewports (RO) = #<VLA-OBJECT IAcadViewports 05e78264>
+
+; Views (RO) = #<VLA-OBJECT IAcadViews 05e79ab4>
+
+; Width = 1210
+
+; WindowState = 3
+
+; WindowTitle (RO) = "Drawing1.dwg"
+
+; Methods supported:
+
+; Activate ()
+
+; AuditInfo (1)
+
+; Close (2)
+
+; CopyObjects (3)
+
+; EndUndoMark ()
+
+; Export (3)
+
+; GetVariable (1)
+
+; HandleToObject (1)
+
+; Import (3)
+
+; LoadShapeFile (1)
+
+; New (1)
+
+; ObjectIdToObject (1)
+
+; Open (2)
+
+; PurgeAll ()
+
+; Regen (1)
+
+; Save ()
+
+; SaveAs (3)
+
+; SendCommand (1)
+
+; SetVariable (2)
+
+; StartUndoMark ()
+
+; Wblock (2)
+
+T
+
+I am looking at this number of studies and thinking: "Yes, bureaucracy came here". But we are interested in all 
+connected with blocks. We go to Blocks room.
+
+(vlax-dump-object (vla-get-Blocks (vla-get-ActiveDocument (vlax-get-acad-object))) T)
+
+; IAcadBlocks: The collection of all blocks in the drawing
+
+; Property values:
+
+; Application (RO) = #<VLA-OBJECT IAcadApplication 00d077b4>
+
+; Count (RO) = 3
+
+; Document (RO) = #<VLA-OBJECT IAcadDocument 01400420>
+
+; Handle (RO) = "1"
+
+; HasExtensionDictionary (RO) = 0
+
+; ObjectID (RO) = 2130271240
+
+; ObjectName (RO) = "AcDbBlockTable"
+
+; OwnerID (RO) = 0
+
+; Methods supported:
+
+; Add (2)
+
+; Delete ()
+
+; GetExtensionDictionary ()
+
+; GetXData (3)
+
+; Item (1)
+
+; SetXData (2)
+
+T
+
+And to my great surprise a bald oldman sits behind the door and picks his ears with a match. And there are no shelves 
+with blocks, no doors to these shelves - it is empty. Two doors exist but we are not silly, this a trick. And so any 
+bureaucratic system looks like. Passing from room to room, dripping with sweat, and getting nothing at the end.
+
+But this a room with an explicit title "BLOCKS"! What is there in the upper line? IAcadBlocks: 
+The collection of all blocks in the drawing.
+
+It means "This a collection of all blocks in the castle". And where are they? It turns out to be a decoration for 
+hiding. There is an incatation that removes scales from the eyes and you can see all the elements lying in such hidden 
+places. It is
+vlax-for. Bit it should be applied to the door itself, more precisely - to the blocks store 
+where the door leads.
+
+Incantation itself does not affect to everything, thus it only helps to apply incantations to the elements lying in 
+the store. But since all the incantations require reference to object name then after vlax-for 
+you need a symbol representing object in incantation. For example:
+
+(setq sss nil)
+
+(vlax-for x (vla-get-Blocks (vla-get-ActiveDocument (vlax-get-acad-object)))
+
+(setq sss (append sss (list x))))
+
+Why are your eyes open so wide? Look into the book, look! Where is your sorcery book? I won't rewrite it all here. It 
+comprises 919 pages in petty handwriting!
+
+Who reads this and "Wer versteht nicht", fly to the shop for literature.
+
+And for those who understand subject I'll go on. we got a list of all that lies in the stockroom.
+
+(
+
+#<VLA-OBJECT IAcadModelSpace 06192424>
+
+#<VLA-OBJECT IAcadPaperSpace 06191854>
+
+#<VLA-OBJECT IAcadBlock 06190444>
+
+#<VLA-OBJECT IAcadBlock 061921f4>
+
+)
+
+First:
+
+- A special Block object containing all model space entities
+
+So, space is not my fable. To say in brief, originals for objects collected in block and seen on facade.
+
+Second:
+
+- A special Block object containing all the entities in the active paper space layout
+
+Clumsy, but space on paper does not require explanations. Or requires?
+
+Boy! Leave your nose alone! Uncle tells about space!
+
+For God's sake excuse me, who lets children to go for excursion without parents?
+
+So I'll continue.
+
+Third and fourth:
+
+- A block definition containing a name and a set of objects
+
+I have only one block on facade. Where is a second block from? Unconsidered, however. As on any store we find some 
+goods beyond account. Let's look at the first one in the list.
+
+(entget (vlax-vla-object->ename (cadr (reverse sss))))
+
+((-1 . <Entity name: 7efdbef0>)
+
+(0 . "BLOCK_RECORD")
+
+(330 . <Entity name: 7efdbc08>)
+
+(5 . "D6")
+
+(100 . "AcDbSymbolTableRecord")
+
+(100 . "AcDbBlockTableRecord")
+
+(2 . "*Paper_Space0")
+
+(360 . <Entity name: 7efdbf00>)
+
+(340 . <Entity name: 7efdbef8>)
+
+(70 . 0)
+
+(280 . 1)
+
+(281 . 0))
+
+My God! Do you see pair with 2? Again paper? Second door to the same paper? What did I forget there? And so many 
+doors more. If go deeper into the catacombs one can hear very far shouts of strayed tourists. I will not go there.
+
+Do you think that I have visited everything and am burdening you with excessible listings? Not at all. I am climbing and 
+putting in a diary. I know of course what I seek but for a long time I was not here.
+
+So, the last block:
+
+(entget (vlax-vla-object->ename (car (reverse sss))))
+
+((-1 . <Entity name: 7ef97080>)
+
+(0 . "BLOCK_RECORD")
+
+(330 . <Entity name: 7ef95c08>)
+
+(5 . "110")
+
+(100 . "AcDbSymbolTableRecord")
+
+(100 . "AcDbBlockTableRecord")
+
+(2 . "линия")
+
+(360 . <Entity name: 7ef97088>)
+
+(340 . <Entity name: 0>)
+
+(310 . 
+"2800000020000000200000000100080000000000000400000000000000000000000000000000000000000000000080000080000000808000800000008000800080800000C0C0C000C0DCC000F0CAA6000020400000206000002080000020A0000020C0000020E00000400000004020000040400000406000004080000040A0")
+
+(310 . 
+"000040C0000040E00000600000006020000060400000606000006080000060A0000060C0000060E00000800000008020000080400000806000008080000080A0000080C0000080E00000A0000000A0200000A0400000A0600000A0800000A0A00000A0C00000A0E00000C0000000C0200000C0400000C0600000C0800000C0")
+
+(310 . 
+"A00000C0C00000C0E00000E0000000E0200000E0400000E0600000E0800000E0A00000E0C00000E0E00040000000400020004000400040006000400080004000A0004000C0004000E00040200000402020004020400040206000402080004020A0004020C0004020E000404000004040200040404000404060004040800040")
+
+(310 . 
+"40A0004040C0004040E00040600000406020004060400040606000406080004060A0004060C0004060E00040800000408020004080400040806000408080004080A0004080C0004080E00040A0000040A0200040A0400040A0600040A0800040A0A00040A0C00040A0E00040C0000040C0200040C0400040C0600040C08000")
+
+(310 . 
+"40C0A00040C0C00040C0E00040E0000040E0200040E0400040E0600040E0800040E0A00040E0C00040E0E00080000000800020008000400080006000800080008000A0008000C0008000E00080200000802020008020400080206000802080008020A0008020C0008020E00080400000804020008040400080406000804080")
+
+(310 . 
+"008040A0008040C0008040E00080600000806020008060400080606000806080008060A0008060C0008060E00080800000808020008080400080806000808080008080A0008080C0008080E00080A0000080A0200080A0400080A0600080A0800080A0A00080A0C00080A0E00080C0000080C0200080C0400080C0600080C0")
+
+(310 . 
+"800080C0A00080C0C00080C0E00080E0000080E0200080E0400080E0600080E0800080E0A00080E0C00080E0E000C0000000C0002000C0004000C0006000C0008000C000A000C000C000C000E000C0200000C0202000C0204000C0206000C0208000C020A000C020C000C020E000C0400000C0402000C0404000C0406000C0")
+
+(310 . 
+"408000C040A000C040C000C040E000C0600000C0602000C0604000C0606000C0608000C060A000C060C000C060E000C0800000C0802000C0804000C0806000C0808000C080A000C080C000C080E000C0A00000C0A02000C0A04000C0A06000C0A08000C0A0A000C0A0C000C0A0E000C0C00000C0C02000C0C04000C0C06000")
+
+(310 . 
+"C0C08000C0C0A000F0FBFF00A4A0A000808080000000FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
+(310 . 
+"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
+(310 . 
+"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000")
+
+(310 . 
+"000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFFFF0000000000000000000000000000000000000000000000000000000000000000")
+
+(310 . 
+"FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000")
+
+(310 . 
+"000000000000000000FFFFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF00000000000000000000000000")
+
+(310 . 
+"00000000000000000000000000000000000000FFFF00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
+(310 . 
+"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
+(310 . 
+"0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")
+
+(102 . "{BLKREFS") (331 . <Entity name: 7ef970a0>) (102 . "}")
+
+(70 . 4)
+
+(280 . 1)
+
+(281 . 0))
+
+U-uh, what a banzai! I reduced font in the middle knowingly for you did not get heart attack. It is not a paper 
+exactly, and the second dotted pairs tells that it is my block "Line".
+
+But it is rather strange. Maybe it is a collection?
+
+(setq ssd nil)
+
+(vlax-for x (car (reverse sss)) 
+
+(setq ssd (append ssd (list x))))
+
+We get:
+
+(#<VLA-OBJECT IAcadLWPolyline 06195fa4>)
+
+Exactly, collection. But with only one polyline in it. And the first door into model is a collection too.
+
+(setq ssd nil)
+
+(vlax-for x (car sss)
+
+(setq ssd (append ssd (list x))))
+
+We get:
+
+(#<VLA-OBJECT IAcadBlockReference 06194d94>)
+
+It is my block with a line.
+
+Let'ss return to block-collection. And what is the door 360?
+
+(entget (cdr (assoc 360 (entget (vlax-vla-object->ename (car (reverse sss)))))))
+
+((-1 . <Entity name: 7efdd0d0>)
+
+(0 . "DICTIONARY")
+
+(330 . <Entity name: 7efdd080>)
+
+(5 . "11A")
+
+(100 . "AcDbDictionary")
+
+(280 . 1)
+
+(281 . 1)
+
+(3 . "ACAD_ENHANCEDBLOCK")
+
+(360 . <Entity name: 7efdd0d8>)
+
+(3 . "AcDbDynamicBlockRoundTripPurgePreventer")
+
+(360 . <Entity name: 7efdd138>))
+
+Two doors 360 more. Let's look into the first one:
+
+(entget
+
+(cdr (assoc 360 
+(entget (cdr (assoc 360 (entget (vlax-vla-object->ename (car (reverse sss)))))))
+)))
+
+((-1 . <Entity name: 7efdd0d8>)
+
+(0 . "ACAD_EVALUATION_GRAPH")
+
+(5 . "11B")
+
+(102 . "{ACAD_REACTORS") (330 . <Entity name: 7efdd0d0>) (102 . "}")
+
+(330 . <Entity name: 7efdd0d0>)
+
+(100 . "AcDbEvalGraph")
+
+(96 . 4)
+
+(97 . 4)
+
+(91 . 0) (93 . 32) (95 . 1) (360 . <Entity name: 7efdd0e8>) (92 . 0) (92 . 0) (92 . 1) (92 . 2)
+
+(91 . 1) (93 . 32) (95 . 2) (360 . <Entity name: 7efdd0f0>) (92 . -1) (92 . -1) (92 . 0) (92 . 0)
+
+(91 . 2) (93 . 32) (95 . 3) (360 . <Entity name: 7efdd0f8>) (92 . 1) (92 . 1) (92 . -1) (92 . -1)
+
+(91 . 3) (93 . 32) (95 . 4) (360 . <Entity name: 7efdd100>) (92 . 2) (92 . 2) (92 . -1) (92 . -1)
+
+(92 . 0) (93 . 0) (94 . 1) (91 . 1) (91 . 0) (92 . -1) (92 . -1) (92 . -1) (92 . -1) (92 . -1)
+
+(92 . 1) (93 . 0) (94 . 1) (91 . 0) (91 . 2) (92 . -1) (92 . -1) (92 . -1) (92 . 2) (92 . -1)
+
+(92 . 2) (93 . 0) (94 . 1) (91 . 0) (91 . 3) (92 . -1) (92 . -1) (92 . 1) (92 . -1) (92 . -1)
+
+Bah! Known place!
+
+That's what I seeked. Let's create a chart:
+
+Enter into the main entrance
+
+└> Next - to ActiveDocument room
+
+└> Next - to Blocks collection
+
+└> Find block with required name
+
+└> Get from DXF description dotted pair 360 - (0 . "DICTIONARY")
+
+└> Hence - pair 360 - (0 . "ACAD_EVALUATION_GRAPH")
+
+And the most interesting: getting block by its effective name and going down to the cellar (as I wrote in the 
+beginning) gives us the same door as entering from the collection: (-1 . <Entity name: 7efdd0d8>), 
+but through block editor we will get different door number.
+
+So we have three ways to come into the room with block parameters. Let us go somewhat deeper. To parameters 
+themselves. There is only one parameter - Visibility Set, and we'll step into it.
+
+(setq eval-graf (entget
+
+(cdr (assoc 360
+
+(entget (cdr (assoc 360 (entget (vlax-vla-object->ename (car (reverse sss)))))))
+
+))))
+
+(entget (cdr (assoc 360 eval-graf)))
+
+We get:
+
+((-1 . <Entity name: 7efdd0e8>)
+
+(0 . "BLOCKVISIBILITYPARAMETER")
+
+(330 . <Entity name: 7efdd0d8>)
+
+(5 . "11D")
+
+(100 . "AcDbEvalExpr")
+
+(90 . 1)
+
+(98 . 27)
+
+(99 . 1)
+
+(100 . "AcDbBlockElement")
+
+(300 . "Visibility State")
+
+(98 . 27)
+
+(99 . 1)
+
+(1071 . 16) (100 . "AcDbBlockParameter")
+
+(280 . 1)
+
+(281 . 0)
+
+(100 . "AcDbBlock1PtParameter")
+
+(1010 561.266 110.92 0.0)
+
+(93 . 2)
+
+(170 . 0)
+
+(171 . 0)
+
+(100 . "AcDbBlockVisibilityParameter")
+
+(281 . 1)
+
+(301 . "Visibility")
+
+(302 . "")
+
+(91 . 0)
+
+(93 . 1)
+
+(331 . <Entity name: 7efdd0c0>)
+
+(92 . 1)
+
+(303 . "VisibilityState0") (94 . 1) (332 . <Entity name: 7efdd0c0>)
+
+(95 . 0))
+
+Now I will cite text from the topic "Creation of additional 
+Visibilty Set parameters in dynamic blocks" at dwg.ru. (Children, step along the wall and do pee-pee. While grown up 
+aunts and uncles are reading my scribbles there is some time. Later you won't have it.)
+
+...
+
+Let's consider the codes:
+
+Starting from the code -1 and up to code 302 only two codes are interesting: 300 and 301.
+
+300 is Parameter name from the list Visibility Set object properties. If you open block editor and highlight Visibility 
+Set manually then you will find this parameter in the properties list and will be able to modify it.
+
+301 in the same place is Visibility label. It's what we see as written on the object Visibility Set in block editor.
+
+302 in the same place is Visibility description. It is a string too. Label in block properties list, names for the 
+drop-down list of Visibility Set. It is written to the left of the drop-down list.
+
+And running ahead: 303 is visiblity state name. Number of 303s is the same as number of these states.
+
+All the other codes to 91 are of no interest for pioneers in digging blocks.
+
+Code 91 is a current representation (Visibility State): 0 is a first one, 1 is a second one, etc.
+
+Code 93 (do not mix with code 93 at the beginning of the list) is a number of graphical and textual elements in the 
+block including attributes. General number of elements, that's to say.
+
+This code is followed by codes 331 with references to elements themselves. There are no properties in the list. What for 
+the list is I will tell later.
+
+Code 92 is a number of representations in the current Visibility Set.
+
+And now the most interesting.
+
+Code 303 is a representation name (the very first representation in the list is numbered with 0).
+
+Code 94 is a number of elements in the representation.
+
+Codes 332 are pointers to the elements visible in this representation.
+
+Code 95 is a number of properties visible in this representation (Visibility Set property is not counted).
+
+And if besides Visibility Set there are any properties more then further codes 333 with pointers to these properties 
+follow.
+
+If representations are numerous then records 303, 94, 332s, 95, 333s are repeated.
+
+If there aare no elements in the representation (that is (94 . 0)), then there are no codes 332. If representation has 
+no properties (that is (95 . 0)), then there are no codes 333 either.
+
+And now shortly what and why is done.
+
+The full block elements list as well as its properties list is necessary to switch visibility off while passing from one 
+representation to another, and elements list in a record with representation name is needed to switch visibility on. 
+That is AutoCAD while every switching firstly switches off all that is in the record with codes 331 and all the 
+properties, and then using record with codes 332 and 95 after the dotted pair with representation name switches on all 
+that is shown there.
+
+I removed single element from the list of all the elements and from the list of elements in the representation record 
+(having changed values od pairs 93 and 94 to less numbers), and everything works just so. There is a real possibility to 
+manage some block elements from one BLOCKVISIBILITYPARAMETER and some from another, and they will not interfere with 
+each other (only if there are no identic elements in common lists).
+
+The fact that block editor is unable to handke several Visibility Sets is not harmful, with the help of a simple propram 
+all is arranged in the best way.
+
+If one opens entity with entget function in block editor space then one will find that its code -1 is the same as code 
+331 and 332 in this dictionary. Codes 360 of functions in the ACAD_EVALUATION_GRAPH dictionary are identic to codes 333 
+in BLOCKVISIBILITYPARAMETER dictionary.
+
+...
+
+Mapping parameters in block editor space and in ACAD_EVALUATION_GRAPH will be given later on. What you see in the 
+topic is not a fine solution.
+
+Previous | Next
+
+NP CAD Page | Articles 
+|| Introduction | 1 | 2 
+| 3 | 4 | 5 
+| 6 | 7 | 9 
+| 10 | 11 | 12
+|| Russian

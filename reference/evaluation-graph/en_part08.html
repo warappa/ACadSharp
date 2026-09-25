@@ -1,0 +1,490 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+  <META NAME="Keywords" CONTENT="Andrey Lazebny, dynamic blocks, AutoCAD, AutoLISP">
+<title>Mysteries of Autodesk's Caves (part 8)</title>
+</head>
+
+<body bgcolor=#000000 alink=#FF0066 vlink=#FF0066 link=#0099FF>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod07e.htm">7</a> | <a href="tainypod09e.htm">9</a> 
+| <a href="tainypod10e.htm">10</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod08.htm">Russian</a></p>
+
+<FONT SIZE=5>
+<P align=center><B>A.Lazebny. Mysteries of Autodesk's Caves</B></P></FONT>
+<font size=4><P align=center><B>Part 8. Where block elements are buried</B></P></FONT>
+<P>But what is a castle without picture galleries? Or without statues? Where are collections of weapons, armours, 
+hunting trophies? All is present. Any somewhat valuable thing gets in our castle to a collection. Even thing copies go 
+to collections. One can dare to say that all the things in the castle belong to one or another collection. Even there 
+are collections of collections.</p>
+<p>Postage stamp that is not rare is really an entity. And if you gathered a stamp collection of some country and for 
+some year then the simplest and not rare stamp is required for the collection. Without this stamp your collection will 
+not be full and not so valuable. And when you gathered stamps for several years and for several countries then it will 
+be collection of collections.</p>
+<p>Blocks are important things and after creation they are not hanged. Copies are being hanged there. In general all the 
+castle system is designed in ssuch a manner that whatever you want the castle tries to give you a copy instead of 
+original. The original lies in a store and for free view is inaccessible.</p>
+<p>Our next aim is to go to originals store and to find there necessary block. I'll make reservation in advance. On the 
+facade only one block is hanging and nothing else (see <a href="../Download/DblockSample2007.zip">DblockSample2007.dwg</a>). 
+It has a line and a Visibility Set. That is the block is dynamic.</p>
+<p>The castle has its main door. Before we climbed into the castle through the doors attached to it in additional 
+buildings but now we will try to come in through the main door. This door can be evoked only with one incantation but 
+from any place and you need not to point to anything (so, forgot... See in the sorcerers book. Aha!).</p>
+<p><font color=#FFFF00>(vlax-get-acad-object)</font><br>
+We see <font color=#66FFFF>#&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;</font> - vla-door.<br>
+We do <font color=#FFFF00>(vlax-vla-object-&gt;ename (vlax-get-acad-object))</font>.<br>
+We see <font color=#66FFFF>nil</font>. <font color=#66FFFF>Nil</font> is a subtle mockery of the castle or its creators. 
+In some cases it denotes that everything ended well, in other cases it means vacuum (even not 0, but something that deos 
+not exist). In our case I got it indeed. Hence Not all the doors can be named! We'll remember.</p>
+<p>Then we apply other incantation returning to us a list of all the object's properties. It affects only on vla-doors.<br>
+<font color=#FFFF00>(vlax-dump-object (vlax-get-acad-object))</font><br>
+If we add after the name an English letter <font color=#FFFF00>Ò</font>, then as a suppliment we'll get methods to be 
+applied to this room. I will remind that methods are incantations acting only to definite rooms.<br>
+<font color=#FFFF00>(vlax-dump-object (vlax-get-acad-object) T)</font></p>
+<p>What a misfortune: apart from <font color=#FFFF00>entget</font> we do not receive anything real to be saved in memory 
+and to be used later but only echo that you hear but can't touch.</p>
+<p><font color=#66FFFF>
+; IAcadApplication: An instance of the AutoCAD application<br>
+; Property values:<br>
+; ActiveDocument = #&lt;VLA-OBJECT IAcadDocument 01400420&gt;<br>
+; Application (RO) = #&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;<br>
+; Caption (RO) = &quot;AutoCAD 2007 - [Drawing1.dwg]&quot;<br>
+; Documents (RO) = #&lt;VLA-OBJECT IAcadDocuments 05e6c3b0&gt;<br>
+; FullName (RO) = &quot;C:\\Program Files\\AutoCAD 2007\\acad.exe&quot;<br>
+; Height = 774<br>
+; HWND (RO) = 1704798<br>
+; LocaleId (RO) = 1033<br>
+; MenuBar (RO) = #&lt;VLA-OBJECT IAcadMenuBar 05e71044&gt;<br>
+; MenuGroups (RO) = #&lt;VLA-OBJECT IAcadMenuGroups 01408948&gt;<br>
+; Name (RO) = &quot;AutoCAD&quot;<br>
+; Path (RO) = &quot;C:\\Program Files\\AutoCAD 2007&quot;<br>
+; Preferences (RO) = #&lt;VLA-OBJECT IAcadPreferences 05e738dc&gt;<br>
+; StatusId (RO) = ...Indexed contents not shown...<br>
+; VBE (RO) = #&lt;VLA-OBJECT VBE 01b95aa4&gt;<br>
+; Version (RO) = &quot;17.0s (LMS Tech)&quot;<br>
+; Visible = -1<br>
+; Width = 1288<br>
+; WindowLeft = -4<br>
+; WindowState = 3<br>
+; WindowTop = -4<br>
+; Methods supported:<br>
+; Eval (1)<br>
+; GetAcadState ()<br>
+; GetInterfaceObject (1)<br>
+; ListArx ()<br>
+; LoadArx (1)<br>
+; LoadDVB (1)<br>
+; Quit ()<br>
+; RunMacro (1)<br>
+; UnloadArx (1)<br>
+; UnloadDVB (1)<br>
+; Update ()<br>
+; ZoomAll ()<br>
+; ZoomCenter (2)<br>
+; ZoomExtents ()<br>
+; ZoomPickWindow ()<br>
+; ZoomPrevious ()<br>
+; ZoomScaled (2)<br>
+; ZoomWindow (2)<br>
+T</font>
+</p>
+<p>Here is all as in office of a firm: accounts department, personnel department, functional department, etc. We are 
+interested in the study <font color=#FF9900>ActiveDocument</font>. It is a department managing current model and paper 
+spaces and other important things. To enter through the door you should pronounce incantation including door name:<br>
+<font color=#FFFF00>(vla-get-ActiveDocument (vlax-get-acad-object))</font><br>
+We get <font color=#66FFFF>#&lt;VLA-OBJECT IAcadDocument 01400420&gt;</font> or something similar. Cifers at the end change 
+all the time.<br>
+Let's look at all there.<br>
+<font color=#FFFF00>(vlax-dump-object (vla-get-ActiveDocument (vlax-get-acad-object)) T)</font></p>
+<p><font color=#66FFFF>
+; IAcadDocument: An AutoCAD drawing<br>
+; Property values:<br>
+; Active (RO) = -1<br>
+; ActiveDimStyle = #&lt;VLA-OBJECT IAcadDimStyle 05e73a84&gt;<br>
+; ActiveLayer = #&lt;VLA-OBJECT IAcadLayer 05e75904&gt;<br>
+; ActiveLayout = #&lt;VLA-OBJECT IAcadLayout 05e73544&gt;<br>
+; ActiveLinetype = #&lt;VLA-OBJECT IAcadLineType 05e73914&gt;<br>
+; ActiveMaterial = #&lt;VLA-OBJECT IAcadMaterial 05e76074&gt;<br>
+; ActivePViewport = AutoCAD: No active viewport in paperspace<br>
+; ActiveSelectionSet (RO) = #&lt;VLA-OBJECT IAcadSelectionSet 05e76b24&gt;<br>
+; ActiveSpace = 1<br>
+; ActiveTextStyle = #&lt;VLA-OBJECT IAcadTextStyle 05e6f714&gt;<br>
+; ActiveUCS = AutoCAD: Null object ID<br>
+; ActiveViewport = #&lt;VLA-OBJECT IAcadViewport 05e6f494&gt;<br>
+; Application (RO) = #&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;<br>
+; Blocks (RO) = #&lt;VLA-OBJECT IAcadBlocks 05e6c094&gt;<br>
+; Database (RO) = #&lt;VLA-OBJECT IAcadDatabase 05e6ef14&gt;<br>
+; Dictionaries (RO) = #&lt;VLA-OBJECT IAcadDictionaries 05e6e0e4&gt;<br>
+; DimStyles (RO) = #&lt;VLA-OBJECT IAcadDimStyles 05e6ff84&gt;<br>
+; ElevationModelSpace = 0.0<br>
+; ElevationPaperSpace = 0.0<br>
+; FileDependencies (RO) = #&lt;VLA-OBJECT IAcadFileDependencies 05e6ed04&gt;<br>
+; FullName (RO) = &quot;&quot;<br>
+; Groups (RO) = #&lt;VLA-OBJECT IAcadGroups 05e760d4&gt;<br>
+; Height = 434<br>
+; HWND (RO) = 656614<br>
+; Layers (RO) = #&lt;VLA-OBJECT IAcadLayers 05e768c4&gt;<br>
+; Layouts (RO) = #&lt;VLA-OBJECT IAcadLayouts 05e763f4&gt;<br>
+; Limits = (0.0 0.0 420.0 297.0)<br>
+; Linetypes (RO) = #&lt;VLA-OBJECT IAcadLineTypes 05e77a34&gt;<br>
+; Materials (RO) = #&lt;VLA-OBJECT IAcadMaterials 05e77df4&gt;<br>
+; ModelSpace (RO) = #&lt;VLA-OBJECT IAcadModelSpace 01299e34&gt;<br>
+; MSpace = AutoCAD: Invalid mode<br>
+; Name (RO) = &quot;Drawing1.dwg&quot;<br>
+; ObjectSnapMode = 0<br>
+; PaperSpace (RO) = #&lt;VLA-OBJECT IAcadPaperSpace 012a2cc4&gt;<br>
+; Path (RO) = &quot;C:\\Documents and Settings\\user\\My documents&quot;<br>
+; PickfirstSelectionSet (RO) = #&lt;VLA-OBJECT IAcadSelectionSet 02681e14&gt;<br>
+; Plot (RO) = #&lt;VLA-OBJECT IAcadPlot 012a27fc&gt;<br>
+; PlotConfigurations (RO) = #&lt;VLA-OBJECT IAcadPlotConfigurations 012a4f64&gt;<br>
+; Preferences (RO) = #&lt;VLA-OBJECT IAcadDatabasePreferences 05e6eee4&gt;<br>
+; ReadOnly (RO) = 0<br>
+; RegisteredApplications (RO) = #&lt;VLA-OBJECT IAcadRegisteredApplications 05e78b64&gt;<br>
+; Saved (RO) = -1<br>
+; SectionManager (RO) = Îøèáêà<br>
+; SelectionSets (RO) = #&lt;VLA-OBJECT IAcadSelectionSets 05e76034&gt;<br>
+; SummaryInfo (RO) = #&lt;VLA-OBJECT IAcadSummaryInfo 05e6ecd4&gt;<br>
+; TextStyles (RO) = #&lt;VLA-OBJECT IAcadTextStyles 05e78014&gt;<br>
+; UserCoordinateSystems (RO) = #&lt;VLA-OBJECT IAcadUCSs 05e784a4&gt;<br>
+; Utility (RO) = #&lt;VLA-OBJECT IAcadUtility 05e78534&gt;<br>
+; Viewports (RO) = #&lt;VLA-OBJECT IAcadViewports 05e78264&gt;<br>
+; Views (RO) = #&lt;VLA-OBJECT IAcadViews 05e79ab4&gt;<br>
+; Width = 1210<br>
+; WindowState = 3<br>
+; WindowTitle (RO) = &quot;Drawing1.dwg&quot;<br>
+; Methods supported:<br>
+; Activate ()<br>
+; AuditInfo (1)<br>
+; Close (2)<br>
+; CopyObjects (3)<br>
+; EndUndoMark ()<br>
+; Export (3)<br>
+; GetVariable (1)<br>
+; HandleToObject (1)<br>
+; Import (3)<br>
+; LoadShapeFile (1)<br>
+; New (1)<br>
+; ObjectIdToObject (1)<br>
+; Open (2)<br>
+; PurgeAll ()<br>
+; Regen (1)<br>
+; Save ()<br>
+; SaveAs (3)<br>
+; SendCommand (1)<br>
+; SetVariable (2)<br>
+; StartUndoMark ()<br>
+; Wblock (2)<br>
+T</font></p>
+<p>I am looking at this number of studies and thinking: &quot;Yes, bureaucracy came here&quot;. But we are interested in all 
+connected with blocks. We go to <font color=#FF9900>Blocks</font> room.<br>
+<font color=#FFFF00>(vlax-dump-object (vla-get-Blocks (vla-get-ActiveDocument (vlax-get-acad-object))) T)</font></p>
+<p><font color=#66FFFF>
+; IAcadBlocks: The collection of all blocks in the drawing<br>
+; Property values:<br>
+; Application (RO) = #&lt;VLA-OBJECT IAcadApplication 00d077b4&gt;<br>
+; Count (RO) = 3<br>
+; Document (RO) = #&lt;VLA-OBJECT IAcadDocument 01400420&gt;<br>
+; Handle (RO) = &quot;1&quot;<br>
+; HasExtensionDictionary (RO) = 0<br>
+; ObjectID (RO) = 2130271240<br>
+; ObjectName (RO) = &quot;AcDbBlockTable&quot;<br>
+; OwnerID (RO) = 0<br>
+; Methods supported:<br>
+; Add (2)<br>
+; Delete ()<br>
+; GetExtensionDictionary ()<br>
+; GetXData (3)<br>
+; Item (1)<br>
+; SetXData (2)<br>
+T</font></p>
+<p>And to my great surprise a bald oldman sits behind the door and picks his ears with a match. And there are no shelves 
+with blocks, no doors to these shelves - it is empty. Two doors exist but we are not silly, this a trick. And so any 
+bureaucratic system looks like. Passing from room to room, dripping with sweat, and getting nothing at the end.</p>
+<p>But this a room with an explicit title &quot;BLOCKS&quot;! What is there in the upper line? <font color=#66FFFF>IAcadBlocks: 
+The collection of all blocks in the drawing.</font><br>
+It means &quot;This a collection of all blocks in the castle&quot;. And where are they? It turns out to be a decoration for 
+hiding. There is an incatation that removes scales from the eyes and you can see all the elements lying in such hidden 
+places. It is
+<font color=#FFFF00>vlax-for</font>. Bit it should be applied to the door itself, more precisely - to the blocks store 
+where the door leads.</p>
+<p>Incantation itself does not affect to everything, thus it only helps to apply incantations to the elements lying in 
+the store. But since all the incantations require reference to object name then after <font color=#FFFF00>vlax-for</font> 
+you need a symbol representing object in incantation. For example:</p>
+<p><font color=#FFFF00>
+(setq sss nil)<br>
+(vlax-for x (vla-get-Blocks (vla-get-ActiveDocument (vlax-get-acad-object)))<br>
+<dd>(setq sss (append sss (list x))))</font></p>
+<p>Why are your eyes open so wide? Look into the book, look! Where is your sorcery book? I won't rewrite it all here. It 
+comprises 919 pages in petty handwriting!<br>
+Who reads this and &quot;Wer versteht nicht&quot;, fly to the shop for literature.<br>
+And for those who understand subject I'll go on. we got a list of all that lies in the stockroom.</p>
+<p><font color=#66FFFF>
+(<br>
+#&lt;VLA-OBJECT IAcadModelSpace 06192424&gt;<br>
+#&lt;VLA-OBJECT IAcadPaperSpace 06191854&gt;<br>
+#&lt;VLA-OBJECT IAcadBlock 06190444&gt;<br>
+#&lt;VLA-OBJECT IAcadBlock 061921f4&gt;<br>
+)</font></p>
+<p>First:<br>
+<font color=#00CC00>- A special Block object containing all model space entities</font><br>
+So, space is not my fable. To say in brief, originals for objects collected in block and seen on facade.</p>
+<p>Second:<br>
+<font color=#00CC00>- A special Block object containing all the entities in the active paper space layout</font></p>
+<p>Clumsy, but space on paper does not require explanations. Or requires?<br>
+Boy! Leave your nose alone! Uncle tells about space!<br>
+For God's sake excuse me, who lets children to go for excursion without parents?<br>
+So I'll continue.</p>
+<p>Third and fourth:<br>
+<font color=#00CC00>- A block definition containing a name and a set of objects</font></p>
+<p>I have only one block on facade. Where is a second block from? Unconsidered, however. As on any store we find some 
+goods beyond account. Let's look at the first one in the list.<br>
+<font color=#FFFF00>(entget (vlax-vla-object-&gt;ename (cadr (reverse sss))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdbef0&gt;)<br>
+(0 . &quot;BLOCK_RECORD&quot;)<br>
+(330 . &lt;Entity name: 7efdbc08&gt;)<br>
+(5 . &quot;D6&quot;)<br>
+(100 . &quot;AcDbSymbolTableRecord&quot;)<br>
+(100 . &quot;AcDbBlockTableRecord&quot;)<br>
+(2 . &quot;*Paper_Space0&quot;)<br>
+(360 . &lt;Entity name: 7efdbf00&gt;)<br>
+(340 . &lt;Entity name: 7efdbef8&gt;)<br>
+(70 . 0)<br>
+(280 . 1)<br>
+(281 . 0))</font></p>
+<p>My God! Do you see pair with 2? Again paper? Second door to the same paper? What did I forget there? And so many 
+doors more. If go deeper into the catacombs one can hear very far shouts of strayed tourists. I will not go there.<br>
+Do you think that I have visited everything and am burdening you with excessible listings? Not at all. I am climbing and 
+putting in a diary. I know of course what I seek but for a long time I was not here.<br>
+So, the last block:<br>
+<font color=#FFFF00>(entget (vlax-vla-object-&gt;ename (car (reverse sss))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7ef97080&gt;)<br>
+(0 . &quot;BLOCK_RECORD&quot;)<br>
+(330 . &lt;Entity name: 7ef95c08&gt;)<br>
+(5 . &quot;110&quot;)<br>
+(100 . &quot;AcDbSymbolTableRecord&quot;)<br>
+(100 . &quot;AcDbBlockTableRecord&quot;)<br>
+(2 . &quot;ëèíèÿ&quot;)<br>
+(360 . &lt;Entity name: 7ef97088&gt;)<br>
+(340 . &lt;Entity name: 0&gt;)<br>
+<span style="font-size: 2.0pt; font-family: Arial">
+(310 . 
+&quot;2800000020000000200000000100080000000000000400000000000000000000000000000000000000000000000080000080000000808000800000008000800080800000C0C0C000C0DCC000F0CAA6000020400000206000002080000020A0000020C0000020E00000400000004020000040400000406000004080000040A0&quot;)
+<br>(310 . 
+&quot;000040C0000040E00000600000006020000060400000606000006080000060A0000060C0000060E00000800000008020000080400000806000008080000080A0000080C0000080E00000A0000000A0200000A0400000A0600000A0800000A0A00000A0C00000A0E00000C0000000C0200000C0400000C0600000C0800000C0&quot;)
+<br>(310 . 
+&quot;A00000C0C00000C0E00000E0000000E0200000E0400000E0600000E0800000E0A00000E0C00000E0E00040000000400020004000400040006000400080004000A0004000C0004000E00040200000402020004020400040206000402080004020A0004020C0004020E000404000004040200040404000404060004040800040&quot;)
+<br>(310 . 
+&quot;40A0004040C0004040E00040600000406020004060400040606000406080004060A0004060C0004060E00040800000408020004080400040806000408080004080A0004080C0004080E00040A0000040A0200040A0400040A0600040A0800040A0A00040A0C00040A0E00040C0000040C0200040C0400040C0600040C08000&quot;)
+<br>(310 . 
+&quot;40C0A00040C0C00040C0E00040E0000040E0200040E0400040E0600040E0800040E0A00040E0C00040E0E00080000000800020008000400080006000800080008000A0008000C0008000E00080200000802020008020400080206000802080008020A0008020C0008020E00080400000804020008040400080406000804080&quot;)
+<br>(310 . 
+&quot;008040A0008040C0008040E00080600000806020008060400080606000806080008060A0008060C0008060E00080800000808020008080400080806000808080008080A0008080C0008080E00080A0000080A0200080A0400080A0600080A0800080A0A00080A0C00080A0E00080C0000080C0200080C0400080C0600080C0&quot;)
+<br>(310 . 
+&quot;800080C0A00080C0C00080C0E00080E0000080E0200080E0400080E0600080E0800080E0A00080E0C00080E0E000C0000000C0002000C0004000C0006000C0008000C000A000C000C000C000E000C0200000C0202000C0204000C0206000C0208000C020A000C020C000C020E000C0400000C0402000C0404000C0406000C0&quot;)
+<br>(310 . 
+&quot;408000C040A000C040C000C040E000C0600000C0602000C0604000C0606000C0608000C060A000C060C000C060E000C0800000C0802000C0804000C0806000C0808000C080A000C080C000C080E000C0A00000C0A02000C0A04000C0A06000C0A08000C0A0A000C0A0C000C0A0E000C0C00000C0C02000C0C04000C0C06000&quot;)
+<br>(310 . 
+&quot;C0C08000C0C0A000F0FBFF00A4A0A000808080000000FF0000FF000000FFFF00FF000000FF00FF00FFFF0000FFFFFF0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . 
+&quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . 
+&quot;0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000&quot;)
+<br>(310 . 
+&quot;000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFFFF0000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . 
+&quot;FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000&quot;)
+<br>(310 . 
+&quot;000000000000000000FFFFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF0000000000000000000000000000000000000000000000000000000000000000FFFF00000000000000000000000000&quot;)
+<br>(310 . 
+&quot;00000000000000000000000000000000000000FFFF00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . 
+&quot;00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+<br>(310 . 
+&quot;0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000&quot;)
+</span><br>
+(102 . &quot;{BLKREFS&quot;) (331 . &lt;Entity name: 7ef970a0&gt;) (102 . &quot;}&quot;)<br>
+(70 . 4)<br>
+(280 . 1)<br>
+(281 . 0))</font></p>
+<p>U-uh, what a banzai! I reduced font in the middle knowingly for you did not get heart attack. It is not a paper 
+exactly, and the second dotted pairs tells that it is my block &quot;Line&quot;.<br>
+But it is rather strange. Maybe it is a collection?</p>
+<p><font color=#FFFF00>
+(setq ssd nil)<br>
+(vlax-for x (car (reverse sss)) <br>
+<dd>(setq ssd (append ssd (list x))))</font></p>
+<p>We get:<br>
+<font color=#66FFFF>(#&lt;VLA-OBJECT IAcadLWPolyline 06195fa4&gt;)</font><br>
+Exactly, collection. But with only one polyline in it. And the first door into model is a collection too.</p>
+<p><font color=#FFFF00>
+(setq ssd nil)<br>
+(vlax-for x (car sss)<br>
+<dd>(setq ssd (append ssd (list x))))</font></p>
+<p>We get:<br>
+<font color=#66FFFF>(#&lt;VLA-OBJECT IAcadBlockReference 06194d94&gt;)</font><br>
+It is my block with a line.</p>
+<p>Let'ss return to block-collection. And what is the door 360?</p>
+<p><font color=#FFFF00>(entget (cdr (assoc 360 (entget (vlax-vla-object-&gt;ename (car (reverse sss)))))))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd0d0&gt;)<br>
+(0 . &quot;DICTIONARY&quot;)<br>
+(330 . &lt;Entity name: 7efdd080&gt;)<br>
+(5 . &quot;11A&quot;)<br>
+(100 . &quot;AcDbDictionary&quot;)<br>
+(280 . 1)<br>
+(281 . 1)<br>
+(3 . &quot;ACAD_ENHANCEDBLOCK&quot;)<br>
+(360 . &lt;Entity name: 7efdd0d8&gt;)<br>
+(3 . &quot;AcDbDynamicBlockRoundTripPurgePreventer&quot;)<br>
+(360 . &lt;Entity name: 7efdd138&gt;))</font></p>
+<p>Two doors 360 more. Let's look into the first one:<br>
+<font color=#FFFF00>
+(entget<br>
+<dd>(cdr (assoc 360 
+<dd><dd>(entget (cdr (assoc 360 (entget (vlax-vla-object-&gt;ename (car (reverse sss)))))))
+<dd><dd><dd>)))</font></p>
+<p><font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd0d8&gt;)<br>
+(0 . &quot;ACAD_EVALUATION_GRAPH&quot;)<br>
+(5 . &quot;11B&quot;)<br>
+(102 . &quot;{ACAD_REACTORS&quot;) (330 . &lt;Entity name: 7efdd0d0&gt;) (102 . &quot;}&quot;)<br>
+(330 . &lt;Entity name: 7efdd0d0&gt;)<br>
+(100 . &quot;AcDbEvalGraph&quot;)<br>
+(96 . 4)<br>
+(97 . 4)<br>
+(91 . 0) (93 . 32) (95 . 1) (360 . &lt;Entity name: 7efdd0e8&gt;) (92 . 0) (92 . 0) (92 . 1) (92 . 2)<br>
+(91 . 1) (93 . 32) (95 . 2) (360 . &lt;Entity name: 7efdd0f0&gt;) (92 . -1) (92 . -1) (92 . 0) (92 . 0)<br>
+(91 . 2) (93 . 32) (95 . 3) (360 . &lt;Entity name: 7efdd0f8&gt;) (92 . 1) (92 . 1) (92 . -1) (92 . -1)<br>
+(91 . 3) (93 . 32) (95 . 4) (360 . &lt;Entity name: 7efdd100&gt;) (92 . 2) (92 . 2) (92 . -1) (92 . -1)<br>
+(92 . 0) (93 . 0) (94 . 1) (91 . 1) (91 . 0) (92 . -1) (92 . -1) (92 . -1) (92 . -1) (92 . -1)<br>
+(92 . 1) (93 . 0) (94 . 1) (91 . 0) (91 . 2) (92 . -1) (92 . -1) (92 . -1) (92 . 2) (92 . -1)<br>
+(92 . 2) (93 . 0) (94 . 1) (91 . 0) (91 . 3) (92 . -1) (92 . -1) (92 . 1) (92 . -1) (92 . -1)</font></p>
+<p>Bah! Known place!<br>
+That's what I seeked. Let's create a chart:<br>
+<font color=#00CC00>Enter into the main entrance<br>
+<dd>&#9492;&gt; Next - to ActiveDocument room<br>
+<dd><dd>&#9492;&gt; Next - to Blocks collection<br>
+<dd><dd><dd>&#9492;&gt; Find block with required name<br>
+<dd><dd><dd><dd>&#9492;&gt; Get from DXF description dotted pair 360 - (0 . &quot;DICTIONARY&quot;)<br>
+<dd><dd><dd><dd><dd>&#9492;&gt; Hence - pair 360 - (0 . &quot;ACAD_EVALUATION_GRAPH&quot;)</font></p>
+<p>And the most interesting: getting block by its effective name and going down to the cellar (as I wrote in the 
+beginning) gives us the same door as entering from the collection: <font color=#00CC00>(-1 . &lt;Entity name: 7efdd0d8&gt;)</font>, 
+but through block editor we will get different door number.</p>
+<p>So we have three ways to come into the room with block parameters. Let us go somewhat deeper. To parameters 
+themselves. There is only one parameter - <font color=#FF9900>Visibility Set</font>, and we'll step into it.</p>
+<p><font color=#FFFF00>
+(setq eval-graf (entget<br>
+<dd>(cdr (assoc 360<br>
+<dd><dd>(entget (cdr (assoc 360 (entget (vlax-vla-object-&gt;ename (car (reverse sss)))))))<br>
+<dd><dd>))))<br>
+(entget (cdr (assoc 360 eval-graf)))</font></p>
+<p>We get:<br>
+<font color=#66FFFF>
+((-1 . &lt;Entity name: 7efdd0e8&gt;)<br>
+(0 . &quot;BLOCKVISIBILITYPARAMETER&quot;)<br>
+(330 . &lt;Entity name: 7efdd0d8&gt;)<br>
+(5 . &quot;11D&quot;)<br>
+(100 . &quot;AcDbEvalExpr&quot;)<br>
+(90 . 1)<br>
+(98 . 27)<br>
+(99 . 1)<br>
+(100 . &quot;AcDbBlockElement&quot;)<br>
+(300 . &quot;Visibility State&quot;)<br>
+(98 . 27)<br>
+(99 . 1)<br>
+(1071 . 16) (100 . &quot;AcDbBlockParameter&quot;)<br>
+(280 . 1)<br>
+(281 . 0)<br>
+(100 . &quot;AcDbBlock1PtParameter&quot;)<br>
+(1010 561.266 110.92 0.0)<br>
+(93 . 2)<br>
+(170 . 0)<br>
+(171 . 0)<br>
+(100 . &quot;AcDbBlockVisibilityParameter&quot;)<br>
+(281 . 1)<br>
+(301 . &quot;Visibility&quot;)<br>
+(302 . &quot;&quot;)<br>
+(91 . 0)<br>
+(93 . 1)<br>
+(331 . &lt;Entity name: 7efdd0c0&gt;)<br>
+(92 . 1)<br>
+(303 . &quot;VisibilityState0&quot;) (94 . 1) (332 . &lt;Entity name: 7efdd0c0&gt;)<br>
+(95 . 0))</font></p>
+<p>Now I will cite text from <a href="http://forum.dwg.ru/showthread.php?t=24597">the topic &quot;Creation of additional 
+Visibilty Set parameters in dynamic blocks&quot;</a> at dwg.ru. (Children, step along the wall and do pee-pee. While grown up 
+aunts and uncles are reading my scribbles there is some time. Later you won't have it.)</p>
+<p><i><b>...<br>
+Let's consider the codes:<br>
+Starting from the code -1 and up to code 302 only two codes are interesting: 300 and 301.<br>
+300 is Parameter name from the list Visibility Set object properties. If you open block editor and highlight Visibility 
+Set manually then you will find this parameter in the properties list and will be able to modify it.<br>
+301 in the same place is Visibility label. It's what we see as written on the object Visibility Set in block editor.<br>
+302 in the same place is Visibility description. It is a string too. Label in block properties list, names for the 
+drop-down list of Visibility Set. It is written to the left of the drop-down list.<br>
+And running ahead: 303 is visiblity state name. Number of 303s is the same as number of these states.<br>
+All the other codes to 91 are of no interest for pioneers in digging blocks.<br>
+Code 91 is a current representation (Visibility State): 0 is a first one, 1 is a second one, etc.<br>
+Code 93 (do not mix with code 93 at the beginning of the list) is a number of graphical and textual elements in the 
+block including attributes. General number of elements, that's to say.<br>
+This code is followed by codes 331 with references to elements themselves. There are no properties in the list. What for 
+the list is I will tell later.<br>
+Code 92 is a number of representations in the current Visibility Set.<br>
+And now the most interesting.<br>
+Code 303 is a representation name (the very first representation in the list is numbered with 0).<br>
+Code 94 is a number of elements in the representation.<br>
+Codes 332 are pointers to the elements visible in this representation.<br>
+Code 95 is a number of properties visible in this representation (Visibility Set property is not counted).<br>
+And if besides Visibility Set there are any properties more then further codes 333 with pointers to these properties 
+follow.<br>
+If representations are numerous then records 303, 94, 332s, 95, 333s are repeated.<br>
+If there aare no elements in the representation (that is (94 . 0)), then there are no codes 332. If representation has 
+no properties (that is (95 . 0)), then there are no codes 333 either.<br>
+And now shortly what and why is done.<br>
+The full block elements list as well as its properties list is necessary to switch visibility off while passing from one 
+representation to another, and elements list in a record with representation name is needed to switch visibility on. 
+That is AutoCAD while every switching firstly switches off all that is in the record with codes 331 and all the 
+properties, and then using record with codes 332 and 95 after the dotted pair with representation name switches on all 
+that is shown there.<br>
+I removed single element from the list of all the elements and from the list of elements in the representation record 
+(having changed values od pairs 93 and 94 to less numbers), and everything works just so. There is a real possibility to 
+manage some block elements from one BLOCKVISIBILITYPARAMETER and some from another, and they will not interfere with 
+each other (only if there are no identic elements in common lists).<br>
+The fact that block editor is unable to handke several Visibility Sets is not harmful, with the help of a simple propram 
+all is arranged in the best way.<br>
+If one opens entity with entget function in block editor space then one will find that its code -1 is the same as code 
+331 and 332 in this dictionary. Codes 360 of functions in the ACAD_EVALUATION_GRAPH dictionary are identic to codes 333 
+in BLOCKVISIBILITYPARAMETER dictionary.<br>
+...
+</b></i></p>
+<p>Mapping parameters in block editor space and in ACAD_EVALUATION_GRAPH will be given later on. What you see in the 
+topic is not a fine solution.
+</p>
+</font>
+
+<hr>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="tainypod07e.htm">Previous</a> | <a href="tainypod09e.htm">Next</a></p>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod07e.htm">7</a> | <a href="tainypod09e.htm">9</a> 
+| <a href="tainypod10e.htm">10</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod08.htm">Russian</a></p>
+</font>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-2957013-1";
+urchinTracker();
+</script>
+</body>
+
+</html>

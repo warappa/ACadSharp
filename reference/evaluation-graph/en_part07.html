@@ -1,0 +1,75 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+  <META NAME="Keywords" CONTENT="Andrey Lazebny, dynamic blocks, AutoCAD, AutoLISP">
+<title>Mysteries of Autodesk's Caves (part 7)</title>
+</head>
+
+<body bgcolor=#000000 alink=#FF0066 vlink=#FF0066 link=#0099FF>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod08e.htm">8</a> | <a href="tainypod09e.htm">9</a> 
+| <a href="tainypod10e.htm">10</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod07.htm">Russian</a></p>
+
+<FONT SIZE=5>
+<P align=center><B>A.Lazebny. Mysteries of Autodesk's Caves</B></P></FONT>
+<font size=4><P align=center><B>Part 7. Secrets of ACAD_EVALUATION_GRAPH room</B></P></FONT>
+<P>Many users tried many times to swap parameter names in the block properties list but with no success. In what 
+sequence these parameters were created - in that sequence they were displayed. My first task was to swap parameters.</p>
+<p>As I have already written by swapping 95th pairs I razed all. Then I swapped two whole records but they returned to 
+their places. Then I swapped only record numbers - numbers returned to theirs places and swapped records. Aha, I think, 
+it is a step forward. Looked at block properties list - no visible changes. How is that? I changed dictionary in fact, 
+hence somewhere something should vary! I got angry and started pestering block. I began with the swapped property. I 
+opened the door leading to that room and dully made <font color=#FFFF00>Entmod</font> to all the room (entmod in 
+AutoLISP means &quot;modify entity&quot;). AutoCAD swore - he said that dotted pairs like 1071 and 1010 were unknown. I removed 
+them and made <font color=#FFFF00>Entmod</font> again. I see - hurrah! Block properties have swapped places!</p>
+<p>Now I'll do a digression. The point is that there is such an incantation (it is rather intricate so I will miss it) 
+that gets all the properties list for the dynamic block - but after swapping block properties the list remained 
+unchanged! Then I shaked the whole block having made <font color=#FFFF00>Entmod</font> to it. And after that everything 
+changed everywhere as it should be.</p>
+<p>Now, after long time I think that I would probably shake the whole block at once? I don't know. Let another digger 
+test this.</p>
+<p>My second sick callus was that block editor allowed only one Visibility Set. If you have for examle 10 objects that 
+you want to see in all different visibility states then you must describe 1024 visibilities. And if one could insert 
+many Visibility Sets then having taken 10 sets you would need to describe object visibilty only in one of them, that is 
+10 times instead of 1024. And as one Visibility Set can describe visibility for a group of elements the total number of 
+combinations is beyond all mind calculations.</p>
+<p>I tried to create a new Visibility Set parameter and created it as a copy of an existing one. Inserted. My block 
+acquired an amazing quality. If I come in there is no Visibility Set. If I come out it exists in model and in block 
+properties. I come in again - none. I set a new one - it is taken. I come out - one more appeared. I come in - again 
+desappeared. And so on ad infinitum. Thus I conclude that I may have many such parameters.</p>
+<p>After some time I removed my &quot;clumsy&quot; Visibility Set and - oh, wonder! Block editor saw the first in order Visibility 
+Set. Moreover editor began to work with it as it should. And since I was already able to swap places of block property 
+parameters it turned out that moving to very top any of added Visibility Sets alows to edit it with block editor.</p>
+<p>I think that I made not a &quot;clumsy&quot; Visibility Set but AutoCAD correctly inserts only its own-made parameters and my 
+dummies simply confuse AutoCAD. But it gave some harvest. In such a form my incantations work. Firstly I do a dummy then 
+I put it to AutoCAD whose head gets confused and it allows to add one more parameter, and when I remove my dummy, 
+AutoCAD recovers and allows to add parameter and when I remove my dummy AutoCAD comes to its senses, but it cannot undo 
+and is to handle what it made itself.
+</p>
+</font>
+
+<hr>
+<font face=arial size=2 color=#FFFFFF>
+<p align=center><a href="tainypod06e.htm">Previous</a> | <a href="tainypod08e.htm">Next</a></p>
+<p align=center><a href="../eng.html" >NP CAD Page</a> | <a href="../articlese.htm">Articles</a> 
+|| <a href="tainypode.htm">Introduction</a> | <a href="tainypod01e.htm">1</a> | <a href="tainypod02e.htm">2</a> 
+| <a href="tainypod03e.htm">3</a> | <a href="tainypod04e.htm">4</a> | <a href="tainypod05e.htm">5</a> 
+| <a href="tainypod06e.htm">6</a> | <a href="tainypod08e.htm">8</a> | <a href="tainypod09e.htm">9</a> 
+| <a href="tainypod10e.htm">10</a> | <a href="tainypod11e.htm">11</a> | <a href="tainypod12e.htm">12</a>
+|| <a href="tainypod07.htm">Russian</a></p>
+</font>
+
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-2957013-1";
+urchinTracker();
+</script>
+</body>
+
+</html>
