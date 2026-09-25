@@ -39,6 +39,9 @@ public partial class NodeGraphView : UserControl
 
     private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
     private static readonly IBrush HoverBrush = new SolidColorBrush(MediaColor.Parse("#FFD0D0D0"));
+    private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
+    private static readonly IBrush EdgeLabelBrush = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80));
+    private static readonly IBrush EdgeHoverBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
 
     private double _scale = 1.0;
     private double _naturalWidth;
@@ -65,6 +68,10 @@ public partial class NodeGraphView : UserControl
     // Edge labels that still need their final position (the text width is
     // only known after the first layout pass): (mask, label, start.X, end.X).
     private readonly List<(Border mask, TextBlock label, double startX, double endX)> _pendingLabels = new();
+
+    // The first edge line that has a label (for the hover-verification
+    // helper, which needs a point on a labeled edge).
+    private Path? _firstLabeledEdge;
 
     /// <summary>
     /// Raised when a node box is clicked, with the node's full dump.
@@ -359,6 +366,37 @@ public partial class NodeGraphView : UserControl
         return null;
     }
 
+    /// <summary>
+    /// Verification helper (used by the --screenshot interact mode): a point
+    /// on the first edge that has a label (the midpoint of its bezier, in
+    /// the given root's coordinate system), or null if no such edge exists.
+    /// </summary>
+    public Point? GetLabeledEdgePoint(Visual root)
+    {
+        if (_firstLabeledEdge is null
+            || _firstLabeledEdge.Data is not PathGeometry geometry
+            || geometry.Figures.Count == 0)
+        {
+            return null;
+        }
+
+        var figure = geometry.Figures[0];
+        if (figure.Segments.Count == 0 || figure.Segments[0] is not BezierSegment bezier)
+        {
+            return null;
+        }
+
+        // The midpoint of the cubic bezier (t = 0.5):
+        // (1-t)^3 P0 + 3(1-t)^2 t P1 + 3(1-t) t^2 P2 + t^3 P3,
+        // i.e. weights 1/8, 3/8, 3/8, 1/8.
+        Point at = new Point(
+            0.125 * figure.StartPoint.X + 0.375 * bezier.Point1.X
+            + 0.375 * bezier.Point2.X + 0.125 * bezier.Point3.X,
+            0.125 * figure.StartPoint.Y + 0.375 * bezier.Point1.Y
+            + 0.375 * bezier.Point2.Y + 0.125 * bezier.Point3.Y);
+        return _firstLabeledEdge.TranslatePoint(at, root);
+    }
+
     private static IBrush GetAccentBrush()
     {
         // Respect the accent the user picked in the settings flyout
@@ -435,6 +473,7 @@ public partial class NodeGraphView : UserControl
         _panX = 0;
         _panY = 0;
         _pendingLabels.Clear();
+        _firstLabeledEdge = null;
         GraphCanvas.Children.Clear();
 
         if (model.Nodes.Count == 0)
@@ -683,7 +722,7 @@ public partial class NodeGraphView : UserControl
         var line = new Path
         {
             Data = geometry,
-            Stroke = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A)),
+            Stroke = EdgeLineBrush,
             StrokeThickness = 1.5,
         };
         if (edge.IsDashed)
@@ -700,37 +739,6 @@ public partial class NodeGraphView : UserControl
             arrowhead = AddArrowhead(end, direction);
         }
 
-        // Hover: thicken the edge (and arrowhead) and show a floating tooltip.
-        line.PointerEntered += (_, e) =>
-        {
-            line.StrokeThickness = 3;
-            line.Stroke = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
-            if (arrowhead is not null)
-            {
-                arrowhead.Fill = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
-            }
-            ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
-        };
-        line.PointerExited += (_, _) =>
-        {
-            line.StrokeThickness = 1.5;
-            line.Stroke = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
-            if (arrowhead is not null)
-            {
-                arrowhead.Fill = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
-            }
-            HoverTip.IsVisible = false;
-        };
-        line.PointerMoved += (_, e) =>
-        {
-            if (HoverTip.IsVisible)
-            {
-                Point p = e.GetPosition(Overlay);
-                Canvas.SetLeft(HoverTip, p.X + 14);
-                Canvas.SetTop(HoverTip, p.Y + 14);
-            }
-        };
-
         // Label at the midpoint; the opaque background mask (the canvas
         // background color) keeps the label readable where it overlaps the
         // edge line. The label is added to the canvas AFTER the node boxes
@@ -740,13 +748,14 @@ public partial class NodeGraphView : UserControl
         // once the text width is known: centered on the edge midpoint,
         // shifted left so the right edge stays at least 16px clear of the
         // arrowhead tip.
+        TextBlock? label = null;
         if (edge.Label.Length > 0)
         {
             Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
-            var label = new TextBlock
+            label = new TextBlock
             {
                 FontSize = 11,
-                Foreground = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80)),
+                Foreground = EdgeLabelBrush,
                 Text = edge.Label,
             };
             var labelMask = new Border
@@ -766,7 +775,53 @@ public partial class NodeGraphView : UserControl
             _pendingLabels.Add((labelMask, label, start.X, end.X));
             // NOTE: the mask is added to the canvas in SetGraph, after the
             // node boxes (so it draws above them).
+            if (_firstLabeledEdge is null)
+            {
+                _firstLabeledEdge = line;
+            }
         }
+
+        // Hover: thicken the edge (and highlight the arrowhead and the
+        // label) and show a floating tooltip.
+        line.PointerEntered += (_, e) =>
+        {
+            line.StrokeThickness = 3;
+            line.Stroke = EdgeHoverBrush;
+            if (arrowhead is not null)
+            {
+                arrowhead.Fill = EdgeHoverBrush;
+            }
+            if (label is not null)
+            {
+                label.Foreground = EdgeHoverBrush;
+                label.FontWeight = FontWeight.SemiBold;
+            }
+            ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+        };
+        line.PointerExited += (_, _) =>
+        {
+            line.StrokeThickness = 1.5;
+            line.Stroke = EdgeLineBrush;
+            if (arrowhead is not null)
+            {
+                arrowhead.Fill = EdgeLineBrush;
+            }
+            if (label is not null)
+            {
+                label.Foreground = EdgeLabelBrush;
+                label.FontWeight = FontWeight.Normal;
+            }
+            HoverTip.IsVisible = false;
+        };
+        line.PointerMoved += (_, e) =>
+        {
+            if (HoverTip.IsVisible)
+            {
+                Point p = e.GetPosition(Overlay);
+                Canvas.SetLeft(HoverTip, p.X + 14);
+                Canvas.SetTop(HoverTip, p.Y + 14);
+            }
+        };
     }
 
     private void ShowNodeTip(GraphNodeInfo node, Point at)
@@ -815,7 +870,7 @@ public partial class NodeGraphView : UserControl
         var arrowhead = new Path
         {
             Data = geometry,
-            Fill = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A)),
+            Fill = EdgeLineBrush,
         };
         GraphCanvas.Children.Add(arrowhead);
         return arrowhead;

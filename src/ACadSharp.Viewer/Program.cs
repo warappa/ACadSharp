@@ -6,6 +6,7 @@ using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Input;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
@@ -439,6 +440,19 @@ static class Screenshot
                             nodeViewer.Graph.FitToView();
                             Pump(10);
                             Log($"after fit: {nodeViewer.Graph.ScrollStateForVerification}");
+
+                            // 8. Hover a point on the first labeled edge: the edge,
+                            //    its arrowhead, and its label must all highlight
+                            //    (the label-highlight regression check).
+                            Point? edgePoint = nodeViewer.Graph.GetLabeledEdgePoint(nodeViewer);
+                            Log($"labeled edge point={edgePoint}");
+                            if (edgePoint is not null)
+                            {
+                                var hit = nodeViewer.InputHitTest(edgePoint.Value, enabledElementsOnly: false);
+                                Log($"edge hover hit={hit?.GetType().Name}");
+                                nodeViewer.MouseMove(edgePoint.Value);
+                                Pump(10);
+                            }
                         }
 
                         // Reproduce the reported bug: zoom in with the wheel in the
