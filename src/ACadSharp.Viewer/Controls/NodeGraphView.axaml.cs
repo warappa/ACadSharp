@@ -40,6 +40,12 @@ public partial class NodeGraphView : UserControl
     private double _naturalWidth;
     private double _naturalHeight;
 
+    // Zoom anchor offset, applied once the scroll extent has caught up with
+    // the new canvas size (see ZoomAt): the ScrollViewer clamps Offset
+    // against its current Extent, which is only refreshed by the layout
+    // pass, so the anchor must not be set before that pass has run.
+    private Vector? _pendingZoomOffset;
+
     // Interaction state: _panStartOffset is null while not panning; a box
     // press first parks in _pendingSelectBox and becomes a pan once the
     // pointer moves past the drag threshold.
@@ -94,6 +100,21 @@ public partial class NodeGraphView : UserControl
             if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
             {
                 ApplyScale();
+            }
+
+            // Apply the deferred zoom anchor (from ZoomAt) now that this
+            // layout pass has refreshed the scroll extent to match the new
+            // canvas size, so the ScrollViewer's offset clamp sees the
+            // current extent. Clear it first so the layout pass triggered
+            // by the offset change does not re-apply it.
+            if (_pendingZoomOffset.HasValue)
+            {
+                Vector anchor = _pendingZoomOffset.Value;
+                _pendingZoomOffset = null;
+                if (anchor != Scroll.Offset)
+                {
+                    Scroll.Offset = anchor;
+                }
             }
 
             PositionPendingLabels();
@@ -192,7 +213,13 @@ public partial class NodeGraphView : UserControl
         double ratio = newScale / _scale;
         _scale = newScale;
         ApplyScale();
-        Scroll.Offset = new Vector(
+
+        // The anchor offset is applied from the LayoutUpdated handler, once
+        // the layout pass has refreshed the scroll extent to match the new
+        // canvas size: ScrollViewer clamps Offset against its current
+        // Extent, which is still the pre-zoom value here, and setting the
+        // anchor now would clamp it to the stale extent and lose the anchor.
+        _pendingZoomOffset = new Vector(
             (at.X + oldOffset.X) * ratio - at.X,
             (at.Y + oldOffset.Y) * ratio - at.Y);
     }
@@ -301,6 +328,16 @@ public partial class NodeGraphView : UserControl
     public string ScrollStateForVerification =>
         $"scroll bounds={Scroll.Bounds} extent={Scroll.Extent} viewport={Scroll.Viewport} " +
         $"offset={Scroll.Offset} canvas={GraphCanvas.Bounds}";
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot zoombug mode): scroll
+    /// the content to the top-left corner (offset 0,0), as the user would
+    /// by dragging both scrollbars to their start.
+    /// </summary>
+    public void ScrollToOriginForVerification()
+    {
+        Scroll.Offset = new Vector(0, 0);
+    }
 
     /// <summary>
     /// Verification helper (used by the --screenshot mode): the center of

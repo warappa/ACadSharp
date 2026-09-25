@@ -201,6 +201,7 @@ static class Screenshot
         bool applyHc = mode == "hc";
         bool applyAccent = mode == "accent";
         bool interact = mode == "interact";
+        bool zoombug = mode == "zoombug";
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -336,7 +337,7 @@ static class Screenshot
 
                 // Optionally open the node viewer dialog and capture it instead.
                 TopLevel? dialog = null;
-                if (openDialog || interact)
+                if (openDialog || interact || zoombug)
                 {
                     dialog = window.OpenFirstDynamicNodeViewer();
                     Log($"node viewer opened={dialog is not null}");
@@ -438,6 +439,43 @@ static class Screenshot
                             nodeViewer.Graph.FitToView();
                             Pump(10);
                             Log($"after fit: {nodeViewer.Graph.ScrollStateForVerification}");
+                        }
+
+                        // Reproduce the reported bug: zoom in with the wheel in the
+                        // empty area BELOW the nodes until the content overflows the
+                        // viewport (scrollbars appear), then scroll back to the
+                        // top-left. The nodes must come back into view.
+                        if (zoombug && dialog is NodeViewerDialog zoomBugViewer)
+                        {
+                            void PumpZb(int n)
+                            {
+                                for (int i = 0; i < n; i++)
+                                {
+                                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                                    Thread.Sleep(10);
+                                }
+                            }
+
+                            Log($"initial: scale={zoomBugViewer.Graph.Scale} {zoomBugViewer.Graph.ScrollStateForVerification}");
+                            Log($"initial: box0 center={zoomBugViewer.Graph.GetNodeBoxCenter(zoomBugViewer, 0)}");
+
+                            // The nodes sit in the top-left; zoom in the empty area
+                            // below/right of them (mirrors the user's report).
+                            Point low = zoomBugViewer.Graph.TranslatePoint(
+                                new Point(700, 450), zoomBugViewer) ?? new Point(700, 450);
+                            for (int i = 0; i < 8; i++)
+                            {
+                                zoomBugViewer.MouseWheel(low, new Vector(0, 1));
+                                PumpZb(5);
+                                Log($"wheel {i + 1}/8: scale={zoomBugViewer.Graph.Scale:0.###} {zoomBugViewer.Graph.ScrollStateForVerification}");
+                            }
+                            Log($"after zoom: box0 center={zoomBugViewer.Graph.GetNodeBoxCenter(zoomBugViewer, 0)}");
+
+                            // The user scrolls to the top-left (both scrollbars to start).
+                            zoomBugViewer.Graph.ScrollToOriginForVerification();
+                            PumpZb(10);
+                            Log($"after scroll-to-origin: scale={zoomBugViewer.Graph.Scale:0.###} {zoomBugViewer.Graph.ScrollStateForVerification}");
+                            Log($"after scroll-to-origin: box0 center={zoomBugViewer.Graph.GetNodeBoxCenter(zoomBugViewer, 0)}");
                         }
                     }
                 }
