@@ -46,6 +46,7 @@ static class Screenshot
         bool interact = mode == "interact";
         bool zoombug = mode == "zoombug";
         bool minimap = mode == "minimap";
+        bool fingerprint = mode == "fingerprint";
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -181,7 +182,7 @@ static class Screenshot
 
                 // Optionally open the node viewer dialog and capture it instead.
                 TopLevel? dialog = null;
-                if (openDialog || interact || zoombug || minimap)
+                if (openDialog || interact || zoombug || minimap || fingerprint)
                 {
                     dialog = window.OpenFirstDynamicNodeViewer();
                     Log($"node viewer opened={dialog is not null}");
@@ -203,6 +204,18 @@ static class Screenshot
                         if (dialog is NodeViewerDialog nodeViewerForMiniMapLog)
                         {
                             Log($"minimap: {nodeViewerForMiniMapLog.MiniMap.MiniMapStateForVerification}");
+                        }
+
+                        // Fingerprint: capture a deterministic text snapshot of the
+                        // rendered scene (node layout positions, edge connections,
+                        // transform state) for regression verification. Written to a
+                        // file alongside the PNG so it can be diffed across refactors.
+                        if (fingerprint && dialog is NodeViewerDialog fpViewer)
+                        {
+                            string fp = fpViewer.Graph.GetSceneFingerprint();
+                            string fpPath = Path.ChangeExtension(outputPath, ".fingerprint.txt");
+                            File.WriteAllText(fpPath, fp);
+                            Log($"fingerprint saved: {fpPath}");
                         }
 
                         // Verification: simulate a user through the real input

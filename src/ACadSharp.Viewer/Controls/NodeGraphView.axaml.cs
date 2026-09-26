@@ -9,6 +9,7 @@ using MediaColor = Avalonia.Media.Color;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace ACadSharp.Viewer.Controls;
 
@@ -411,6 +412,53 @@ public partial class NodeGraphView : UserControl
             0.125 * figure.StartPoint.Y + 0.375 * bezier.Point1.Y
             + 0.375 * bezier.Point2.Y + 0.125 * bezier.Point3.Y);
         return _firstLabeledEdge.TranslatePoint(at, root);
+    }
+
+    /// <summary>
+    /// A deterministic text fingerprint of the rendered scene (node layout
+    /// positions, edge connections, and the transform state) for regression
+    /// verification. Captured before a refactor and diffed after; a change
+    /// indicates a rendering regression. Node positions are in the canvas's
+    /// content coordinate system (independent of the zoom/pan transform), so
+    /// the layout part of the fingerprint is stable across transform changes.
+    /// </summary>
+    public string GetSceneFingerprint()
+    {
+        if (_lastModel is null)
+        {
+            return "no model";
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"nodes={_lastModel.Nodes.Count}");
+        foreach (GraphNodeInfo node in _lastModel.Nodes.OrderBy(n => n.Index))
+        {
+            if (_nodeContainers.TryGetValue(node.Index, out var container))
+            {
+                double x = Canvas.GetLeft(container);
+                double y = Canvas.GetTop(container);
+                double h = _boxHeights.GetValueOrDefault(node.Index, 0);
+                sb.AppendLine($"  n[{node.Index}] {node.Kind} pos=({x:0.##},{y:0.##}) h={h:0.##}");
+            }
+            else
+            {
+                sb.AppendLine($"  n[{node.Index}] {node.Kind} pos=?");
+            }
+        }
+
+        sb.AppendLine($"edges={_lastModel.Edges.Count}");
+        foreach (GraphEdgeInfo edge in _lastModel.Edges)
+        {
+            sb.AppendLine($"  e from={edge.FromIndex} to={edge.ToIndex} label={edge.Label} dashed={edge.IsDashed} fb={edge.IsFeedback}");
+        }
+
+        Vector pan = _transform.ScrollOffset;
+        Vector natural = _transform.NaturalSize;
+        Rect visible = _transform.GetVisibleContentRect();
+        sb.AppendLine($"scale={_transform.Scale:0.###} pan=({pan.X:0.##},{pan.Y:0.##}) natural={natural.X:0}x{natural.Y:0}");
+        sb.AppendLine($"visible=({visible.X:0.##},{visible.Y:0.##},{visible.Width:0.##},{visible.Height:0.##})");
+
+        return sb.ToString();
     }
 
     /// <summary>
