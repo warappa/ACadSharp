@@ -1,4 +1,5 @@
 using ACadSharp;
+using ACadSharp.Tables;
 using ACadSharp.Viewer.Controls;
 using ACadSharp.Viewer.Services;
 using Avalonia;
@@ -50,6 +51,13 @@ public partial class MainWindow : Window
     private string? _lastPath;
     private List<BlockTreeNode> _fullTree = new();
     private FAMenuFlyout? _settingsFlyout;
+
+    // Per-block evaluation models for the current document. BlockModel.Create
+    // activates and evaluates the shared EvaluationGraph (a side effect), so
+    // re-running it on every selection of the same block is wasted work; this
+    // cache makes the first evaluation sticky and is cleared when a new
+    // document is loaded.
+    private readonly Dictionary<BlockRecord, BlockModel?> _blockModelCache = new();
 
     public MainWindow()
     {
@@ -234,6 +242,7 @@ public partial class MainWindow : Window
     public async Task LoadFileAsync(string path)
     {
         _isBusy = true;
+        _blockModelCache.Clear();
         _lastPath = path;
         ReloadButton.IsEnabled = true;
         LoadingRing.IsVisible = true;
@@ -286,6 +295,23 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// Returns the evaluation model for a block, building it on first use and
+    /// caching it so the shared EvaluationGraph is evaluated at most once per
+    /// block per document (re-selecting a block is then free).
+    /// </summary>
+    private BlockModel? GetBlockModel(BlockRecord block)
+    {
+        if (_blockModelCache.TryGetValue(block, out BlockModel? cached))
+        {
+            return cached;
+        }
+
+        BlockModel? model = BlockModel.Create(block);
+        _blockModelCache[block] = model;
+        return model;
+    }
+
     private async Task<string?> PickFileAsync()
     {
         if (this.StorageProvider is null)
@@ -318,7 +344,7 @@ public partial class MainWindow : Window
         _selectedNode = node;
         BlockHeader.Text = node.Block.Name + (node.Block.IsDynamic ? " (dynamic)" : string.Empty);
 
-        BlockModel? model = BlockModel.Create(node.Block);
+        BlockModel? model = GetBlockModel(node.Block);
         if (model is null)
         {
             EvalStatus.Text = "Not a dynamic block (no evaluation graph).";
@@ -407,7 +433,7 @@ public partial class MainWindow : Window
             return null;
         }
 
-        BlockModel? model = BlockModel.Create(target.Block);
+        BlockModel? model = GetBlockModel(target.Block);
         if (model is null || model.Properties.Count == 0 || target.Block.EvaluationGraph is not { } graph)
         {
             return null;
