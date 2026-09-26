@@ -41,6 +41,8 @@ public partial class MiniMapView : UserControl
     private double _scale;
     private double _offsetX;
     private double _offsetY;
+    private double _contentW;
+    private double _contentH;
 
     private GraphModel.Result? _lastModel;
     private Rect? _lastViewRect;
@@ -110,8 +112,10 @@ public partial class MiniMapView : UserControl
 
     /// <summary>
     /// Positions the visible-area rectangle for the given rectangle in the
-    /// main view's content coordinates (the rectangle may extend beyond the
-    /// content bounds when the view is panned far away; the canvas clips it).
+    /// main view's content coordinates. The rectangle is intersected with
+    /// the content bounds: when the visible area is larger than the whole
+    /// graph the border sits at the content edge, and when the view is
+    /// panned entirely off the graph the indicator is hidden.
     /// </summary>
     public void SetViewRect(Rect rect)
     {
@@ -134,16 +138,16 @@ public partial class MiniMapView : UserControl
         // The content bounds must match NodeGraphView's natural size, so
         // the visible-area rectangle (computed in the main view's content
         // coordinates) maps onto the mini-map correctly.
-        double contentW = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
-        double contentH = Math.Max(
+        _contentW = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
+        _contentH = Math.Max(
             model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + Margin * 2,
             300);
 
         double w = Math.Max(1, MiniCanvas.Bounds.Width);
         double h = Math.Max(1, MiniCanvas.Bounds.Height);
-        _scale = Math.Min(w / contentW, h / contentH);
-        _offsetX = (w - contentW * _scale) / 2;
-        _offsetY = (h - contentH * _scale) / 2;
+        _scale = Math.Min(w / _contentW, h / _contentH);
+        _offsetX = (w - _contentW * _scale) / 2;
+        _offsetY = (h - _contentH * _scale) / 2;
 
         // Node positions (the same layout as the main view, plus the
         // user-drag offset so a dragged node follows in the overview).
@@ -234,12 +238,33 @@ public partial class MiniMapView : UserControl
             MiniCanvas.Children.Add(_viewRect);
         }
 
-        Point at = Map(new Point(rect.Value.X, rect.Value.Y));
-        _viewRect.Width = Math.Max(2, rect.Value.Width * _scale);
-        _viewRect.Height = Math.Max(2, rect.Value.Height * _scale);
-        Canvas.SetLeft(_viewRect, at.X);
-        Canvas.SetTop(_viewRect, at.Y);
-        _viewRect.IsVisible = true;
+        // Map to mini-map coordinates and intersect with the content
+        // bounds: the visible area can be larger than the whole graph
+        // (then the indicator's border sits at the content edge) or, when
+        // panned far away, entirely outside it (then the indicator is
+        // hidden).
+        double x0 = _offsetX;
+        double y0 = _offsetY;
+        double x1 = _offsetX + _contentW * _scale;
+        double y1 = _offsetY + _contentH * _scale;
+        double rx0 = rect.Value.X * _scale + _offsetX;
+        double ry0 = rect.Value.Y * _scale + _offsetY;
+        double rx1 = rx0 + rect.Value.Width * _scale;
+        double ry1 = ry0 + rect.Value.Height * _scale;
+        double x = Math.Clamp(rx0, x0, x1);
+        double y = Math.Clamp(ry0, y0, y1);
+        double w = Math.Min(rx1, x1) - x;
+        double h = Math.Min(ry1, y1) - y;
+        _viewRect.IsVisible = w > 0 && h > 0;
+        if (!_viewRect.IsVisible)
+        {
+            return;
+        }
+
+        _viewRect.Width = Math.Max(2, w);
+        _viewRect.Height = Math.Max(2, h);
+        Canvas.SetLeft(_viewRect, x);
+        Canvas.SetTop(_viewRect, y);
     }
 
     private Point Map(Point content) =>

@@ -417,9 +417,11 @@ static class Screenshot
                             //    the graph content, the empty viewport area was a
                             //    dead zone the scroll viewer consumed): the canvas
                             //    now fills the viewport, so the wheel must zoom at
-                            //    a point in the empty area too.
+                            //    a point in the empty area too. The point must be
+                            //    clear of the mini-map (bottom-right corner), so
+                            //    use the top-right of the viewport.
                             Point empty = nodeViewer.Graph.TranslatePoint(
-                                new Point(700, 400), nodeViewer) ?? new Point(700, 400);
+                                new Point(850, 56), nodeViewer) ?? new Point(850, 56);
                             double scaleBefore = nodeViewer.Graph.Scale;
                             nodeViewer.MouseWheel(empty, new Vector(0, 1));
                             nodeViewer.MouseWheel(empty, new Vector(0, 1));
@@ -428,16 +430,20 @@ static class Screenshot
 
                             // 6. Regression check (issue: drag-pan was dead in the
                             //    empty area): zoom in until the content overflows the
-                            //    viewport, then drag-pan from the empty area.
+                            //    viewport, then drag-pan (right button) from a point
+                            //    in the viewport: the pan must work regardless of
+                            //    what is under the pointer.
                             while (nodeViewer.Graph.Scale < 2.0)
                             {
                                 nodeViewer.Graph.ZoomIn();
                                 Pump(5);
                             }
                             Vector offsetBefore = nodeViewer.Graph.ScrollOffsetForVerification;
-                            nodeViewer.MouseDown(empty, Avalonia.Input.MouseButton.Left);
-                            nodeViewer.MouseMove(empty + new Vector(100, 60));
-                            nodeViewer.MouseUp(empty + new Vector(100, 60), Avalonia.Input.MouseButton.Left);
+                            // Right button: the canvas pan key (a left press
+                            // over the canvas does nothing).
+                            nodeViewer.MouseDown(empty, Avalonia.Input.MouseButton.Right);
+                            nodeViewer.MouseMove(empty + new Vector(30, 60));
+                            nodeViewer.MouseUp(empty + new Vector(30, 60), Avalonia.Input.MouseButton.Right);
                             Pump(10);
                             Log($"empty-area pan: offset {offsetBefore} -> {nodeViewer.Graph.ScrollOffsetForVerification}");
                             Log($"state: {nodeViewer.Graph.ScrollStateForVerification}");
@@ -483,9 +489,11 @@ static class Screenshot
                             Log($"initial: box0 center={zoomBugViewer.Graph.GetNodeBoxCenter(zoomBugViewer, 0)}");
 
                             // The nodes sit in the top-left; zoom in the empty area
-                            // below/right of them (mirrors the user's report).
+                            // below them (mirrors the user's report). The point
+                            // must be clear of the mini-map (bottom-right corner),
+                            // so use a point below the content, left of the map.
                             Point low = zoomBugViewer.Graph.TranslatePoint(
-                                new Point(700, 450), zoomBugViewer) ?? new Point(700, 450);
+                                new Point(300, 476), zoomBugViewer) ?? new Point(300, 476);
                             for (int i = 0; i < 8; i++)
                             {
                                 zoomBugViewer.MouseWheel(low, new Vector(0, 1));
