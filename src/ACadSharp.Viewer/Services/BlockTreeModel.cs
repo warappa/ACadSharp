@@ -22,18 +22,11 @@ public class BlockTreeNode
 
     public bool IsDynamic => Block.IsDynamic;
 
-    /// <summary>
-    /// True when this node was added as an extra root because the block was
-    /// unreachable from the normal roots (i.e. it is part of a reference cycle).
-    /// </summary>
-    public bool IsCycleRoot { get; }
-
     public List<BlockTreeNode> Children { get; } = new();
 
-    public BlockTreeNode(BlockRecord block, string? suffix = null, bool isCycleRoot = false)
+    public BlockTreeNode(BlockRecord block, string? suffix = null)
     {
         Block = block;
-        IsCycleRoot = isCycleRoot;
 
         string name = block.Name ?? "<unnamed>";
         if (block.IsDynamic)
@@ -112,7 +105,7 @@ public static class BlockTreeModel
         // pure reference cycle) is appended as an extra root, marked with ⟳.
         foreach (BlockRecord block in blocks.Where(b => !visited.Contains(b)))
         {
-            tree.Add(BuildNode(block, " ⟳", new List<BlockRecord> { block }, visited, isCycleRoot: true));
+            tree.Add(BuildNode(block, " ⟳", new List<BlockRecord> { block }, visited));
         }
 
         return tree;
@@ -122,11 +115,10 @@ public static class BlockTreeModel
         BlockRecord block,
         string? suffix,
         List<BlockRecord> path,
-        HashSet<BlockRecord> visited,
-        bool isCycleRoot = false)
+        HashSet<BlockRecord> visited)
     {
         visited.Add(block);
-        BlockTreeNode node = new(block, suffix, isCycleRoot);
+        BlockTreeNode node = new(block, suffix);
 
         // Distinct blocks this block inserts, with their reference counts.
         Dictionary<BlockRecord, int> childCounts = new();

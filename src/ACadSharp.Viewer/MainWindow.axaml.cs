@@ -18,7 +18,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Timers;
+using Avalonia.Threading;
 
 namespace ACadSharp.Viewer;
 
@@ -47,7 +47,7 @@ public partial class MainWindow : Window
     private BlockTreeNode? _selectedNode;
     private List<PropertyItem>? _properties;
     private bool _isBusy;
-    private Timer? _infoBarAutoClose;
+    private DispatcherTimer? _infoBarAutoClose;
     private string? _lastPath;
     private List<BlockTreeNode> _fullTree = new();
     private FAMenuFlyout? _settingsFlyout;
@@ -162,12 +162,12 @@ public partial class MainWindow : Window
 
     private async void OnOpenClick(object? sender, RoutedEventArgs e)
     {
-        _ = OpenFileAsync();
+        await OpenFileAsync();
     }
 
     private async void OnReloadClick(object? sender, RoutedEventArgs e)
     {
-        _ = ReloadAsync();
+        await ReloadAsync();
     }
 
     private async Task OpenFileAsync()
@@ -177,10 +177,19 @@ public partial class MainWindow : Window
             return;
         }
 
-        string? path = await PickFileAsync();
-        if (path != null)
+        try
         {
-            await LoadFileAsync(path);
+            // LoadFileAsync handles its own load errors; this only covers the
+            // file-dialog step (PickFileAsync), which the platform can throw.
+            string? path = await PickFileAsync();
+            if (path != null)
+            {
+                await LoadFileAsync(path);
+            }
+        }
+        catch (Exception ex)
+        {
+            SetStatus($"Failed to open a file: {ex.Message}", StatusKind.Error);
         }
     }
 
@@ -194,16 +203,16 @@ public partial class MainWindow : Window
         await LoadFileAsync(_lastPath);
     }
 
-    private void OnKeyDown(object? sender, KeyEventArgs e)
+    private async void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.Key == Key.O)
         {
-            _ = OpenFileAsync();
+            await OpenFileAsync();
             e.Handled = true;
         }
         else if (e.Key == Key.F5)
         {
-            _ = ReloadAsync();
+            await ReloadAsync();
             e.Handled = true;
         }
     }
@@ -614,7 +623,7 @@ public partial class MainWindow : Window
 
     private void ShowInfoBar(FAInfoBarSeverity severity, string title, string message)
     {
-        _infoBarAutoClose?.Dispose();
+        _infoBarAutoClose?.Stop();
         _infoBarAutoClose = null;
 
         InfoBar.Severity = severity;
@@ -626,18 +635,10 @@ public partial class MainWindow : Window
         if (severity == FAInfoBarSeverity.Success
             || severity == FAInfoBarSeverity.Informational)
         {
-            _infoBarAutoClose = new Timer(4000) { AutoReset = false };
-            _infoBarAutoClose.Elapsed += (_, _) =>
-            {
-                try
-                {
-                    _ = Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => InfoBar.IsOpen = false);
-                }
-                catch (InvalidOperationException)
-                {
-                    // App is shutting down; nothing to do.
-                }
-            };
+            // A DispatcherTimer runs on the UI thread, so no marshaling (and no
+            // shutdown try/catch) is needed to close the bar.
+            _infoBarAutoClose = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(4000) };
+            _infoBarAutoClose.Tick += (_, _) => InfoBar.IsOpen = false;
             _infoBarAutoClose.Start();
         }
     }
