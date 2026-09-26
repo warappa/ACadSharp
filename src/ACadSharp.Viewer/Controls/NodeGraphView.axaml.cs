@@ -41,6 +41,10 @@ public partial class NodeGraphView : UserControl
     // the hover/select interaction.
     private GraphTransform _transform = null!;
 
+    // The hover tooltip (a floating label that follows the pointer and
+    // describes the hovered node / port / edge).
+    private GraphTooltip _tooltip = null!;
+
     // Interaction state: a box press first parks in _pendingSelectBox and
     // becomes a pan once the pointer moves past the drag threshold.
     private Border? _pendingSelectBox;
@@ -139,6 +143,7 @@ public partial class NodeGraphView : UserControl
 
 		_transform = new GraphTransform(Scroll, GraphCanvas);
 		_transform.Changed = rect => ViewChanged?.Invoke(rect);
+		_tooltip = new GraphTooltip(HoverTip, HoverTipText);
 
 		InitializeComponentState();
 	}
@@ -762,11 +767,11 @@ public partial class NodeGraphView : UserControl
             SetBoxBorder(border, isTarget, inside);
             if (inside)
             {
-                ShowNodeTip(node, e.GetPosition(Overlay));
+                _tooltip.ShowNode(node, e.GetPosition(Overlay));
             }
             else
             {
-                HoverTip.IsVisible = false;
+                _tooltip.Hide();
             }
         };
         border.PointerCaptureLost += (_, _) =>
@@ -784,7 +789,7 @@ public partial class NodeGraphView : UserControl
 
             _hoverBox = border;
             SetBoxBorder(border, isTarget, true);
-            ShowNodeTip(node, e.GetPosition(Overlay));
+            _tooltip.ShowNode(node, e.GetPosition(Overlay));
         };
         border.PointerExited += (_, _) =>
         {
@@ -799,7 +804,7 @@ public partial class NodeGraphView : UserControl
             }
 
             SetBoxBorder(border, isTarget, false);
-            HoverTip.IsVisible = false;
+            _tooltip.Hide();
         };
 
         // Port circles and labels: input ports on the left edge, output
@@ -853,7 +858,7 @@ public partial class NodeGraphView : UserControl
                     edgeLine.StrokeThickness = 3;
                     edgeLine.Stroke = EdgeHoverBrush;
                 }
-                ShowPortTip(port, isInput, e.GetPosition(Overlay));
+                _tooltip.ShowPort(port, isInput, e.GetPosition(Overlay));
             };
             circle.PointerExited += (_, _) =>
             {
@@ -863,16 +868,11 @@ public partial class NodeGraphView : UserControl
                     edgeLine.StrokeThickness = 1.5;
                     edgeLine.Stroke = EdgeLineBrush;
                 }
-                HoverTip.IsVisible = false;
+                _tooltip.Hide();
             };
             circle.PointerMoved += (_, e) =>
             {
-                if (HoverTip.IsVisible)
-                {
-                    Point p = e.GetPosition(Overlay);
-                    Canvas.SetLeft(HoverTip, p.X + 14);
-                    Canvas.SetTop(HoverTip, p.Y + 14);
-                }
+                _tooltip.Move(e.GetPosition(Overlay));
             };
 
             // Permanent label: to the left of input ports, to the right of
@@ -907,12 +907,6 @@ public partial class NodeGraphView : UserControl
                 container.Children.Add(mask);
             }
         }
-    }
-
-    private void ShowPortTip(PortInfo port, bool isInput, Point at)
-    {
-        string side = isInput ? "input" : "output";
-        SetHoverTip($"port: {port.Name}\n({side} slot)", at);
     }
 
     /// <summary>
@@ -1046,7 +1040,7 @@ public partial class NodeGraphView : UserControl
                 label!.Foreground = EdgeHoverBrush;
                 label.FontWeight = FontWeight.SemiBold;
                 SetPortHighlight(line, true);
-                ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+                _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(Overlay));
             };
             labelMask.PointerExited += (_, _) =>
             {
@@ -1056,16 +1050,11 @@ public partial class NodeGraphView : UserControl
                 label!.Foreground = EdgeLabelBrush;
                 label.FontWeight = FontWeight.Normal;
                 SetPortHighlight(line, false);
-                HoverTip.IsVisible = false;
+                _tooltip.Hide();
             };
             labelMask.PointerMoved += (_, e) =>
             {
-                if (HoverTip.IsVisible)
-                {
-                    Point p = e.GetPosition(Overlay);
-                    Canvas.SetLeft(HoverTip, p.X + 14);
-                    Canvas.SetTop(HoverTip, p.Y + 14);
-                }
+                _tooltip.Move(e.GetPosition(Overlay));
             };
             // Provisional: centered on the midpoint, shifted a bit left; the
             // final position is set by PositionPendingLabels once the text
@@ -1099,7 +1088,7 @@ public partial class NodeGraphView : UserControl
                 label.FontWeight = FontWeight.SemiBold;
             }
             SetPortHighlight(line, true);
-            ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+            _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(Overlay));
         };
         line.PointerExited += (_, _) =>
         {
@@ -1115,7 +1104,7 @@ public partial class NodeGraphView : UserControl
                 label.FontWeight = FontWeight.Normal;
             }
             SetPortHighlight(line, false);
-            HoverTip.IsVisible = false;
+            _tooltip.Hide();
         };
         line.PointerMoved += (_, e) =>
         {
@@ -1218,13 +1207,13 @@ public partial class NodeGraphView : UserControl
         {
             line.StrokeThickness = 3;
             SetPortHighlight(line, true);
-            ShowEdgeTip(edge, fromNode, toNode, e.GetPosition(Overlay));
+            _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(Overlay));
         };
         line.PointerExited += (_, _) =>
         {
             line.StrokeThickness = 1.5;
             SetPortHighlight(line, false);
-            HoverTip.IsVisible = false;
+            _tooltip.Hide();
         };
         line.PointerMoved += (_, e) =>
         {
@@ -1235,46 +1224,6 @@ public partial class NodeGraphView : UserControl
                 Canvas.SetTop(HoverTip, p.Y + 14);
             }
         };
-    }
-
-    private void ShowNodeTip(GraphNodeInfo node, Point at)
-    {
-        SetHoverTip(GraphDrawing.BuildTooltip(node), at);
-    }
-
-    private void ShowEdgeTip(GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, Point at)
-    {
-        // The node's name (when it has one) leads the label, then the kind
-        // and index.
-        string tip = $"{NodeLabel(fromNode)}  →  {NodeLabel(toNode)}";
-        tip += edge.Label.Length > 0 ? $"\nport: {edge.Label}" : "\n(unlabeled connection)";
-        if (edge.IsDashed)
-        {
-            tip += "\n(lookup connection)";
-        }
-
-        SetHoverTip(tip, at);
-    }
-
-    private static string NodeLabel(GraphNodeInfo? node)
-    {
-        if (node is null)
-        {
-            return "?";
-        }
-
-        string? name = GraphDrawing.GetName(node.Expression);
-        return name is null
-            ? $"{node.Kind} #{node.Index}"
-            : $"{name} ({node.Kind}) #{node.Index}";
-    }
-
-    private void SetHoverTip(string text, Point at)
-    {
-        HoverTipText.Text = text;
-        HoverTip.IsVisible = true;
-        Canvas.SetLeft(HoverTip, at.X + 14);
-        Canvas.SetTop(HoverTip, at.Y + 14);
     }
 
     private Path AddArrowhead(Point at, Vector direction) => AddArrowhead(at, direction, EdgeLineBrush);
