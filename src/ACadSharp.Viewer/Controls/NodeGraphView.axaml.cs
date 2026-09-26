@@ -27,8 +27,6 @@ public partial class NodeGraphView : UserControl
     // Layout metrics (box / column / row sizes and the content margin) and the
     // kind-color / box-height / accent rules live in the shared GraphLayout
     // (also used by MiniMapView) so the two views stay in sync.
-    private const double MinScale = 0.1;
-    private const double MaxScale = 3.0;
     private const double DragThreshold = 4;
 
     private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
@@ -39,22 +37,13 @@ public partial class NodeGraphView : UserControl
     private static readonly IBrush FeedbackBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
     private static readonly IBrush FeedbackLabelBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
 
-    private double _scale = 1.0;
-    private double _naturalWidth;
-    private double _naturalHeight;
+    // The zoom/pan transform (scale + translate on the canvas) is encapsulated
+    // in a GraphTransform so the control stays focused on the graph content and
+    // the hover/select interaction.
+    private GraphTransform _transform = null!;
 
-    // Content translation in viewport coordinates. Zoom and pan are driven
-    // by a scale+translate transform on the canvas (see ApplyScale) rather
-    // than the ScrollViewer's offset, so the anchor works at any window
-    // size (the canvas is always the viewport size and never scrolls).
-    private double _panX;
-    private double _panY;
-
-    // Interaction state: _panStartPan is null while not panning; a box
-    // press first parks in _pendingSelectBox and becomes a pan once the
-    // pointer moves past the drag threshold.
-    private Vector? _panStartPan;
-    private Point _panStartPos;
+    // Interaction state: a box press first parks in _pendingSelectBox and
+    // becomes a pan once the pointer moves past the drag threshold.
     private Border? _pendingSelectBox;
     private Point _pressPos;
     private Border? _hoverBox;
@@ -128,50 +117,29 @@ public partial class NodeGraphView : UserControl
     /// ((0-pan)/scale, (0-pan)/scale, viewport/scale)). Empty before the
     /// first layout.
     /// </summary>
-    public Rect GetVisibleContentRect()
-    {
-        double w = Scroll.Bounds.Width;
-        double h = Scroll.Bounds.Height;
-        if (w <= 0 || h <= 0 || _scale <= 0)
-        {
-            return default; // a zero rect: the mini-map hides its indicator
-        }
-
-        return new Rect(-_panX / _scale, -_panY / _scale, w / _scale, h / _scale);
-    }
+    public Rect GetVisibleContentRect() => _transform.GetVisibleContentRect();
 
     /// <summary>
     /// Centers the view on the given content point (the mini-map's
     /// navigation target).
     /// </summary>
-    public void CenterOnContentPoint(Point p)
-    {
-        if (Scroll.Bounds.Width <= 0 || Scroll.Bounds.Height <= 0)
-        {
-            return; // not measured yet
-        }
-
-        _panX = Scroll.Bounds.Width / 2 - p.X * _scale;
-        _panY = Scroll.Bounds.Height / 2 - p.Y * _scale;
-        ApplyScaleToGraphCanvas();
-    }
+    public void CenterOnContentPoint(Point p) => _transform.CenterOnContentPoint(p);
 
     /// <summary>
     /// The current zoom factor (1.0 = natural size).
     /// </summary>
     public double Scale
     {
-        get => _scale;
-        set
-        {
-            _scale = Math.Clamp(value, MinScale, MaxScale);
-            ApplyScaleToGraphCanvas();
-        }
+        get => _transform.Scale;
+        set => _transform.Scale = value;
     }
 
     public NodeGraphView()
 	{
 		InitializeComponent();
+
+		_transform = new GraphTransform(Scroll, GraphCanvas);
+		_transform.Changed = rect => ViewChanged?.Invoke(rect);
 
 		InitializeComponentState();
 	}
@@ -203,7 +171,7 @@ public partial class NodeGraphView : UserControl
 		{
 			if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
 			{
-				ApplyScaleToGraphCanvas();
+				_transform.Apply();
 			}
 
 			PositionPendingLabels();
@@ -249,120 +217,36 @@ public partial class NodeGraphView : UserControl
     /// <summary>
     /// Zooms in by one step (1.15×), anchored at the viewport center.
     /// </summary>
-    public void ZoomIn() => ZoomAt(new Point(Scroll.Bounds.Width / 2, Scroll.Bounds.Height / 2), 1);
+    public void ZoomIn() => _transform.ZoomIn();
 
     /// <summary>
     /// Zooms out by one step (÷1.15), anchored at the viewport center.
     /// </summary>
-    public void ZoomOut() => ZoomAt(new Point(Scroll.Bounds.Width / 2, Scroll.Bounds.Height / 2), -1);
+    public void ZoomOut() => _transform.ZoomOut();
 
     /// <summary>
     /// Scales the graph to fit the visible scroll-view area
     /// (never zooms in beyond the natural size).
     /// </summary>
-    public void FitToView()
-    {
-        if (_naturalWidth <= 0 || _naturalHeight <= 0)
-        {
-            return;
-        }
-
-        if (Scroll.Bounds.Width <= 0 || Scroll.Bounds.Height <= 0)
-        {
-            return; // not measured yet
-        }
-
-        double factor = Math.Min(
-            1.0,
-            Math.Min(Scroll.Bounds.Width / _naturalWidth, Scroll.Bounds.Height / _naturalHeight));
-        _scale = Math.Max(MinScale, factor);
-
-        // Center the graph in the viewport.
-        _panX = (Scroll.Bounds.Width - _naturalWidth * _scale) / 2;
-        _panY = (Scroll.Bounds.Height - _naturalHeight * _scale) / 2;
-        ApplyScaleToGraphCanvas();
-    }
+    public void FitToView() => _transform.FitToView();
 
     /// <summary>
     /// Zooms (1.15× per step) so the point under the cursor stays fixed.
     /// </summary>
-    public void ZoomAt(Point at, double delta)
-    {
-        if (_naturalWidth <= 0 || delta == 0)
-        {
-            return;
-        }
+    public void ZoomAt(Point at, double delta) => _transform.ZoomAt(at, delta);
 
-        double factor = delta > 0 ? 1.15 : 1.0 / 1.15;
-        double newScale = Math.Clamp(_scale * factor, MinScale, MaxScale);
-        if (newScale == _scale)
-        {
-            return;
-        }
+    private void OnWheelZoom(object? sender, PointerWheelEventArgs e) => _transform.OnWheelZoom(e);
 
-        // Keep the point under the cursor fixed: a content point c appears at
-        // c*scale + pan, so after scaling by ratio the pan must become
-        // pan' = at - (at - pan) * ratio to keep c at the same viewport point.
-        double ratio = newScale / _scale;
-        _panX = at.X - (at.X - _panX) * ratio;
-        _panY = at.Y - (at.Y - _panY) * ratio;
-        _scale = newScale;
-        ApplyScaleToGraphCanvas();
-    }
+    private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e) => _transform.OnPointerPressed(e);
 
-    private void OnWheelZoom(object? sender, PointerWheelEventArgs e)
-    {
-        // The container is a plain Grid (no padding, no border), so the
-        // client area IS the content area. e.GetPosition(Scroll) gives the
-        // position relative to the canvas's render origin directly.
-        ZoomAt(e.GetPosition(Scroll), e.Delta.Y);
-        e.Handled = true; // do not let the scroll viewer scroll
-    }
+    private void OnCanvasPointerMoved(object? sender, PointerEventArgs e) => _transform.OnPointerMoved(e);
 
-    private void OnCanvasPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.Handled)
-        {
-            return;
-        }
-
-        // Only right-button pans the canvas.
-        if (!e.Properties.IsRightButtonPressed)
-        {
-            return;
-        }
-
-        e.Pointer.Capture(GraphCanvas);
-        _panStartPan = new Vector(_panX, _panY);
-        _panStartPos = e.GetPosition(Scroll);
-        GraphCanvas.Cursor = new Cursor(StandardCursorType.Hand);
-    }
-
-    private void OnCanvasPointerMoved(object? sender, PointerEventArgs e)
-    {
-        if (_panStartPan is not Vector start)
-        {
-            return;
-        }
-
-        Point pos = e.GetPosition(Scroll);
-        _panX = start.X + pos.X - _panStartPos.X;
-        _panY = start.Y + pos.Y - _panStartPos.Y;
-        UpdateTransform();
-    }
-
-    private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        _panStartPan = null;
-        GraphCanvas.Cursor = null;
-        e.Pointer.Capture(null);
-    }
+    private void OnCanvasPointerReleased(object? sender, PointerReleasedEventArgs e) => _transform.OnPointerReleased(e);
 
     private void OnCanvasPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
-        _panStartPan = null;
+        _transform.OnPointerCaptureLost();
         _pendingSelectBox = null;
-        GraphCanvas.Cursor = null;
     }
 
     /// <summary>
@@ -429,28 +313,29 @@ public partial class NodeGraphView : UserControl
     /// the current content pan (the graph is positioned by a scale+translate
     /// transform, not the scroll offset).
     /// </summary>
-    public Vector ScrollOffsetForVerification => new Vector(_panX, _panY);
+    public Vector ScrollOffsetForVerification => _transform.ScrollOffset;
 
     /// <summary>
     /// Verification helper (used by the --screenshot interact mode):
     /// a one-line snapshot of the zoom/pan state for diagnostics.
     /// </summary>
-    public string ScrollStateForVerification =>
-        $"scale={_scale:0.###} pan=({_panX:0.##},{_panY:0.##}) " +
-        $"canvas={GraphCanvas.Bounds} natural={_naturalWidth:0}x{_naturalHeight:0}";
+    public string ScrollStateForVerification
+    {
+        get
+        {
+            Vector pan = _transform.ScrollOffset;
+            Vector natural = _transform.NaturalSize;
+            return $"scale={_transform.Scale:0.###} pan=({pan.X:0.##},{pan.Y:0.##}) " +
+                $"canvas={GraphCanvas.Bounds} natural={natural.X:0}x{natural.Y:0}";
+        }
+    }
 
     /// <summary>
     /// Verification helper (used by the --screenshot zoombug mode): reset
     /// the view to the natural size at the top-left (scale 1, pan 0), as
     /// the user would by fitting the graph back into the viewport.
     /// </summary>
-    public void ScrollToOriginForVerification()
-    {
-        _scale = 1.0;
-        _panX = 0;
-        _panY = 0;
-        ApplyScaleToGraphCanvas();
-    }
+    public void ScrollToOriginForVerification() => _transform.ScrollToOrigin();
 
     /// <summary>
     /// Verification helper (used by the --screenshot mode): the center of
@@ -538,39 +423,6 @@ public partial class NodeGraphView : UserControl
     /// </summary>
     private static IBrush GetCanvasBackgroundBrush() => ThemeResources.CanvasBackground;
 
-    private void ApplyScaleToGraphCanvas()
-    {
-        if (_naturalWidth <= 0)
-        {
-            return;
-        }
-
-        // The canvas is always the viewport size (it never scrolls): the
-        // graph is positioned inside it by a scale+translate transform, so
-        // the empty space around the graph is part of the canvas too and
-        // the pointer handlers (wheel zoom, drag pan) work anywhere in the
-        // viewport.
-        if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
-        {
-            GraphCanvas.Width = Scroll.Bounds.Width;
-            GraphCanvas.Height = Scroll.Bounds.Height;
-        }
-        UpdateTransform();
-    }
-
-    // Scales the graph about the canvas origin and translates it by the
-    // current pan, so a content point c appears at c*scale + pan. Every
-    // pan/zoom path funnels through here, so the ViewChanged event (the
-    // mini-map's visible-area indicator) is raised in one place.
-    private void UpdateTransform()
-    {
-        var group = new TransformGroup();
-        group.Children.Add(new ScaleTransform(_scale, _scale));
-        group.Children.Add(new TranslateTransform(_panX, _panY));
-        GraphCanvas.RenderTransform = group;
-        ViewChanged?.Invoke(GetVisibleContentRect());
-    }
-
     public void SetGraph(GraphModel.Result model, bool resetPan = true)
     {
         _lastModel = model;
@@ -578,11 +430,10 @@ public partial class NodeGraphView : UserControl
         _selectedIsTarget = false;
         _hoverBox = null;
         _pendingSelectBox = null;
-        _panStartPan = null;
+        _transform.EndPan();
         if (resetPan)
         {
-            _panX = 0;
-            _panY = 0;
+            _transform.ResetPan();
         }
         _pendingLabels.Clear();
         _firstLabeledEdge = null;
@@ -683,11 +534,12 @@ public partial class NodeGraphView : UserControl
         _pendingEdges.Clear();
         _portCircles.Clear();
 
-        _naturalWidth = (model.MaxDepth + 1) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin * 2;
-        _naturalHeight = Math.Max(
+        double naturalWidth = (model.MaxDepth + 1) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin * 2;
+        double naturalHeight = Math.Max(
             model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * GraphLayout.RowHeight + GraphLayout.LayoutMargin * 2,
             300);
-        ApplyScaleToGraphCanvas();
+        _transform.SetNaturalSize(naturalWidth, naturalHeight);
+        _transform.Apply();
     }
 
     private void AddNodeBox(GraphNodeInfo node, Point position)
@@ -803,8 +655,8 @@ public partial class NodeGraphView : UserControl
             // Incremental delta: from the last move position, converted
             // to content space (divide by scale). Accumulates smoothly
             // across moves and across drags.
-            double dx = (pos.X - _dragLastPos.X) / _scale;
-            double dy = (pos.Y - _dragLastPos.Y) / _scale;
+            double dx = (pos.X - _dragLastPos.X) / _transform.Scale;
+            double dy = (pos.Y - _dragLastPos.Y) / _transform.Scale;
             _dragLastPos = pos;
 
             Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
@@ -874,12 +726,12 @@ public partial class NodeGraphView : UserControl
         border.PointerCaptureLost += (_, _) =>
         {
             _pendingSelectBox = null;
-            _panStartPan = null;
+            _transform.EndPan();
             border.Cursor = null;
         };
         border.PointerEntered += (_, e) =>
         {
-            if (_panStartPan != null)
+            if (_transform.IsPanning)
             {
                 return; // the box is moving under the pointer while panning
             }
@@ -890,7 +742,7 @@ public partial class NodeGraphView : UserControl
         };
         border.PointerExited += (_, _) =>
         {
-            if (_panStartPan != null)
+            if (_transform.IsPanning)
             {
                 return;
             }
