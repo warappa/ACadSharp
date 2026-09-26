@@ -6,6 +6,8 @@ Guidance for AI coding agents working in this repository.
 
 After a **sound, reasonable change package** — a completed phase or a completed todo entry — make a **git commit** to reflect that committable increment and progress. Do not let changes accumulate unstaged across unrelated work.
 
+But: If a user reported a bug and and a bugfix is being developed, then don't commit automatically but ask for user approval to check if the bug is actually fixed.
+
 - Group by **coherent unit** (one logical change, verified green), not per tiny edit.
 - A good commit is a self-contained, meaningful increment with a clear message (imperative subject + short body).
 - Stage only the files belonging to the change (exclude editor/tooling dirs such as `.vscode/`).

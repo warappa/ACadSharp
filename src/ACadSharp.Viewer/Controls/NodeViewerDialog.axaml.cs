@@ -23,32 +23,46 @@ namespace ACadSharp.Viewer.Controls;
 /// </summary>
 public partial class NodeViewerDialog : Window
 {
-    public NodeViewerDialog(BlockRecord block, PropertyItem property, EvaluationGraph graph)
-    {
-        InitializeComponent();
+	private readonly BlockRecord _block;
 
-        Header.Text = $"Nodes building '{property.Name}' — block {block.Name}";
+	private readonly PropertyItem _property;
 
-        GraphModel.Result model = GraphModel.BuildAncestors(graph, property.NodeIndex);
-        // The mini-map gets the graph first, so the ViewChanged events the
-        // main view raises while setting its graph are already handled.
-        MiniMap.SetGraph(model);
-        Graph.SetGraph(model);
-        Graph.OnNodeClicked = details => Details.Text = details;
+	private readonly EvaluationGraph _graph;
 
-        // The mini-map's visible-area rectangle follows the main view's
-        // transform; pressing or dragging the mini-map re-centers the main
-        // view on the content point under the pointer; a dragged node
-        // follows in the overview.
-        Graph.ViewChanged += rect => MiniMap.SetViewRect(rect);
-        Graph.NodeMoved += (index, offset) => MiniMap.SetNodeOffset(index, offset);
-        MiniMap.Navigate += p => Graph.CenterOnContentPoint(p);
+	public NodeViewerDialog(BlockRecord block, PropertyItem property, EvaluationGraph graph)
+	{
+		_block = block;
+		_property = property;
+		_graph = graph;
 
-        // Fit once the layout pass has measured the scroll view.
-        Dispatcher.UIThread.Post(() => Graph.FitToView(), DispatcherPriority.Background);
-    }
+		InitializeComponent();
+		InitializeComponentState();
+	}
 
-    private void OnFitClick(object? sender, RoutedEventArgs e) => Graph.FitToView();
+	private void InitializeComponentState()
+	{
+		Header.Text = $"Nodes building '{_property.Name}' — block {_block.Name}";
+
+		GraphModel.Result model = GraphModel.BuildAncestors(_graph, _property.NodeIndex);
+		// The mini-map gets the graph first, so the ViewChanged events the
+		// main view raises while setting its graph are already handled.
+		MiniMap.SetGraph(model);
+		Graph.SetGraph(model);
+		Graph.OnNodeClicked = details => Details.Text = details;
+
+		// The mini-map's visible-area rectangle follows the main view's
+		// transform; pressing or dragging the mini-map re-centers the main
+		// view on the content point under the pointer; a dragged node
+		// follows in the overview.
+		Graph.ViewChanged += rect => MiniMap.SetViewRect(rect);
+		Graph.NodeMoved += (index, offset) => MiniMap.SetNodeOffset(index, offset);
+		MiniMap.Navigate += p => Graph.CenterOnContentPoint(p);
+
+		// Fit once the layout pass has measured the scroll view.
+		Dispatcher.UIThread.Post(() => Graph.FitToView(), DispatcherPriority.Background);
+	}
+
+	private void OnFitClick(object? sender, RoutedEventArgs e) => Graph.FitToView();
 
     private void OnZoomInClick(object? sender, RoutedEventArgs e) => Graph.ZoomIn();
 

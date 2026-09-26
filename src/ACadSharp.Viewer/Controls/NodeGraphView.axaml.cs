@@ -179,54 +179,60 @@ public partial class NodeGraphView : UserControl
     }
 
     public NodeGraphView()
-    {
-        InitializeComponent();
+	{
+		InitializeComponent();
 
-        GraphCanvas.RenderTransformOrigin =
-            new RelativePoint(0, 0, RelativeUnit.Relative);
+		InitializeComponentState();
+	}
+    
+    [AvaloniaHotReload]
+	private void InitializeComponentState()
+	{
+		GraphCanvas.RenderTransformOrigin =
+                new RelativePoint(0, 0, RelativeUnit.Relative);
 
-        // Pan: press on empty canvas space and drag; the wheel zooms about
-        // the cursor (handled here so the scroll viewer does not scroll).
-        GraphCanvas.PointerPressed += OnCanvasPointerPressed;
-        GraphCanvas.PointerMoved += OnCanvasPointerMoved;
-        GraphCanvas.PointerReleased += OnCanvasPointerReleased;
-        GraphCanvas.PointerCaptureLost += OnCanvasPointerCaptureLost;
-        // Attach to the ScrollViewer (full viewport), not the GraphCanvas
-        // (whose layout bounds are only as large as the content). The
-        // RenderTransform scales the canvas's rendering, but hit-testing
-        // uses layout bounds — so the wheel would not fire over the empty
-        // area around the content if attached to the canvas.
-        Scroll.PointerWheelChanged += OnWheelZoom;
+		// Pan: press on empty canvas space and drag; the wheel zooms about
+		// the cursor (handled here so the scroll viewer does not scroll).
+		GraphCanvas.PointerPressed += OnCanvasPointerPressed;
+		GraphCanvas.PointerMoved += OnCanvasPointerMoved;
+		GraphCanvas.PointerReleased += OnCanvasPointerReleased;
+		GraphCanvas.PointerCaptureLost += OnCanvasPointerCaptureLost;
+		// Attach to the ScrollViewer (full viewport), not the GraphCanvas
+		// (whose layout bounds are only as large as the content). The
+		// RenderTransform scales the canvas's rendering, but hit-testing
+		// uses layout bounds — so the wheel would not fire over the empty
+		// area around the content if attached to the canvas.
+		Scroll.PointerWheelChanged += OnWheelZoom;
 
-        // Re-apply the canvas size once the scroll viewport has a size
-        // (the first layout, and window resizes) so the canvas keeps
-        // filling the viewport. Setting the same size again does not
-        // invalidate the layout, so this settles after one pass.
-        Scroll.LayoutUpdated += (_, _) =>
-        {
-            if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
-            {
-                ApplyScaleToGraphCanvas();
-            }
+		// Re-apply the canvas size once the scroll viewport has a size
+		// (the first layout, and window resizes) so the canvas keeps
+		// filling the viewport. Setting the same size again does not
+		// invalidate the layout, so this settles after one pass.
+		Scroll.LayoutUpdated += (_, _) =>
+		{
+			if (Scroll.Bounds.Width > 0 && Scroll.Bounds.Height > 0)
+			{
+				ApplyScaleToGraphCanvas();
+			}
 
-            PositionPendingLabels();
-        };
+			PositionPendingLabels();
+		};
 
-        // Backup: the canvas's own layout pass (in case the scroll viewer's
-        // LayoutUpdated fires before the labels have been measured).
-        GraphCanvas.LayoutUpdated += (_, _) => PositionPendingLabels();
-    }
+		// Backup: the canvas's own layout pass (in case the scroll viewer's
+		// LayoutUpdated fires before the labels have been measured).
+		GraphCanvas.LayoutUpdated += (_, _) => PositionPendingLabels();
+	}
 
-    /// <summary>
-    /// Parks each pending edge label at the edge midpoint, shifted left so
-    /// its right edge stays at least 16px clear of the arrowhead tip
-    /// (the 8px arrowhead plus 8px of visible gap), once the text width is
-    /// known. For long labels on short edges that shifts the label left
-    /// over the source box's edge — the labels draw above the boxes, so
-    /// the overlap stays readable. Labels that are not measured yet are
-    /// left for the next layout pass.
-    /// </summary>
-    private void PositionPendingLabels()
+	/// <summary>
+	/// Parks each pending edge label at the edge midpoint, shifted left so
+	/// its right edge stays at least 16px clear of the arrowhead tip
+	/// (the 8px arrowhead plus 8px of visible gap), once the text width is
+	/// known. For long labels on short edges that shifts the label left
+	/// over the source box's edge — the labels draw above the boxes, so
+	/// the overlap stays readable. Labels that are not measured yet are
+	/// left for the next layout pass.
+	/// </summary>
+	private void PositionPendingLabels()
     {
         if (_pendingLabels.Count == 0)
         {
