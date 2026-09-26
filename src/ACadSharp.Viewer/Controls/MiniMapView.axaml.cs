@@ -22,17 +22,10 @@ namespace ACadSharp.Viewer.Controls;
 /// </summary>
 public partial class MiniMapView : UserControl
 {
-    // The layout constants must match NodeGraphView: the mini-map draws
-    // the same layout (columns by depth, rows within a column) scaled
-    // down, and the visible-area rectangle is computed in the main view's
-    // content coordinates, so the content bounds must be identical.
-    private const double BoxWidth = 170;
-    private const double BoxHeight = 48;
-    private const double NamedBoxHeight = 64;
-    private const double ColumnWidth = 320;
-    private const double RowHeight = 80;
-    private const double Margin = 20;
-
+    // Layout metrics (box / column / row sizes and the content margin) and the
+    // kind-color / box-height / accent rules live in the shared GraphLayout
+    // (also used by NodeGraphView) so the mini-map's content bounds stay
+    // identical to the main view's.
     private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
     private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
     private static readonly IBrush ViewRectFill = new SolidColorBrush(MediaColor.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
@@ -138,9 +131,9 @@ public partial class MiniMapView : UserControl
         // The content bounds must match NodeGraphView's natural size, so
         // the visible-area rectangle (computed in the main view's content
         // coordinates) maps onto the mini-map correctly.
-        _contentW = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
+        _contentW = (model.MaxDepth + 1) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin * 2;
         _contentH = Math.Max(
-            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + Margin * 2,
+            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * GraphLayout.RowHeight + GraphLayout.LayoutMargin * 2,
             300);
 
         double w = Math.Max(1, MiniCanvas.Bounds.Width);
@@ -155,9 +148,9 @@ public partial class MiniMapView : UserControl
         foreach (GraphNodeInfo node in model.Nodes)
         {
             Vector off = _nodeOffsets.GetValueOrDefault(node.Index);
-            double x = (model.MaxDepth - node.Depth) * ColumnWidth + Margin + off.X;
-            double y = node.Row * RowHeight + Margin + off.Y;
-            positions[node.Index] = (new Point(x, y), BoxHeightFor(node), node.Kind, node.Depth == 0);
+            double x = (model.MaxDepth - node.Depth) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin + off.X;
+            double y = node.Row * GraphLayout.RowHeight + GraphLayout.LayoutMargin + off.Y;
+            positions[node.Index] = (new Point(x, y), GraphLayout.BoxHeightFor(node), node.Kind, node.Depth == 0);
         }
 
         // Edges first (below the boxes): a straight line between the port
@@ -173,7 +166,7 @@ public partial class MiniMapView : UserControl
 
             var line = new Line
             {
-                StartPoint = Map(new Point(from.pos.X + BoxWidth, from.pos.Y + from.height / 2)),
+                StartPoint = Map(new Point(from.pos.X + GraphLayout.BoxWidth, from.pos.Y + from.height / 2)),
                 EndPoint = Map(new Point(to.pos.X, to.pos.Y + to.height / 2)),
                 Stroke = EdgeLineBrush,
                 StrokeThickness = 1,
@@ -187,9 +180,9 @@ public partial class MiniMapView : UserControl
             Point at = Map(pos);
             var box = new Rectangle
             {
-                Width = BoxWidth * _scale,
+                Width = GraphLayout.BoxWidth * _scale,
                 Height = height * _scale,
-                Fill = new SolidColorBrush(GetKindColor(kind)),
+                Fill = new SolidColorBrush(GraphLayout.GetKindColor(kind)),
             };
             if (isTarget)
             {
@@ -223,7 +216,7 @@ public partial class MiniMapView : UserControl
         {
             _viewRect = new Rectangle
             {
-                Stroke = GetAccentBrush(),
+                Stroke = GraphLayout.GetAccentBrush(),
                 StrokeThickness = 1.5,
                 Fill = ViewRectFill,
                 IsHitTestVisible = false,
@@ -351,35 +344,4 @@ public partial class MiniMapView : UserControl
         return new SolidColorBrush(MediaColor.Parse("#2D2D2D"));
     }
 
-    private static IBrush GetAccentBrush()
-    {
-        // Respect the accent the user picked in the settings flyout
-        // (same lookup as NodeGraphView).
-        var app = Application.Current;
-        if (app is not null)
-        {
-            if (app.FindResource(app.ActualThemeVariant, "AccentFillColorDefaultBrush") is IBrush brush)
-            {
-                return brush;
-            }
-        }
-
-        return new SolidColorBrush(MediaColor.Parse("#0078D4"));
-    }
-
-    private static double BoxHeightFor(GraphNodeInfo? node)
-    {
-        // Named nodes get the taller box (same rule as the main view).
-        string? name = (node?.Expression as BlockElement)?.ElementName;
-        return string.IsNullOrWhiteSpace(name) ? BoxHeight : NamedBoxHeight;
-    }
-
-    private static MediaColor GetKindColor(string kind) => kind switch
-    {
-        "Parameter" => MediaColor.Parse("#3D7EBF"),
-        "Grip" => MediaColor.Parse("#3D9E5F"),
-        "Action" => MediaColor.Parse("#C77B3D"),
-        "Component" => MediaColor.Parse("#7A7A7A"),
-        _ => MediaColor.Parse("#8E6FBF"),
-    };
 }

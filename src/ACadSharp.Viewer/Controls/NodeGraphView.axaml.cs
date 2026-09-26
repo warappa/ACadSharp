@@ -24,18 +24,9 @@ namespace ACadSharp.Viewer.Controls;
 /// </summary>
 public partial class NodeGraphView : UserControl
 {
-    private const double BoxWidth = 170;
-    private const double BoxHeight = 48;
-    // A named node shows three lines (name / type / value), so its box is
-    // taller than the two-line boxes.
-    private const double NamedBoxHeight = 64;
-    // Column pitch: the horizontal gap between node boxes is ColumnWidth -
-    // BoxWidth (150px). The edge labels sit in that gap (centered on the
-    // line, 16px clear of the arrowhead), so the pitch must leave room for
-    // the longest port-name label (e.g. "Displacement lookup ×2", ~120px).
-    private const double ColumnWidth = 320;
-    private const double RowHeight = 80;
-    private const double Margin = 20;
+    // Layout metrics (box / column / row sizes and the content margin) and the
+    // kind-color / box-height / accent rules live in the shared GraphLayout
+    // (also used by MiniMapView) so the two views stay in sync.
     private const double MinScale = 0.1;
     private const double MaxScale = 3.0;
     private const double DragThreshold = 4;
@@ -404,7 +395,7 @@ public partial class NodeGraphView : UserControl
 
         if (_selectedBox == border)
         {
-            border.BorderBrush = GetAccentBrush();
+            border.BorderBrush = GraphLayout.GetAccentBrush();
             return;
         }
 
@@ -503,13 +494,13 @@ public partial class NodeGraphView : UserControl
     {
         if (_firstLabeledEdge is null
             || _firstLabeledEdge.Data is not PathGeometry geometry
-            || geometry.Figures.Count == 0)
+            || geometry.Figures is null || geometry.Figures.Count == 0)
         {
             return null;
         }
 
         var figure = geometry.Figures[0];
-        if (figure.Segments.Count == 0 || figure.Segments[0] is not BezierSegment bezier)
+        if (figure.Segments is null || figure.Segments.Count == 0 || figure.Segments[0] is not BezierSegment bezier)
         {
             return null;
         }
@@ -523,23 +514,6 @@ public partial class NodeGraphView : UserControl
             0.125 * figure.StartPoint.Y + 0.375 * bezier.Point1.Y
             + 0.375 * bezier.Point2.Y + 0.125 * bezier.Point3.Y);
         return _firstLabeledEdge.TranslatePoint(at, root);
-    }
-
-    private static IBrush GetAccentBrush()
-    {
-        // Respect the accent the user picked in the settings flyout
-        // (null theme would resolve the light dictionary — pass the
-        // actual variant explicitly).
-        var app = Application.Current;
-        if (app is not null)
-        {
-            if (app.FindResource(app.ActualThemeVariant, "AccentFillColorDefaultBrush") is IBrush brush)
-            {
-                return brush;
-            }
-        }
-
-        return new SolidColorBrush(MediaColor.Parse("#0078D4"));
     }
 
     /// <summary>
@@ -632,12 +606,12 @@ public partial class NodeGraphView : UserControl
         _boxHeights.Clear();
         foreach (GraphNodeInfo node in model.Nodes)
         {
-            double x = (model.MaxDepth - node.Depth) * ColumnWidth + Margin;
-            double y = node.Row * RowHeight + Margin;
+            double x = (model.MaxDepth - node.Depth) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin;
+            double y = node.Row * GraphLayout.RowHeight + GraphLayout.LayoutMargin;
             positions[node.Index] = new Point(x, y);
             byIndex[node.Index] = node;
             _basePositions[node.Index] = new Point(x, y);
-            _boxHeights[node.Index] = BoxHeightFor(node);
+            _boxHeights[node.Index] = GraphLayout.BoxHeightFor(node);
         }
 
         // Port positions: distributed evenly along the left/right edge of the box.
@@ -648,7 +622,7 @@ public partial class NodeGraphView : UserControl
         {
             Vector off = _nodeOffsets.GetValueOrDefault(node.Index);
             Point pos = new Point(positions[node.Index].X + off.X, positions[node.Index].Y + off.Y);
-            double h = BoxHeightFor(node);
+            double h = GraphLayout.BoxHeightFor(node);
 
             inputPortPos[node.Index] = new List<Point>();
             for (int i = 0; i < node.InputPorts.Count; i++)
@@ -661,7 +635,7 @@ public partial class NodeGraphView : UserControl
             for (int i = 0; i < node.OutputPorts.Count; i++)
             {
                 double y = pos.Y + (i + 0.5) * (h / Math.Max(1, node.OutputPorts.Count));
-                outputPortPos[node.Index].Add(new Point(pos.X + BoxWidth, y));
+                outputPortPos[node.Index].Add(new Point(pos.X + GraphLayout.BoxWidth, y));
             }
         }
 
@@ -706,9 +680,9 @@ public partial class NodeGraphView : UserControl
         _pendingEdges.Clear();
         _portCircles.Clear();
 
-        _naturalWidth = (model.MaxDepth + 1) * ColumnWidth + Margin * 2;
+        _naturalWidth = (model.MaxDepth + 1) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin * 2;
         _naturalHeight = Math.Max(
-            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + Margin * 2,
+            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * GraphLayout.RowHeight + GraphLayout.LayoutMargin * 2,
             300);
         ApplyScaleToGraphCanvas();
     }
@@ -727,10 +701,10 @@ public partial class NodeGraphView : UserControl
         var border = new Border
         {
             CornerRadius = new CornerRadius(8),
-            Background = new SolidColorBrush(GetKindColor(node.Kind)),
+            Background = new SolidColorBrush(GraphLayout.GetKindColor(node.Kind)),
             Padding = new Thickness(isTarget ? 13 : 10, isTarget ? 7 : 4),
-            MinWidth = BoxWidth,
-            Height = hasName ? NamedBoxHeight : BoxHeight,
+            MinWidth = GraphLayout.BoxWidth,
+            Height = hasName ? GraphLayout.NamedBoxHeight : GraphLayout.BoxHeight,
             // Constant thickness (3 for the target, 2 otherwise) so hover
             // never shifts the text; the brush is set by SetBoxBorder.
             BorderBrush = isTarget ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent,
@@ -930,9 +904,9 @@ public partial class NodeGraphView : UserControl
         // Port circles and labels: input ports on the left edge, output
         // ports on the right edge. Positions are relative to the container's
         // origin (the box's top-left corner).
-        double h = hasName ? NamedBoxHeight : BoxHeight;
+        double h = hasName ? GraphLayout.NamedBoxHeight : GraphLayout.BoxHeight;
         DrawPorts(node.InputPorts, node.Index, 0, 0, h, isInput: true, container);
-        DrawPorts(node.OutputPorts, node.Index, BoxWidth, 0, h, isInput: false, container);
+        DrawPorts(node.OutputPorts, node.Index, GraphLayout.BoxWidth, 0, h, isInput: false, container);
     }
 
     /// <summary>
@@ -1103,13 +1077,13 @@ public partial class NodeGraphView : UserControl
             StartPoint = start,
             IsClosed = false,
         };
-        figure.Segments.Add(new BezierSegment
+        figure.Segments!.Add(new BezierSegment
         {
             Point1 = new Point(start.X + dx, start.Y),
             Point2 = new Point(lineEnd.X - dx, lineEnd.Y),
             Point3 = lineEnd,
         });
-        geometry.Figures.Add(figure);
+        geometry.Figures!.Add(figure);
 
         var line = new Path
         {
@@ -1277,13 +1251,13 @@ public partial class NodeGraphView : UserControl
             StartPoint = start,
             IsClosed = false,
         };
-        figure.Segments.Add(new BezierSegment
+        figure.Segments!.Add(new BezierSegment
         {
             Point1 = c1,
             Point2 = c2,
             Point3 = end,
         });
-        geometry.Figures.Add(figure);
+        geometry.Figures!.Add(figure);
 
         var line = new Path
         {
@@ -1418,9 +1392,9 @@ public partial class NodeGraphView : UserControl
             StartPoint = at,
             IsClosed = true,
         };
-        figure.Segments.Add(new LineSegment { Point = p2 });
-        figure.Segments.Add(new LineSegment { Point = p3 });
-        geometry.Figures.Add(figure);
+        figure.Segments!.Add(new LineSegment { Point = p2 });
+        figure.Segments!.Add(new LineSegment { Point = p3 });
+        geometry.Figures!.Add(figure);
 
         var arrowhead = new Path
         {
@@ -1473,7 +1447,7 @@ public partial class NodeGraphView : UserControl
 
             // Output port position (right edge of source).
             double outY = fromBase.Y + fromOff.Y + (srcPortIdx + 0.5) * (fromH / Math.Max(1, GetPortCount(fromIdx, isInput: false)));
-            Point start = new Point(fromBase.X + fromOff.X + BoxWidth, outY);
+            Point start = new Point(fromBase.X + fromOff.X + GraphLayout.BoxWidth, outY);
 
             // Input port position (left edge of target).
             double inY = toBase.Y + toOff.Y + (dstPortIdx + 0.5) * (toH / Math.Max(1, GetPortCount(toIdx, isInput: true)));
@@ -1497,7 +1471,7 @@ public partial class NodeGraphView : UserControl
             if (labelMask is not null)
             {
                 Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
-                double labelWidth = (labelMask.Child as TextBlock)?.Text.Length * 3 ?? 0;
+                double labelWidth = (labelMask.Child as TextBlock)?.Text?.Length * 3 ?? 0;
                 Canvas.SetLeft(labelMask, mid.X - labelWidth);
                 Canvas.SetTop(labelMask, mid.Y);
             }
@@ -1525,9 +1499,9 @@ public partial class NodeGraphView : UserControl
             StartPoint = at,
             IsClosed = true,
         };
-        fig.Segments.Add(new LineSegment { Point = p2 });
-        fig.Segments.Add(new LineSegment { Point = p3 });
-        geo.Figures.Add(fig);
+        fig.Segments!.Add(new LineSegment { Point = p2 });
+        fig.Segments!.Add(new LineSegment { Point = p3 });
+        geo.Figures!.Add(fig);
         return geo;
     }
 
@@ -1546,31 +1520,15 @@ public partial class NodeGraphView : UserControl
             StartPoint = start,
             IsClosed = false,
         };
-        fig.Segments.Add(new BezierSegment
+        fig.Segments!.Add(new BezierSegment
         {
             Point1 = new Point(start.X + dx, start.Y),
             Point2 = new Point(lineEnd.X - dx, lineEnd.Y),
             Point3 = lineEnd,
         });
-        geo.Figures.Add(fig);
+        geo.Figures!.Add(fig);
         return geo;
     }
-
-    /// <summary>
-    /// Returns the box height for the given node: named nodes get the
-    /// default two-line height.
-    /// </summary>
-    private static double BoxHeightFor(GraphNodeInfo? node) =>
-        node is null || GetName(node.Expression) is null ? BoxHeight : NamedBoxHeight;
-
-    private static MediaColor GetKindColor(string kind) => kind switch
-    {
-        "Parameter" => MediaColor.Parse("#3D7EBF"),
-        "Grip" => MediaColor.Parse("#3D9E5F"),
-        "Action" => MediaColor.Parse("#C77B3D"),
-        "Component" => MediaColor.Parse("#7A7A7A"),
-        _ => MediaColor.Parse("#8E6FBF"),
-    };
 
     private static string BuildTooltip(GraphNodeInfo node)
     {

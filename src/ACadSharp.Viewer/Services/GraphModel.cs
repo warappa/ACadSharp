@@ -165,7 +165,7 @@ public static class GraphModel
             for (int row = 0; row < indices.Count; row++)
             {
                 int nodeIndex = indices[row];
-                if (!byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node node))
+                if (!byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node) || node is null)
                 {
                     continue;
                 }

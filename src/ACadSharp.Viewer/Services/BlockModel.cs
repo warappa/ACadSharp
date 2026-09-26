@@ -86,7 +86,7 @@ public class PropertyItem
             _ => p.GetType().Name,
         };
 
-        string name = p switch
+        string? name = p switch
         {
             BlockPolarParameter polar => polar.Label,
             BlockXYParameter xy => JoinParts(xy.LabelX, xy.LabelY),
@@ -99,7 +99,7 @@ public class PropertyItem
             _ => null,
         };
 
-        string description = p switch
+        string? description = p switch
         {
             BlockPolarParameter polar => polar.Description,
             BlockXYParameter xy => JoinParts(xy.DescriptionX, xy.DescriptionY),
