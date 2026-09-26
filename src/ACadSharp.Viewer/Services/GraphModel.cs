@@ -191,7 +191,7 @@ public static class GraphModel
             // An edge goes right-to-left when the source is in a lower-depth
             // column (more to the right) than the target.
             bool isFeedback = depth[edge.FromNodeIndex] < depth[edge.ToNodeIndex];
-            result.Edges.Add(BuildEdgeLabel(graph, edge, isFeedback));
+            result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback));
         }
 
         // Ports: for each edge, the port name (from the target's connection)
@@ -216,7 +216,7 @@ public static class GraphModel
                 continue;
             }
 
-            string portName = GetPortName(graph, edge);
+            string portName = GetPortName(byIndex, edge);
             outputPorts[edge.FromNodeIndex].Add(new PortInfo(portName, edge.ToNodeIndex));
             inputPorts[edge.ToNodeIndex].Add(new PortInfo(portName, edge.FromNodeIndex));
         }
@@ -242,10 +242,10 @@ public static class GraphModel
     /// type-specific default when no matching connection is found (the
     /// EvalConnection entries are not always populated by the file reader).
     /// </summary>
-    private static string GetPortName(EvaluationGraph graph, EvaluationGraph.Edge edge)
+    private static string GetPortName(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
     {
-        EvaluationExpression? toExpr = GetExpression(graph, edge.ToNodeIndex);
-        EvaluationExpression? fromExpr = GetExpression(graph, edge.FromNodeIndex);
+        EvaluationExpression? toExpr = GetExpression(byIndex, edge.ToNodeIndex);
+        EvaluationExpression? fromExpr = GetExpression(byIndex, edge.FromNodeIndex);
 
         if (toExpr is null || fromExpr is null)
         {
@@ -279,10 +279,10 @@ public static class GraphModel
         };
     }
 
-    private static GraphEdgeInfo BuildEdgeLabel(EvaluationGraph graph, EvaluationGraph.Edge edge, bool isFeedback)
+    private static GraphEdgeInfo BuildEdgeLabel(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge, bool isFeedback)
     {
-        EvaluationExpression? toExpr = GetExpression(graph, edge.ToNodeIndex);
-        EvaluationExpression? fromExpr = GetExpression(graph, edge.FromNodeIndex);
+        EvaluationExpression? toExpr = GetExpression(byIndex, edge.ToNodeIndex);
+        EvaluationExpression? fromExpr = GetExpression(byIndex, edge.FromNodeIndex);
 
         bool isLookup = edge.Flags == EvaluationGraph.EdgeFlags.Invertible
             || toExpr is BlockLookupParameter
@@ -290,7 +290,7 @@ public static class GraphModel
             || toExpr is BlockLookupAction
             || fromExpr is BlockLookupAction;
 
-        string portName = GetPortName(graph, edge);
+        string portName = GetPortName(byIndex, edge);
 
         string label;
         if (isLookup)
@@ -312,14 +312,13 @@ public static class GraphModel
         return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup, isFeedback);
     }
 
-    private static EvaluationExpression? GetExpression(EvaluationGraph graph, int nodeIndex)
+    // O(1) lookup via the pre-built index (was a linear scan of graph.Nodes
+    // per edge, i.e. O(N·E) overall for a graph with N nodes and E edges).
+    private static EvaluationExpression? GetExpression(Dictionary<int, EvaluationGraph.Node> byIndex, int nodeIndex)
     {
-        foreach (EvaluationGraph.Node node in graph.Nodes)
+        if (byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node) && node is not null)
         {
-            if (node.Index == nodeIndex)
-            {
-                return node.Expression;
-            }
+            return node.Expression;
         }
 
         return null;
