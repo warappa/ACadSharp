@@ -1,4 +1,3 @@
-using ACadSharp.Objects.Evaluations;
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Collections;
@@ -10,7 +9,6 @@ using MediaColor = Avalonia.Media.Color;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace ACadSharp.Viewer.Controls;
 
@@ -262,7 +260,7 @@ public partial class NodeGraphView : UserControl
         _selectedBox = border;
         _selectedIsTarget = isTarget;
         SetBoxBorder(border, isTarget, _hoverBox == border);
-        OnNodeClicked?.Invoke(BuildTooltip(node));
+        OnNodeClicked?.Invoke(GraphDrawing.BuildTooltip(node));
     }
 
     /// <summary>
@@ -550,7 +548,7 @@ public partial class NodeGraphView : UserControl
         // The element's name (parameters, grips, and actions all carry one):
         // when present it is the primary label and the type drops to the
         // secondary line; without a name the type stays primary.
-        string? name = GetName(node.Expression);
+        string? name = GraphDrawing.GetName(node.Expression);
         bool hasName = name is not null;
 
         var border = new Border
@@ -1193,7 +1191,7 @@ public partial class NodeGraphView : UserControl
 
     private void ShowNodeTip(GraphNodeInfo node, Point at)
     {
-        SetHoverTip(BuildTooltip(node), at);
+        SetHoverTip(GraphDrawing.BuildTooltip(node), at);
     }
 
     private void ShowEdgeTip(GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, Point at)
@@ -1217,7 +1215,7 @@ public partial class NodeGraphView : UserControl
             return "?";
         }
 
-        string? name = GetName(node.Expression);
+        string? name = GraphDrawing.GetName(node.Expression);
         return name is null
             ? $"{node.Kind} #{node.Index}"
             : $"{name} ({node.Kind}) #{node.Index}";
@@ -1235,40 +1233,13 @@ public partial class NodeGraphView : UserControl
 
     private Path AddArrowhead(Point at, Vector direction, IBrush brush)
     {
-        double size = 8;
-        Vector normal = new Vector(-direction.Y, direction.X);
-        Point p1 = at - direction * size;
-        Point p2 = p1 + normal * (size / 2);
-        Point p3 = p1 - normal * (size / 2);
-
-        var geometry = new PathGeometry();
-        var figure = new PathFigure
-        {
-            StartPoint = at,
-            IsClosed = true,
-        };
-        figure.Segments!.Add(new LineSegment { Point = p2 });
-        figure.Segments!.Add(new LineSegment { Point = p3 });
-        geometry.Figures!.Add(figure);
-
         var arrowhead = new Path
         {
-            Data = geometry,
+            Data = GraphDrawing.BuildArrowheadGeometry(at, direction),
             Fill = brush,
         };
         GraphCanvas.Children.Add(arrowhead);
         return arrowhead;
-    }
-
-    /// <summary>
-    /// The display name of a node's element: the block element name
-    /// (parameters, grips, and actions all carry one); null when the element
-    /// has no name (e.g. grip location components).
-    /// </summary>
-    private static string? GetName(EvaluationExpression expression)
-    {
-        string? name = (expression as BlockElement)?.ElementName;
-        return string.IsNullOrWhiteSpace(name) ? null : name;
     }
 
     /// <summary>
@@ -1309,7 +1280,7 @@ public partial class NodeGraphView : UserControl
             Point end = new Point(toBase.X + toOff.X, inY);
 
             // Rebuild the edge geometry.
-            line.Data = BuildEdgeGeometry(start, end);
+            line.Data = GraphDrawing.BuildEdgeGeometry(start, end);
 
             // Update the arrowhead (rebuild the triangle at the new end).
             if (arrowhead is not null)
@@ -1318,7 +1289,7 @@ public partial class NodeGraphView : UserControl
                 if (direction.SquaredLength > 0.01)
                 {
                     direction = direction.Normalize();
-                    arrowhead.Data = BuildArrowheadGeometry(end, direction);
+                    arrowhead.Data = GraphDrawing.BuildArrowheadGeometry(end, direction);
                 }
             }
 
@@ -1340,68 +1311,4 @@ public partial class NodeGraphView : UserControl
         return isInput ? Math.Max(1, node?.InputPorts.Count ?? 1) : Math.Max(1, node?.OutputPorts.Count ?? 1);
     }
 
-    private static Geometry BuildArrowheadGeometry(Point at, Vector direction)
-    {
-        // Match AddArrowhead: a filled triangle pointing along `direction`.
-        double size = 8;
-        Vector normal = new Vector(-direction.Y, direction.X);
-        Point p1 = at - direction * size;
-        Point p2 = p1 + normal * (size / 2);
-        Point p3 = p1 - normal * (size / 2);
-        var geo = new PathGeometry();
-        var fig = new PathFigure
-        {
-            StartPoint = at,
-            IsClosed = true,
-        };
-        fig.Segments!.Add(new LineSegment { Point = p2 });
-        fig.Segments!.Add(new LineSegment { Point = p3 });
-        geo.Figures!.Add(fig);
-        return geo;
-    }
-
-    private static Geometry BuildEdgeGeometry(Point start, Point end)
-    {
-        // Match the original AddEdge geometry: cubic bezier with horizontal
-        // control-point offset, shortened by 5px at the target end.
-        Vector direction = end - start;
-        bool hasDirection = direction.SquaredLength > 0.01;
-        if (hasDirection) direction = direction.Normalize();
-        Point lineEnd = hasDirection ? end - direction * 5 : end;
-        double dx = Math.Max(Math.Abs(end.X - start.X) * 0.5, 40);
-        var geo = new PathGeometry();
-        var fig = new PathFigure
-        {
-            StartPoint = start,
-            IsClosed = false,
-        };
-        fig.Segments!.Add(new BezierSegment
-        {
-            Point1 = new Point(start.X + dx, start.Y),
-            Point2 = new Point(lineEnd.X - dx, lineEnd.Y),
-            Point3 = lineEnd,
-        });
-        geo.Figures!.Add(fig);
-        return geo;
-    }
-
-    private static string BuildTooltip(GraphNodeInfo node)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine($"{node.Expression.GetType().Name}  (node #{node.Index}, {node.Kind})");
-        string? name = GetName(node.Expression);
-        if (name is not null)
-        {
-            sb.AppendLine($"name: {name}");
-        }
-        sb.AppendLine($"value: {ValueFormatter.Format(node.Expression)}");
-        sb.AppendLine($"id: {node.Expression.Id}");
-
-        if (node.Expression is BlockGrip grip)
-        {
-            sb.AppendLine($"location: {grip.Location}  displacement: {grip.Displacement}");
-        }
-
-        return sb.ToString();
-    }
 }
