@@ -11,31 +11,46 @@
     <DockPanel>
         <Border DockPanel.Dock="Top" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                    <!-- Color legend -->
-                    <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,0">
-                        <Border Width="10" Height="10" CornerRadius="3" Background="#3D7EBF" />
-                        <TextBlock Text="parameter" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        <Border Width="10" Height="10" CornerRadius="3" Background="#3D9E5F" Margin="8,0,0,0" />
-                        <TextBlock Text="grip" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        <Border Width="10" Height="10" CornerRadius="3" Background="#C77B3D" Margin="8,0,0,0" />
-                        <TextBlock Text="action" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        <Border Width="10" Height="10" CornerRadius="3" Background="#7A7A7A" Margin="8,0,0,0" />
-                        <TextBlock Text="component" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        <Border Width="10" Height="10" CornerRadius="3" Background="Transparent" BorderBrush="White" BorderThickness="2" Margin="8,0,0,0" />
-                        <TextBlock Text="target" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                <StackPanel DockPanel.Dock="Right" Orientation="Vertical" Spacing="4" VerticalAlignment="Center">
+                    <!-- Node color legend + zoom buttons (top row) -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="4" Margin="0,0,12,0">
+                            <Border Width="10" Height="10" CornerRadius="3" Background="#3D7EBF" />
+                            <TextBlock Text="parameter" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <Border Width="10" Height="10" CornerRadius="3" Background="#3D9E5F" Margin="8,0,0,0" />
+                            <TextBlock Text="grip" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <Border Width="10" Height="10" CornerRadius="3" Background="#C77B3D" Margin="8,0,0,0" />
+                            <TextBlock Text="action" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <Border Width="10" Height="10" CornerRadius="3" Background="#7A7A7A" Margin="8,0,0,0" />
+                            <TextBlock Text="component" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                            <Border Width="10" Height="10" CornerRadius="3" Background="Transparent" BorderBrush="White" BorderThickness="2" Margin="8,0,0,0" />
+                            <TextBlock Text="target" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                        </StackPanel>
+                        <!-- Avalonia 12 removed the ToolTip attached property, so the
+                             buttons are icon-only (the legend explains the colors). -->
+                        <Button Click="OnFitClick" Focusable="False">
+                            <ui:FASymbolIcon Symbol="FullScreen" />
+                        </Button>
+                        <Button Click="OnZoomInClick" Focusable="False">
+                            <ui:FASymbolIcon Symbol="ZoomIn" />
+                        </Button>
+                        <Button Click="OnZoomOutClick" Focusable="False">
+                            <ui:FASymbolIcon Symbol="ZoomOut" />
+                        </Button>
                     </StackPanel>
-                    <!-- Avalonia 12 removed the ToolTip attached property, so the
-                         buttons are icon-only (the legend explains the colors). -->
-                    <Button Click="OnFitClick" Focusable="False">
-                        <ui:FASymbolIcon Symbol="FullScreen" />
-                    </Button>
-                    <Button Click="OnZoomInClick" Focusable="False">
-                        <ui:FASymbolIcon Symbol="ZoomIn" />
-                    </Button>
-                    <Button Click="OnZoomOutClick" Focusable="False">
-                        <ui:FASymbolIcon Symbol="ZoomOut" />
-                    </Button>
+                    <!-- Line-type legend (bottom row): a solid gray line is a
+                         normal value connection, a dashed gray line is a lookup
+                         connection, and a dashed orange line is a feedback
+                         (right-to-left) arc. The samples mirror the stroke
+                         brushes used by NodeGraphView. -->
+                    <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Right">
+                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="#B09A9A9A" StrokeThickness="2" Stretch="None" VerticalAlignment="Center" />
+                        <TextBlock Text="value" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="#B09A9A9A" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <TextBlock Text="lookup" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="#E8A33D" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <TextBlock Text="feedback" FontSize="11" Foreground="{DynamicResource TextFillColorTertiary}" />
+                    </StackPanel>
                 </StackPanel>
                 <TextBlock x:Name="Header" FontWeight="Bold" FontSize="15" TextTrimming="CharacterEllipsis" />
             </DockPanel>

@@ -12,7 +12,8 @@ namespace ACadSharp.Viewer.Controls;
 /// Modal dialog showing the subgraph of nodes involved in constructing a
 /// property's value: the target node (highlighted ring) plus its upstream
 /// ancestors (transitive closure over incoming edges), laid out left to
-/// right. The header carries a color legend and fit/zoom controls.
+/// right. The header carries color legends (node types and line types) and
+/// fit/zoom controls.
 /// Clicking a node selects it (accent ring) and shows its full details in
 /// the bottom panel; hovering a node or edge shows a floating summary;
 /// the wheel zooms about the cursor and dragging pans the graph. A
