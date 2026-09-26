@@ -411,6 +411,20 @@ public partial class NodeGraphView : UserControl
     }
 
     /// <summary>
+    /// Re-applies the theme-dependent brushes after a theme change: the
+    /// selected node's accent ring (the edge-label masks are recreated on the
+    /// next draw and pick up the refreshed <see cref="ThemeResources"/> cache
+    /// then).
+    /// </summary>
+    public void RefreshThemeBrushes()
+    {
+        if (_selectedBox is not null)
+        {
+            SetBoxBorder(_selectedBox, _selectedIsTarget, _hoverBox == _selectedBox);
+        }
+    }
+
+    /// <summary>
     /// Verification helper (used by the --screenshot interact mode):
     /// the current content pan (the graph is positioned by a scale+translate
     /// transform, not the scroll offset).
@@ -519,21 +533,10 @@ public partial class NodeGraphView : UserControl
     /// <summary>
     /// The opaque canvas background (the window background color from the
     /// current theme — verified to match the dialog background in both
-    /// themes). Used for the edge-label background mask.
+    /// themes). Used for the edge-label background mask. Cached in
+    /// <see cref="ThemeResources"/> and refreshed on theme change.
     /// </summary>
-    private static IBrush GetCanvasBackgroundBrush()
-    {
-        var app = Application.Current;
-        if (app is not null)
-        {
-            if (app.FindResource(app.ActualThemeVariant, "SolidBackgroundFillColorBase") is IBrush brush)
-            {
-                return brush;
-            }
-        }
-
-        return new SolidColorBrush(MediaColor.Parse("#202020"));
-    }
+    private static IBrush GetCanvasBackgroundBrush() => ThemeResources.CanvasBackground;
 
     private void ApplyScaleToGraphCanvas()
     {

@@ -57,20 +57,8 @@ public static class GraphLayout
     };
 
     /// <summary>
-    /// The accent brush the user picked in the settings flyout (a null theme
-    /// would resolve the light dictionary — pass the actual variant explicitly).
+    /// The accent brush the user picked in the settings flyout (cached in
+    /// <see cref="ThemeResources"/> and refreshed on theme/accent change).
     /// </summary>
-    public static IBrush GetAccentBrush()
-    {
-        var app = Application.Current;
-        if (app is not null)
-        {
-            if (app.FindResource(app.ActualThemeVariant, "AccentFillColorDefaultBrush") is IBrush brush)
-            {
-                return brush;
-            }
-        }
-
-        return new SolidColorBrush(MediaColor.Parse("#0078D4"));
-    }
+    public static IBrush GetAccentBrush() => ThemeResources.Accent;
 }

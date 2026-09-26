@@ -324,24 +324,18 @@ public partial class MiniMapView : UserControl
     /// <summary>
     /// The mini-map card background: the theme's elevated-surface color when
     /// it is defined, falling back to the base canvas color (verified to
-    /// exist), then a fixed dark color.
+    /// exist), then a fixed dark color. Cached in
+    /// <see cref="ThemeResources"/> and refreshed on theme change.
     /// </summary>
-    private static IBrush GetCardBrush()
-    {
-        var app = Application.Current;
-        if (app is not null)
-        {
-            if (app.FindResource(app.ActualThemeVariant, "SolidBackgroundFillColorSecondary") is IBrush secondary)
-            {
-                return secondary;
-            }
-            if (app.FindResource(app.ActualThemeVariant, "SolidBackgroundFillColorBase") is IBrush baseBrush)
-            {
-                return baseBrush;
-            }
-        }
+    private static IBrush GetCardBrush() => ThemeResources.CardBackground;
 
-        return new SolidColorBrush(MediaColor.Parse("#2D2D2D"));
+    /// <summary>
+    /// Re-applies the card background after a theme change (the card is set
+    /// once at creation, so it would otherwise stay on the old theme's color).
+    /// </summary>
+    public void RefreshThemeBrushes()
+    {
+        Root.Background = GetCardBrush();
     }
 
 }

@@ -52,6 +52,12 @@ public partial class MainWindow : Window
     private List<BlockTreeNode> _fullTree = new();
     private FAMenuFlyout? _settingsFlyout;
 
+    // The open (modeless) node viewer, if any: the settings flyout stays
+    // reachable while it is open, so a theme/accent change must refresh it.
+    // (The normal Info-button path opens a modal dialog, which blocks this
+    // window, so the theme cannot change while it is open and needs no hook.)
+    private NodeViewerDialog? _nodeViewerDialog;
+
     // Per-block evaluation models for the current document. BlockModel.Create
     // activates and evaluates the shared EvaluationGraph (a side effect), so
     // re-running it on every selection of the same block is wasted work; this
@@ -449,6 +455,8 @@ public partial class MainWindow : Window
         }
 
         var dialog = new NodeViewerDialog(target.Block, model.Properties[0], graph);
+        _nodeViewerDialog = dialog;
+        dialog.Closed += (_, _) => _nodeViewerDialog = null;
         dialog.Show();
         return dialog;
     }
@@ -496,9 +504,23 @@ public partial class MainWindow : Window
         ThemeDarkItem.IsChecked = isDark;
         ThemeHcItem.IsChecked = isHc;
 
-        // The value-foreground converter resolves theme brushes once per bind;
-        // re-binding forces it to pick up the new theme's brushes.
-        if (_properties is not null)
+        // A variant change moves the text brushes too, so refresh the
+        // value-foreground converter as well as the accent-dependent views.
+        RefreshThemeDependentViews(refreshValueForeground: true);
+    }
+
+    /// <summary>
+    /// Re-applies the theme-dependent visuals after a theme change: invalidates
+    /// the cached theme brushes, re-applies the open node viewer's accent ring
+    /// and mini-map card, and (for a variant change) re-binds the property grid
+    /// so the value-foreground converter picks up the new theme's text brushes.
+    /// </summary>
+    private void RefreshThemeDependentViews(bool refreshValueForeground)
+    {
+        ThemeResources.Refresh();
+        _nodeViewerDialog?.RefreshThemeBrushes();
+
+        if (refreshValueForeground && _properties is not null)
         {
             PropertyGrid.ItemsSource = null;
             PropertyGrid.ItemsSource = _properties;
@@ -538,6 +560,10 @@ public partial class MainWindow : Window
         {
             App.Theme.CustomAccentColor = accent;
         }
+
+        // An accent change moves the accent brush (not the text brushes), so
+        // refresh the accent-dependent views without re-binding the grid.
+        RefreshThemeDependentViews(refreshValueForeground: false);
     }
 
     private static bool HasSeenIntroTip

@@ -62,6 +62,17 @@ public partial class NodeViewerDialog : Window
 		Dispatcher.UIThread.Post(() => Graph.FitToView(), DispatcherPriority.Background);
 	}
 
+    /// <summary>
+    /// Re-applies the theme-dependent brushes (the graph's accent ring and the
+    /// mini-map card) after a theme variant or accent change; the host calls
+    /// this so an open dialog tracks the theme.
+    /// </summary>
+    public void RefreshThemeBrushes()
+    {
+        Graph.RefreshThemeBrushes();
+        MiniMap.RefreshThemeBrushes();
+    }
+
 	private void OnFitClick(object? sender, RoutedEventArgs e) => Graph.FitToView();
 
     private void OnZoomInClick(object? sender, RoutedEventArgs e) => Graph.ZoomIn();
