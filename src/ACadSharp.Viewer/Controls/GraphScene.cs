@@ -104,11 +104,10 @@ public sealed class GraphScene
         _state.BoxHeights.Clear();
         foreach (GraphNodeInfo node in model.Nodes)
         {
-            double x = (model.MaxDepth - node.Depth) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin;
-            double y = node.Row * GraphLayout.RowHeight + GraphLayout.LayoutMargin;
-            positions[node.Index] = new Point(x, y);
+            Point pos = GraphLayout.GetPosition(model, node);
+            positions[node.Index] = pos;
             byIndex[node.Index] = node;
-            _state.BasePositions[node.Index] = new Point(x, y);
+            _state.BasePositions[node.Index] = pos;
             _state.BoxHeights[node.Index] = GraphLayout.BoxHeightFor(node);
         }
 
@@ -148,6 +147,14 @@ public sealed class GraphScene
 
             int srcIdx = GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex);
             int dstIdx = GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex);
+            if (srcIdx < 0 || dstIdx < 0)
+            {
+                // The model and the view disagree on a port's (peer, wire)
+                // identity — a real bug. Skip the edge rather than silently
+                // anchoring it to port 0.
+                Console.Error.WriteLine($"[graph] missing port for edge {edge.FromIndex}->{edge.ToIndex} wire {edge.WireIndex}");
+                continue;
+            }
             Point start = outputPortPos[edge.FromIndex][srcIdx];
             Point end = inputPortPos[edge.ToIndex][dstIdx];
             _edgeFactory.AddEdge(start, end, edge, fromNode, toNode);
@@ -178,10 +185,7 @@ public sealed class GraphScene
         _state.PendingEdges.Clear();
         _state.PortCircles.Clear();
 
-        double naturalWidth = (model.MaxDepth + 1) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin * 2;
-        double naturalHeight = Math.Max(
-            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * GraphLayout.RowHeight + GraphLayout.LayoutMargin * 2,
-            300);
+        (double naturalWidth, double naturalHeight) = GraphLayout.GetContentSize(model);
         _transform.SetNaturalSize(naturalWidth, naturalHeight);
         _transform.Apply();
     }

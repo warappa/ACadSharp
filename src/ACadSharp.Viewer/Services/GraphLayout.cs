@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using ACadSharp.Objects.Evaluations;
 using Avalonia;
 using Avalonia.Controls;
@@ -42,6 +44,58 @@ public static class GraphLayout
     {
         string? name = (node?.Expression as BlockElement)?.ElementName;
         return string.IsNullOrWhiteSpace(name) ? BoxHeight : NamedBoxHeight;
+    }
+
+    /// <summary>
+    /// The row of a node within its depth column: nodes are ordered by index
+    /// (the <c>GraphModel</c> adds them in depth-then-index order), so the row
+    /// is the node's position among its same-depth peers. Keeping this here
+    /// (rather than storing it on the node) means the layout — not the data
+    /// model — decides the row ordering.
+    /// </summary>
+    public static int GetRow(GraphModel.Result model, GraphNodeInfo node)
+    {
+        int row = 0;
+        foreach (GraphNodeInfo n in model.Nodes)
+        {
+            if (n.Depth != node.Depth)
+            {
+                continue;
+            }
+            if (n.Index == node.Index)
+            {
+                break;
+            }
+            row++;
+        }
+        return row;
+    }
+
+    /// <summary>
+    /// The top-left layout position of a node's box: the column is the BFS
+    /// depth (the target, depth 0, sits in the rightmost column), the row is
+    /// <see cref="GetRow"/>. Single source of truth shared by the main view and
+    /// the mini-map (their content bounds must match).
+    /// </summary>
+    public static Point GetPosition(GraphModel.Result model, GraphNodeInfo node)
+    {
+        double x = (model.MaxDepth - node.Depth) * ColumnWidth + LayoutMargin;
+        double y = GetRow(model, node) * RowHeight + LayoutMargin;
+        return new Point(x, y);
+    }
+
+    /// <summary>
+    /// The natural content size (width × height) of the layout — the bounding
+    /// box the transform fits to and the mini-map scales from. Must match the
+    /// main view's content exactly.
+    /// </summary>
+    public static (double Width, double Height) GetContentSize(GraphModel.Result model)
+    {
+        double width = (model.MaxDepth + 1) * ColumnWidth + LayoutMargin * 2;
+        double height = Math.Max(
+            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * RowHeight + LayoutMargin * 2,
+            300);
+        return (width, height);
     }
 
     /// <summary>

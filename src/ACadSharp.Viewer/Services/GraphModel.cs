@@ -39,7 +39,6 @@ public class GraphNodeInfo
     public int Index { get; }
     public EvaluationExpression Expression { get; }
     public int Depth { get; }
-    public int Row { get; }
 
     /// <summary>
     /// Color category: Parameter / Grip / Action / Component / Other.
@@ -58,12 +57,11 @@ public class GraphNodeInfo
     /// </summary>
     public List<PortInfo> OutputPorts { get; set; } = new();
 
-    public GraphNodeInfo(int index, EvaluationExpression expression, int depth, int row)
+    public GraphNodeInfo(int index, EvaluationExpression expression, int depth)
     {
         Index = index;
         Expression = expression;
         Depth = depth;
-        Row = row;
         Kind = expression switch
         {
             BlockParameter => "Parameter",
@@ -126,13 +124,18 @@ public class GraphEdgeInfo
 
 /// <summary>
 /// Builds the ancestor subgraph of a target node: the target plus the
-/// transitive closure of its incoming edges (value sources). Layout is
-/// layered — the column is the first-visit BFS depth from the target,
-/// the target sits in the rightmost column and values flow left to right.
-/// Lookup actions are co-located with their parameters (reassigned to the
-/// mode depth of their flag-4-connected neighbors) so the 2-cycle stays
-/// within one column; the residual target→action edge is marked as feedback
-/// and drawn as a distinct arc.
+/// transitive closure of its incoming edges (value sources).
+///
+/// This is a <em>view-model</em>, not a pure data model: it pre-computes the
+/// display data the graph views render — the per-wire port names, the edge
+/// labels, the feedback flag, and the lookup (dashed) flag — from the raw
+/// <see cref="EvaluationGraph"/>. The <em>layout</em> (the column/row
+/// positions, the box heights, the content bounds) is <em>not</em> here; it
+/// lives in <see cref="GraphLayout"/>, which consumes the graph data (the
+/// BFS depth) and turns it into positions. Lookup actions are co-located with
+/// their parameters (reassigned to the mode depth of their flag-4-connected
+/// neighbors) so the 2-cycle stays within one column; the residual
+/// target→action edge is marked as feedback and drawn as a distinct arc.
 /// </summary>
 public static class GraphModel
 {
@@ -186,17 +189,19 @@ public static class GraphModel
         int maxDepth = depth.Count == 0 ? 0 : depth.Values.Max();
         var result = new Result { MaxDepth = maxDepth };
 
+        // Nodes are added in depth-then-index order; the row ordering is a
+        // layout concern (GraphLayout.GetRow), so the model assigns only the
+        // depth (the BFS distance, a graph property).
         foreach ((int d, List<int> indices) in byDepth)
         {
-            for (int row = 0; row < indices.Count; row++)
+            foreach (int nodeIndex in indices)
             {
-                int nodeIndex = indices[row];
                 if (!byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node) || node is null)
                 {
                     continue;
                 }
 
-                result.Nodes.Add(new GraphNodeInfo(nodeIndex, node.Expression!, d, row));
+                result.Nodes.Add(new GraphNodeInfo(nodeIndex, node.Expression!, d));
             }
         }
 

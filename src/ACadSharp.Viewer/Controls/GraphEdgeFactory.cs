@@ -102,9 +102,12 @@ public sealed class GraphEdgeFactory
 
         _canvas.Children.Add(line);
 
-        // Record for cross-highlighting (edge ↔ port circle).
-        int srcPortIdx = fromNode is not null ? GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex) : 0;
-        int dstPortIdx = toNode is not null ? GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex) : 0;
+        // Record for cross-highlighting (edge ↔ port circle). The caller
+        // (GraphScene) already verified the ports match before calling this;
+        // a -1 here would be a real bug, so fall back to port 0 (a -1 would
+        // index out of range downstream).
+        int srcPortIdx = fromNode is null ? 0 : Math.Max(0, GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex));
+        int dstPortIdx = toNode is null ? 0 : Math.Max(0, GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex));
         _state.PendingEdges.Add((line, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Arrowhead at the target end (pointing along the edge direction).
@@ -211,9 +214,12 @@ public sealed class GraphEdgeFactory
         };
         _canvas.Children.Add(line);
 
-        // Record for cross-highlighting (edge ↔ port circle).
-        int srcPortIdx = fromNode is not null ? GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex) : 0;
-        int dstPortIdx = toNode is not null ? GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex) : 0;
+        // Record for cross-highlighting (edge ↔ port circle). The caller
+        // (GraphScene) already verified the ports match before calling this;
+        // a -1 here would be a real bug, so fall back to port 0 (a -1 would
+        // index out of range downstream).
+        int srcPortIdx = fromNode is null ? 0 : Math.Max(0, GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex));
+        int dstPortIdx = toNode is null ? 0 : Math.Max(0, GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex));
         _state.PendingEdges.Add((line, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Arrowhead at the target end, pointing along the curve tangent

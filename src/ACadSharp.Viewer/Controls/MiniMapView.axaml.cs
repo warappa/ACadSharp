@@ -131,10 +131,7 @@ public partial class MiniMapView : UserControl
         // The content bounds must match NodeGraphView's natural size, so
         // the visible-area rectangle (computed in the main view's content
         // coordinates) maps onto the mini-map correctly.
-        _contentW = (model.MaxDepth + 1) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin * 2;
-        _contentH = Math.Max(
-            model.Nodes.GroupBy(n => n.Depth).Select(g => g.Count()).Max() * GraphLayout.RowHeight + GraphLayout.LayoutMargin * 2,
-            300);
+        (_contentW, _contentH) = GraphLayout.GetContentSize(model);
 
         double w = Math.Max(1, MiniCanvas.Bounds.Width);
         double h = Math.Max(1, MiniCanvas.Bounds.Height);
@@ -148,9 +145,8 @@ public partial class MiniMapView : UserControl
         foreach (GraphNodeInfo node in model.Nodes)
         {
             Vector off = _nodeOffsets.GetValueOrDefault(node.Index);
-            double x = (model.MaxDepth - node.Depth) * GraphLayout.ColumnWidth + GraphLayout.LayoutMargin + off.X;
-            double y = node.Row * GraphLayout.RowHeight + GraphLayout.LayoutMargin + off.Y;
-            positions[node.Index] = (new Point(x, y), GraphLayout.BoxHeightFor(node), node.Kind, node.Depth == 0);
+            Point anchor = GraphLayout.GetPosition(model, node);
+            positions[node.Index] = (new Point(anchor.X + off.X, anchor.Y + off.Y), GraphLayout.BoxHeightFor(node), node.Kind, node.Depth == 0);
         }
 
         // Edges first (below the boxes): a straight line between the port
