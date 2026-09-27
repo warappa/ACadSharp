@@ -31,8 +31,10 @@ public partial class BlockLookupAction : BlockAction, IDxfClassDefined
 	/// <summary>
 	/// Evaluates the lookup action: reads each column's input value (the column's
 	/// <see cref="ColumnData.NodeId"/> and <see cref="ColumnData.ConnectionName"/>) from the
-	/// context, finds the row where all input values match, and stores the matched output
-	/// value as the action's current value.
+	/// context, finds the row where all input values match, and writes the matched cells back
+	/// to the output columns' ports (the connected parameters) — the table-driven update of the
+	/// connected parameters (AutoCAD's lookup semantics). The matched output value is also stored
+	/// as the action's current value.
 	/// <para>
 	/// Columns are matched by their data type: numeric columns (<see cref="ColumnData.IsText"/> = false)
 	/// compare scalars within a tolerance; text columns (<see cref="ColumnData.IsText"/> = true)
@@ -42,8 +44,12 @@ public partial class BlockLookupAction : BlockAction, IDxfClassDefined
 	/// when no row matches, it is the column's <see cref="ColumnData.UnmatchedName"/> (a string for
 	/// a text column, -1 for a numeric column); when the table has no output column, it is the
 	/// matched row index (-1 when no row matches).
-	/// The full AutoCAD semantics (writing the matched cells back to the connected parameters)
-	/// are not implemented.
+	/// <para>
+	/// The no-match default (<see cref="ColumnData.UnmatchedName"/>) is written to the output
+	/// columns' ports when no row matches, mirroring AutoCAD's "default value" for non-matching
+	/// inputs. Chained lookups (one lookup's output driving another lookup's input) are resolved
+	/// by the graph traversal: the matched cells are written to the connected parameters' ports,
+	/// and the next lookup in the chain reads them as its input.
 	/// </para>
 	/// </summary>
 	public override bool Evaluate(EvaluationContext context)

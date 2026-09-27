@@ -57,6 +57,30 @@ public partial class EvaluationGraph
 	/// node's evaluation failed.</returns>
 	public bool Evaluate()
 	{
+		return this.Evaluate(false);
+	}
+
+	/// <summary>
+	/// Evaluates the graph in the "reverse" direction: for invertible (flag-4) edge pairs
+	/// the reverse direction (lookup action → parameter) is followed instead of the forward
+	/// direction, mirroring AutoCAD's activation-based inversion of invertible edges
+	/// (<c>AcDbEvalGraph::addEdge</c> with <c>bInvertible = true</c>: the edge "can be
+	/// inverted depending on which of the nodes has been activated").
+	/// <para>
+	/// This is the evaluation a lookup table drives: the activated lookup action writes its
+	/// matched cells back to the connected parameters (table → parameter), and the updated
+	/// parameters propagate to the downstream actions.
+	/// </para>
+	/// </summary>
+	/// <returns>True when the evaluation succeeded; false when a cycle was detected or a
+	/// node's evaluation failed.</returns>
+	public bool EvaluateReverse()
+	{
+		return this.Evaluate(true);
+	}
+
+	private bool Evaluate(bool reverse)
+	{
 		this._context.Clear();
 
 		// If no nodes are activated, the evaluation is a no-op (success): the reachable
@@ -66,7 +90,7 @@ public partial class EvaluationGraph
 			return true;
 		}
 
-		List<int> order = this.GetTopologicalOrder(this._activatedNodes);
+		List<int> order = this.GetTopologicalOrder(this._activatedNodes, reverse);
 		if (order.Count == 0)
 		{
 			return false; // cycle detected

@@ -192,16 +192,23 @@ public partial class EvaluationGraph
 	/// <summary>
 	/// Computes a topological ordering of the nodes reachable from the given start nodes,
 	/// following outgoing edges. A node appears after all of its predecessors (the nodes
-	/// whose values it depends on). The "reverse" direction of invertible (flag-4) edge
-	/// pairs is ignored for ordering purposes so that the bidirectional lookup connections
-	/// do not prevent a valid ordering, while the forward direction is still followed.
+	/// whose values it depends on).
 	/// </summary>
 	/// <param name="startNodes">The indices of the nodes to start from (the user-activated nodes).</param>
+	/// <param name="reverse">
+	/// When false (the default, "forward" evaluation) the reverse direction of invertible
+	/// (flag-4) edge pairs is ignored so that the bidirectional lookup connections do not
+	/// prevent a valid ordering, while the forward direction is still followed (parameter →
+	/// lookup action). When true ("reverse" evaluation) the forward direction of the pairs
+	/// is ignored and the reverse direction is followed instead (lookup action → parameter),
+	/// mirroring AutoCAD's activation-based inversion of invertible edges: the direction is
+	/// resolved by which node of the pair was activated.
+	/// </param>
 	/// <returns>The topologically ordered node indices, or an empty list when the reachable subgraph has a cycle.</returns>
-	public List<int> GetTopologicalOrder(IEnumerable<int> startNodes)
+	public List<int> GetTopologicalOrder(IEnumerable<int> startNodes, bool reverse = false)
 	{
-		// Build the reachable subgraph (following outgoing edges, skipping the
-		// reverse direction of invertible flag-4 pairs to keep the graph acyclic).
+		// Build the reachable subgraph (following outgoing edges, skipping the direction of
+		// invertible flag-4 pairs that is not being evaluated).
 		HashSet<int> reachable = new HashSet<int>();
 		Stack<int> stack = new Stack<int>();
 		foreach (int s in startNodes)
@@ -222,7 +229,7 @@ public partial class EvaluationGraph
 
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				if (this.IsReverseLookupEdge(e))
+				if (this.SkipEdge(e, reverse))
 				{
 					continue;
 				}
@@ -242,7 +249,7 @@ public partial class EvaluationGraph
 		{
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				if (this.IsReverseLookupEdge(e))
+				if (this.SkipEdge(e, reverse))
 				{
 					continue;
 				}
@@ -271,7 +278,7 @@ public partial class EvaluationGraph
 
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				if (this.IsReverseLookupEdge(e))
+				if (this.SkipEdge(e, reverse))
 				{
 					continue;
 				}
@@ -297,6 +304,17 @@ public partial class EvaluationGraph
 		}
 
 		return order;
+	}
+
+	/// <summary>
+	/// Whether an edge should be skipped for the given evaluation direction. In forward mode
+	/// the reverse direction of invertible flag-4 pairs is skipped; in reverse mode the
+	/// forward direction is skipped (the reverse direction is followed instead). Non-invertible
+	/// edges are never skipped (they are one-way and are followed in both directions).
+	/// </summary>
+	private bool SkipEdge(int edgeIndex, bool reverse)
+	{
+		return reverse ? this.IsForwardLookupEdge(edgeIndex) : this.IsReverseLookupEdge(edgeIndex);
 	}
 
 	private static bool ListsEqual(IList<int> a, IList<int> b)
