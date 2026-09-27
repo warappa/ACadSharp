@@ -263,12 +263,14 @@ public static class GraphModel
     /// The display names for a logical edge's wires: one (output, input) pair
     /// per wire (<c>TrackedCount</c>). The <em>output</em> name is the
     /// <c>Name</c> field of the corresponding connection on the target node
-    /// that references the source node (the source's stored port); the
-    /// <em>input</em> name is the target's C# property that holds the
-    /// connection (its semantic role), humanized. Falls back to a type-specific
-    /// default (indexed for the surplus wires) when fewer connections than wires
-    /// are found (the EvalConnection entries are not always populated by the
-    /// file reader); the input then falls back to the same name.
+    /// that references the source node (the source's stored port), humanized;
+    /// the <em>input</em> name is the target's C# property that holds the
+    /// connection (its semantic role), humanized with the "Connection" suffix
+    /// stripped. Both are display-only (the stored value is untouched). Falls
+    /// back to a type-specific default (indexed for the surplus wires) when
+    /// fewer connections than wires are found (the EvalConnection entries are
+    /// not always populated by the file reader); the input then falls back to
+    /// the same name.
     /// </summary>
     private static (List<string> Output, List<string> Input) GetPortNames(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
     {
@@ -318,7 +320,7 @@ public static class GraphModel
         {
             if (i < names.Count)
             {
-                output.Add(names[i].PortName);
+                output.Add(Humanize(names[i].PortName));
                 input.Add(Humanize(names[i].PropertyName));
             }
             else if (names.Count == 0)
@@ -492,15 +494,23 @@ public static class GraphModel
 
     /// <summary>
     /// Humanizes a PascalCase C# property name into a space-separated label
-    /// (e.g. "AngleDeltaConnection" → "Angle Delta Connection"): a space is
-    /// inserted before an uppercase letter that follows a lowercase letter or
-    /// is followed by one.
+    /// (e.g. "AngleDeltaConnection" → "Angle Delta"): the "Connection" suffix
+    /// is stripped (display only), and a space is inserted before an uppercase
+    /// letter that follows a lowercase letter or is followed by one.
     /// </summary>
     private static string Humanize(string name)
     {
         if (string.IsNullOrEmpty(name))
         {
             return name;
+        }
+
+        // Strip the "Connection" suffix (display only); keep it when it is the
+        // whole name (a property literally called "Connection").
+        const string suffix = "Connection";
+        if (name.Length > suffix.Length && name.EndsWith(suffix, StringComparison.Ordinal))
+        {
+            name = name.Substring(0, name.Length - suffix.Length);
         }
 
         var sb = new System.Text.StringBuilder(name.Length + 4);
