@@ -1,0 +1,438 @@
+using System;
+using System.Collections.Generic;
+using ACadSharp.Viewer.Services;
+using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Input;
+using Avalonia.Media;
+using MediaColor = Avalonia.Media.Color;
+
+namespace ACadSharp.Viewer.Controls;
+
+/// <summary>
+/// The node graph's interaction: node selection (the accent ring + the
+/// <c>OnNodeClicked</c> event), hover highlighting (the box ring, the port
+/// circles, the edge arcs and their connected port circles), and node
+/// dragging (the live edge update).
+///
+/// Holds the interaction state and the event-handler callbacks; the
+/// construction (in <see cref="NodeGraphView"/>) owns the element tree and
+/// the element state and wires each element's pointer events to these
+/// callbacks. The construction callbacks let the interaction drive a
+/// redraw (after a drag), update the connected edges (during a drag), and
+/// cross-highlight the port circles connected to a hovered edge.
+/// </summary>
+public sealed class GraphInteraction
+{
+    // The element state (owned by the control; mutated by the construction).
+    private readonly Dictionary<int, Vector> _nodeOffsets;
+    private readonly Dictionary<int, Canvas> _nodeContainers;
+    private readonly Dictionary<Ellipse, Path> _circleToEdge;
+
+    // The transform (zoom/pan) and the hover tooltip.
+    private readonly GraphTransform _transform;
+    private readonly GraphTooltip _tooltip;
+
+    // The coordinate contexts for pointer positions (the scroll viewport for
+    // drag deltas, the overlay canvas for the floating tooltip).
+    private readonly ScrollViewer _scroll;
+    private readonly Canvas _overlay;
+
+    // Construction callbacks: update the connected edges live during a drag,
+    // redraw the whole graph after a drag (skipping the pan reset), and
+    // cross-highlight the port circles connected to a hovered edge.
+    private readonly Action<int> _updateConnectedEdges;
+    private readonly Action _redrawAfterDrag;
+    private readonly Action<Path, bool> _setPortHighlight;
+
+    // The control's events (getters so the interaction always invokes the
+    // current handler, even if the host reassigns it after construction).
+    private readonly Func<Action<int, Vector>?> _getNodeMoved;
+    private readonly Func<Action<string>?> _getOnNodeClicked;
+
+    // The brushes the interaction applies to element visuals (hardcoded,
+    // theme-independent; the accent selection ring is resolved from the
+    // active theme via GraphLayout.GetAccentBrush).
+    private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
+    private static readonly IBrush HoverBrush = new SolidColorBrush(MediaColor.Parse("#FFD0D0D0"));
+    private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
+    private static readonly IBrush EdgeLabelBrush = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80));
+    private static readonly IBrush EdgeHoverBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
+
+    // Interaction state: a box press first parks in _pendingSelectBox and
+    // becomes a drag once the pointer moves past the drag threshold.
+    private Border? _pendingSelectBox;
+    private Point _pressPos;
+    private Border? _hoverBox;
+    private Border? _selectedBox;
+    private bool _selectedIsTarget;
+    private Border? _dragBox;
+    private int _dragNodeIndex = -1;
+    private Point _dragStartPos;
+    private Point _dragLastPos;
+
+    public const int DragThreshold = 4;
+
+    public GraphInteraction(
+        GraphTransform transform,
+        GraphTooltip tooltip,
+        ScrollViewer scroll,
+        Canvas overlay,
+        Dictionary<int, Vector> nodeOffsets,
+        Dictionary<int, Canvas> nodeContainers,
+        Dictionary<Ellipse, Path> circleToEdge,
+        Action<int> updateConnectedEdges,
+        Action redrawAfterDrag,
+        Action<Path, bool> setPortHighlight,
+        Func<Action<int, Vector>?> getNodeMoved,
+        Func<Action<string>?> getOnNodeClicked)
+    {
+        _transform = transform;
+        _tooltip = tooltip;
+        _scroll = scroll;
+        _overlay = overlay;
+        _nodeOffsets = nodeOffsets;
+        _nodeContainers = nodeContainers;
+        _circleToEdge = circleToEdge;
+        _updateConnectedEdges = updateConnectedEdges;
+        _redrawAfterDrag = redrawAfterDrag;
+        _setPortHighlight = setPortHighlight;
+        _getNodeMoved = getNodeMoved;
+        _getOnNodeClicked = getOnNodeClicked;
+    }
+
+    /// <summary>
+    /// Clears the transient interaction state (called when the graph is
+    /// redrawn, so a stale selection / hover / drag does not survive the
+    /// rebuild).
+    /// </summary>
+    public void Reset()
+    {
+        _selectedBox = null;
+        _selectedIsTarget = false;
+        _hoverBox = null;
+        _pendingSelectBox = null;
+    }
+
+    /// <summary>
+    /// Drops the pending box press (a pan that just ended) without touching
+    /// the selection / hover state.
+    /// </summary>
+    public void ClearPendingSelect()
+    {
+        _pendingSelectBox = null;
+    }
+
+    // The callbacks (the element pointer-event handlers).
+
+    public void OnNodePressed(Border border, GraphNodeInfo node, bool isTarget, PointerPressedEventArgs e)
+    {
+        if (e.Properties.IsRightButtonPressed)
+        {
+            return; // let the canvas handle right-button pan
+        }
+
+        e.Handled = true;
+        _pendingSelectBox = border;
+        _pressPos = e.GetPosition(_scroll);
+        _dragBox = border;
+        _dragNodeIndex = node.Index;
+        _dragStartPos = e.GetPosition(_scroll);
+        _dragLastPos = e.GetPosition(_scroll);
+        e.Pointer.Capture(border);
+        border.Cursor = new Cursor(StandardCursorType.SizeAll);
+    }
+
+    public void OnNodeMoved(Border border, GraphNodeInfo node, Point position, PointerEventArgs e)
+    {
+        if (_dragBox != border)
+        {
+            return;
+        }
+
+        Point pos = e.GetPosition(_scroll);
+        bool dragged = Math.Abs(pos.X - _dragStartPos.X) > DragThreshold
+            || Math.Abs(pos.Y - _dragStartPos.Y) > DragThreshold;
+        if (!dragged)
+        {
+            _dragLastPos = pos;
+            return;
+        }
+
+        // Incremental delta: from the last move position, converted
+        // to content space (divide by scale). Accumulates smoothly
+        // across moves and across drags.
+        double dx = (pos.X - _dragLastPos.X) / _transform.Scale;
+        double dy = (pos.Y - _dragLastPos.Y) / _transform.Scale;
+        _dragLastPos = pos;
+
+        Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
+        _nodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
+        _getNodeMoved()?.Invoke(node.Index, _nodeOffsets[node.Index]);
+
+        // Move the container (box + ports + labels move together).
+        if (_nodeContainers.TryGetValue(node.Index, out var container))
+        {
+            Canvas.SetLeft(container, position.X + _nodeOffsets[node.Index].X);
+            Canvas.SetTop(container, position.Y + _nodeOffsets[node.Index].Y);
+        }
+
+        // Update connected edges in real-time.
+        _updateConnectedEdges(node.Index);
+    }
+
+    public void OnNodeReleased(Border border, GraphNodeInfo node, bool isTarget, PointerReleasedEventArgs e)
+    {
+        if (_dragBox == border)
+        {
+            _dragBox = null;
+
+            if (_pendingSelectBox == border)
+            {
+                // Check if it was a drag or a click.
+                Point pos = e.GetPosition(_scroll);
+                bool wasDrag = Math.Abs(pos.X - _dragStartPos.X) > DragThreshold
+                    || Math.Abs(pos.Y - _dragStartPos.Y) > DragThreshold;
+
+                if (wasDrag)
+                {
+                    _pendingSelectBox = null;
+                    // Redraw edges to follow the moved node.
+                    // Skip pan reset so the view doesn't jump.
+                    _redrawAfterDrag();
+                }
+                else
+                {
+                    _pendingSelectBox = null;
+                    SelectNode(border, node, isTarget);
+                }
+            }
+        }
+
+        border.Cursor = null;
+        e.Pointer.Capture(null);
+
+        // Enter/exited were suppressed while panning; re-evaluate the
+        // hover state from the pointer's final position.
+        Point at = e.GetPosition(border);
+        bool inside = at.X >= 0 && at.Y >= 0
+            && at.X < border.Bounds.Width && at.Y < border.Bounds.Height;
+        _hoverBox = inside ? border : null;
+        SetBoxBorder(border, isTarget, inside);
+        if (inside)
+        {
+            _tooltip.ShowNode(node, e.GetPosition(_overlay));
+        }
+        else
+        {
+            _tooltip.Hide();
+        }
+    }
+
+    public void OnNodeCaptureLost(Border border)
+    {
+        _pendingSelectBox = null;
+        _transform.EndPan();
+        border.Cursor = null;
+    }
+
+    public void OnNodeEntered(Border border, GraphNodeInfo node, bool isTarget, PointerEventArgs e)
+    {
+        if (_transform.IsPanning)
+        {
+            return; // the box is moving under the pointer while panning
+        }
+
+        _hoverBox = border;
+        SetBoxBorder(border, isTarget, true);
+        _tooltip.ShowNode(node, e.GetPosition(_overlay));
+    }
+
+    public void OnNodeExited(Border border, GraphNodeInfo node, bool isTarget)
+    {
+        if (_transform.IsPanning)
+        {
+            return;
+        }
+
+        if (_hoverBox == border)
+        {
+            _hoverBox = null;
+        }
+
+        SetBoxBorder(border, isTarget, false);
+        _tooltip.Hide();
+    }
+
+    public void OnPortEntered(Ellipse circle, PortInfo port, bool isInput, PointerEventArgs e)
+    {
+        circle.Fill = EdgeHoverBrush;
+        if (_circleToEdge.TryGetValue(circle, out var edgeLine))
+        {
+            edgeLine.StrokeThickness = 3;
+            edgeLine.Stroke = EdgeHoverBrush;
+        }
+        _tooltip.ShowPort(port, isInput, e.GetPosition(_overlay));
+    }
+
+    public void OnPortExited(Ellipse circle, PortInfo port, bool isInput)
+    {
+        circle.Fill = Brushes.White;
+        if (_circleToEdge.TryGetValue(circle, out var edgeLine))
+        {
+            edgeLine.StrokeThickness = 1.5;
+            edgeLine.Stroke = EdgeLineBrush;
+        }
+        _tooltip.Hide();
+    }
+
+    public void OnPortMoved(Ellipse circle, PointerEventArgs e)
+    {
+        _tooltip.Move(e.GetPosition(_overlay));
+    }
+
+    public void OnEdgeLabelEntered(Border labelMask, Path line, Path? arrowhead, TextBlock label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, PointerEventArgs e)
+    {
+        line.StrokeThickness = 3;
+        line.Stroke = EdgeHoverBrush;
+        if (arrowhead is not null) arrowhead.Fill = EdgeHoverBrush;
+        label.Foreground = EdgeHoverBrush;
+        label.FontWeight = FontWeight.SemiBold;
+        _setPortHighlight(line, true);
+        _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(_overlay));
+    }
+
+    public void OnEdgeLabelExited(Border labelMask, Path line, Path? arrowhead, TextBlock label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode)
+    {
+        line.StrokeThickness = 1.5;
+        line.Stroke = EdgeLineBrush;
+        if (arrowhead is not null) arrowhead.Fill = EdgeLineBrush;
+        label.Foreground = EdgeLabelBrush;
+        label.FontWeight = FontWeight.Normal;
+        _setPortHighlight(line, false);
+        _tooltip.Hide();
+    }
+
+    public void OnEdgeLabelMoved(Border labelMask, PointerEventArgs e)
+    {
+        _tooltip.Move(e.GetPosition(_overlay));
+    }
+
+    public void OnEdgeEntered(Path line, Path? arrowhead, TextBlock? label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, PointerEventArgs e)
+    {
+        line.StrokeThickness = 3;
+        line.Stroke = EdgeHoverBrush;
+        if (arrowhead is not null)
+        {
+            arrowhead.Fill = EdgeHoverBrush;
+        }
+        if (label is not null)
+        {
+            label.Foreground = EdgeHoverBrush;
+            label.FontWeight = FontWeight.SemiBold;
+        }
+        _setPortHighlight(line, true);
+        _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(_overlay));
+    }
+
+    public void OnEdgeExited(Path line, Path? arrowhead, TextBlock? label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode)
+    {
+        line.StrokeThickness = 1.5;
+        line.Stroke = EdgeLineBrush;
+        if (arrowhead is not null)
+        {
+            arrowhead.Fill = EdgeLineBrush;
+        }
+        if (label is not null)
+        {
+            label.Foreground = EdgeLabelBrush;
+            label.FontWeight = FontWeight.Normal;
+        }
+        _setPortHighlight(line, false);
+        _tooltip.Hide();
+    }
+
+    public void OnEdgeMoved(Path line, PointerEventArgs e)
+    {
+        _tooltip.Move(e.GetPosition(_overlay));
+    }
+
+    // The feedback arc: on hover it only thickens (the arc keeps its
+    // FeedbackBrush stroke — no color change), cross-highlights the
+    // connected port circles, and shows the tooltip.
+    public void OnFeedbackEdgeEntered(Path line, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, PointerEventArgs e)
+    {
+        line.StrokeThickness = 3;
+        _setPortHighlight(line, true);
+        _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(_overlay));
+    }
+
+    public void OnFeedbackEdgeExited(Path line, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode)
+    {
+        line.StrokeThickness = 1.5;
+        _setPortHighlight(line, false);
+        _tooltip.Hide();
+    }
+
+    // The interaction methods.
+
+    /// <summary>
+    /// Selects a node box: accent ring + the <c>OnNodeClicked</c> event.
+    /// </summary>
+    public void SelectNode(Border border, GraphNodeInfo node, bool isTarget)
+    {
+        if (_selectedBox != null)
+        {
+            SetBoxBorder(_selectedBox, _selectedIsTarget, _hoverBox == _selectedBox);
+        }
+
+        _selectedBox = border;
+        _selectedIsTarget = isTarget;
+        SetBoxBorder(border, isTarget, _hoverBox == border);
+        _getOnNodeClicked()?.Invoke(GraphDrawing.BuildTooltip(node));
+    }
+
+    /// <summary>
+    /// Applies the border for a box's current state: the accent selection
+    /// ring wins, then the hover highlight, then the default (a dim white
+    /// ring for the target, invisible otherwise). The thickness is constant
+    /// per box (3 for the target, 2 otherwise) so the inner text never
+    /// shifts when the hover state changes — only the brush changes
+    /// (transparent = invisible but still reserves the border slot).
+    /// </summary>
+    public void SetBoxBorder(Border border, bool isTarget, bool hovered)
+    {
+        border.BorderThickness = new Thickness(isTarget ? 3 : 2);
+
+        if (_selectedBox == border)
+        {
+            border.BorderBrush = GraphLayout.GetAccentBrush();
+            return;
+        }
+
+        if (hovered)
+        {
+            border.BorderBrush = isTarget ? WhiteBrush : HoverBrush;
+            return;
+        }
+
+        border.BorderBrush = isTarget
+            ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF))
+            : Brushes.Transparent;
+    }
+
+    /// <summary>
+    /// Re-applies the theme-dependent brushes after a theme change: the
+    /// selected node's accent ring (the edge-label masks are recreated on the
+    /// next draw and pick up the refreshed <see cref="ThemeResources"/> cache
+    /// then).
+    /// </summary>
+    public void RefreshThemeBrushes()
+    {
+        if (_selectedBox is not null)
+        {
+            SetBoxBorder(_selectedBox, _selectedIsTarget, _hoverBox == _selectedBox);
+        }
+    }
+}

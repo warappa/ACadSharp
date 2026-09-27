@@ -26,10 +26,8 @@ public partial class NodeGraphView : UserControl
     // Layout metrics (box / column / row sizes and the content margin) and the
     // kind-color / box-height / accent rules live in the shared GraphLayout
     // (also used by MiniMapView) so the two views stay in sync.
-    private const double DragThreshold = 4;
 
     private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush HoverBrush = new SolidColorBrush(MediaColor.Parse("#FFD0D0D0"));
     private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
     private static readonly IBrush EdgeLabelBrush = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80));
     private static readonly IBrush EdgeHoverBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
@@ -50,13 +48,11 @@ public partial class NodeGraphView : UserControl
     // --screenshot harness.
     private GraphDiagnostics _diagnostics = null!;
 
-    // Interaction state: a box press first parks in _pendingSelectBox and
-    // becomes a pan once the pointer moves past the drag threshold.
-    private Border? _pendingSelectBox;
-    private Point _pressPos;
-    private Border? _hoverBox;
-    private Border? _selectedBox;
-    private bool _selectedIsTarget;
+    // The interaction (node selection, hover highlighting, and node dragging)
+    // is encapsulated in a GraphInteraction; the construction owns the
+    // element tree and the element state and wires each element's pointer
+    // events to the interaction's callbacks.
+    private GraphInteraction _interaction = null!;
 
     // Node dragging: per-node offset (viewport-independent, in content
     // coordinates). Applied on top of the computed layout position.
@@ -72,10 +68,6 @@ public partial class NodeGraphView : UserControl
     // The arrowhead and label (if any) are stored alongside the line so
     // all three update together.
     private readonly List<(Path line, Path? arrowhead, Border? labelMask, int fromIdx, int toIdx, int srcPortIdx, int dstPortIdx)> _edgeRecords = new();
-    private Border? _dragBox;
-    private int _dragNodeIndex;
-    private Point _dragStartPos;
-    private Point _dragLastPos;
     private GraphModel.Result? _lastModel;
 
     // Cross-highlighting: edge Path → its connected port circles, and
@@ -153,6 +145,14 @@ public partial class NodeGraphView : UserControl
 			_transform, GraphCanvas,
 			() => _firstLabeledEdge, () => _lastModel,
 			() => _nodeContainers, () => _boxHeights);
+		_interaction = new GraphInteraction(
+			_transform, _tooltip, Scroll, Overlay,
+			_nodeOffsets, _nodeContainers, _circleToEdge,
+			updateConnectedEdges: idx => UpdateConnectedEdges(idx),
+			redrawAfterDrag: () => { if (_lastModel is not null) SetGraph(_lastModel, resetPan: false); },
+			setPortHighlight: (line, on) => SetPortHighlight(line, on),
+			getNodeMoved: () => NodeMoved,
+			getOnNodeClicked: () => OnNodeClicked);
 
 		InitializeComponentState();
 	}
@@ -259,52 +259,7 @@ public partial class NodeGraphView : UserControl
     private void OnCanvasPointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
     {
         _transform.OnPointerCaptureLost();
-        _pendingSelectBox = null;
-    }
-
-    /// <summary>
-    /// Selects a node box: accent ring + <see cref="OnNodeClicked"/>.
-    /// </summary>
-    private void SelectNode(Border border, GraphNodeInfo node, bool isTarget)
-    {
-        if (_selectedBox != null)
-        {
-            SetBoxBorder(_selectedBox, _selectedIsTarget, _hoverBox == _selectedBox);
-        }
-
-        _selectedBox = border;
-        _selectedIsTarget = isTarget;
-        SetBoxBorder(border, isTarget, _hoverBox == border);
-        OnNodeClicked?.Invoke(GraphDrawing.BuildTooltip(node));
-    }
-
-    /// <summary>
-    /// Applies the border for a box's current state: the accent selection
-    /// ring wins, then the hover highlight, then the default (a dim white
-    /// ring for the target, invisible otherwise). The thickness is constant
-    /// per box (3 for the target, 2 otherwise) so the inner text never
-    /// shifts when the hover state changes — only the brush changes
-    /// (transparent = invisible but still reserves the border slot).
-    /// </summary>
-    private void SetBoxBorder(Border border, bool isTarget, bool hovered)
-    {
-        border.BorderThickness = new Thickness(isTarget ? 3 : 2);
-
-        if (_selectedBox == border)
-        {
-            border.BorderBrush = GraphLayout.GetAccentBrush();
-            return;
-        }
-
-        if (hovered)
-        {
-            border.BorderBrush = isTarget ? WhiteBrush : HoverBrush;
-            return;
-        }
-
-        border.BorderBrush = isTarget
-            ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF))
-            : Brushes.Transparent;
+        _interaction.ClearPendingSelect();
     }
 
     /// <summary>
@@ -313,13 +268,7 @@ public partial class NodeGraphView : UserControl
     /// next draw and pick up the refreshed <see cref="ThemeResources"/> cache
     /// then).
     /// </summary>
-    public void RefreshThemeBrushes()
-    {
-        if (_selectedBox is not null)
-        {
-            SetBoxBorder(_selectedBox, _selectedIsTarget, _hoverBox == _selectedBox);
-        }
-    }
+    public void RefreshThemeBrushes() => _interaction.RefreshThemeBrushes();
 
     /// <summary>
     /// Verification helper (used by the --screenshot interact mode):
@@ -374,10 +323,7 @@ public partial class NodeGraphView : UserControl
     public void SetGraph(GraphModel.Result model, bool resetPan = true)
     {
         _lastModel = model;
-        _selectedBox = null;
-        _selectedIsTarget = false;
-        _hoverBox = null;
-        _pendingSelectBox = null;
+        _interaction.Reset();
         _transform.EndPan();
         if (resetPan)
         {
@@ -566,143 +512,15 @@ public partial class NodeGraphView : UserControl
         GraphCanvas.Children.Add(container);
 
         // Interaction: left-button drag moves the node; left click selects;
-        // right-button propagates to the canvas for panning.
-        border.PointerPressed += (_, e) =>
-        {
-            if (e.Properties.IsRightButtonPressed)
-            {
-                return; // let the canvas handle right-button pan
-            }
-
-            e.Handled = true;
-            _pendingSelectBox = border;
-            _pressPos = e.GetPosition(Scroll);
-            _dragBox = border;
-            _dragNodeIndex = node.Index;
-            _dragStartPos = e.GetPosition(Scroll);
-            _dragLastPos = e.GetPosition(Scroll);
-            e.Pointer.Capture(border);
-            border.Cursor = new Cursor(StandardCursorType.SizeAll);
-        };
-        border.PointerMoved += (_, e) =>
-        {
-            if (_dragBox != border)
-            {
-                return;
-            }
-
-            Point pos = e.GetPosition(Scroll);
-            bool dragged = Math.Abs(pos.X - _dragStartPos.X) > DragThreshold
-                || Math.Abs(pos.Y - _dragStartPos.Y) > DragThreshold;
-            if (!dragged)
-            {
-                _dragLastPos = pos;
-                return;
-            }
-
-            // Incremental delta: from the last move position, converted
-            // to content space (divide by scale). Accumulates smoothly
-            // across moves and across drags.
-            double dx = (pos.X - _dragLastPos.X) / _transform.Scale;
-            double dy = (pos.Y - _dragLastPos.Y) / _transform.Scale;
-            _dragLastPos = pos;
-
-            Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
-            _nodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
-            NodeMoved?.Invoke(node.Index, _nodeOffsets[node.Index]);
-
-            // Move the container (box + ports + labels move together).
-            if (_nodeContainers.TryGetValue(node.Index, out var container))
-            {
-                Canvas.SetLeft(container, position.X + _nodeOffsets[node.Index].X);
-                Canvas.SetTop(container, position.Y + _nodeOffsets[node.Index].Y);
-            }
-
-            // Update connected edges in real-time.
-            UpdateConnectedEdges(node.Index);
-        };
-        border.PointerReleased += (_, e) =>
-        {
-            if (_dragBox == border)
-            {
-                _dragBox = null;
-
-                if (_pendingSelectBox == border)
-                {
-                    // Check if it was a drag or a click.
-                    Point pos = e.GetPosition(Scroll);
-                    bool wasDrag = Math.Abs(pos.X - _dragStartPos.X) > DragThreshold
-                        || Math.Abs(pos.Y - _dragStartPos.Y) > DragThreshold;
-
-                    if (wasDrag)
-                    {
-                        _pendingSelectBox = null;
-                        // Redraw edges to follow the moved node.
-                        // Skip pan reset so the view doesn't jump.
-                        if (_lastModel is not null)
-                        {
-                            SetGraph(_lastModel, resetPan: false);
-                        }
-                    }
-                    else
-                    {
-                        _pendingSelectBox = null;
-                        SelectNode(border, node, isTarget);
-                    }
-                }
-            }
-
-            border.Cursor = null;
-            e.Pointer.Capture(null);
-
-            // Enter/exited were suppressed while panning; re-evaluate the
-            // hover state from the pointer's final position.
-            Point at = e.GetPosition(border);
-            bool inside = at.X >= 0 && at.Y >= 0
-                && at.X < border.Bounds.Width && at.Y < border.Bounds.Height;
-            _hoverBox = inside ? border : null;
-            SetBoxBorder(border, isTarget, inside);
-            if (inside)
-            {
-                _tooltip.ShowNode(node, e.GetPosition(Overlay));
-            }
-            else
-            {
-                _tooltip.Hide();
-            }
-        };
-        border.PointerCaptureLost += (_, _) =>
-        {
-            _pendingSelectBox = null;
-            _transform.EndPan();
-            border.Cursor = null;
-        };
-        border.PointerEntered += (_, e) =>
-        {
-            if (_transform.IsPanning)
-            {
-                return; // the box is moving under the pointer while panning
-            }
-
-            _hoverBox = border;
-            SetBoxBorder(border, isTarget, true);
-            _tooltip.ShowNode(node, e.GetPosition(Overlay));
-        };
-        border.PointerExited += (_, _) =>
-        {
-            if (_transform.IsPanning)
-            {
-                return;
-            }
-
-            if (_hoverBox == border)
-            {
-                _hoverBox = null;
-            }
-
-            SetBoxBorder(border, isTarget, false);
-            _tooltip.Hide();
-        };
+        // right-button propagates to the canvas for panning. The handlers
+        // delegate to the GraphInteraction (the shared interaction state
+        // and logic live there).
+        border.PointerPressed += (_, e) => _interaction.OnNodePressed(border, node, isTarget, e);
+        border.PointerMoved += (_, e) => _interaction.OnNodeMoved(border, node, position, e);
+        border.PointerReleased += (_, e) => _interaction.OnNodeReleased(border, node, isTarget, e);
+        border.PointerCaptureLost += (_, _) => _interaction.OnNodeCaptureLost(border);
+        border.PointerEntered += (_, e) => _interaction.OnNodeEntered(border, node, isTarget, e);
+        border.PointerExited += (_, _) => _interaction.OnNodeExited(border, node, isTarget);
 
         // Port circles and labels: input ports on the left edge, output
         // ports on the right edge. Positions are relative to the container's
@@ -747,30 +565,9 @@ public partial class NodeGraphView : UserControl
             _portCircles[(nodeIndex, i, isInput)] = circle;
 
             // Hover: highlight the circle and the connected edge.
-            circle.PointerEntered += (_, e) =>
-            {
-                circle.Fill = EdgeHoverBrush;
-                if (_circleToEdge.TryGetValue(circle, out var edgeLine))
-                {
-                    edgeLine.StrokeThickness = 3;
-                    edgeLine.Stroke = EdgeHoverBrush;
-                }
-                _tooltip.ShowPort(port, isInput, e.GetPosition(Overlay));
-            };
-            circle.PointerExited += (_, _) =>
-            {
-                circle.Fill = Brushes.White;
-                if (_circleToEdge.TryGetValue(circle, out var edgeLine))
-                {
-                    edgeLine.StrokeThickness = 1.5;
-                    edgeLine.Stroke = EdgeLineBrush;
-                }
-                _tooltip.Hide();
-            };
-            circle.PointerMoved += (_, e) =>
-            {
-                _tooltip.Move(e.GetPosition(Overlay));
-            };
+            circle.PointerEntered += (_, e) => _interaction.OnPortEntered(circle, port, isInput, e);
+            circle.PointerExited += (_, _) => _interaction.OnPortExited(circle, port, isInput);
+            circle.PointerMoved += (_, e) => _interaction.OnPortMoved(circle, e);
 
             // Permanent label: to the left of input ports, to the right of
             // output ports. Fully opaque white, 11px, with a background
@@ -929,30 +726,9 @@ public partial class NodeGraphView : UserControl
                 Child = label,
             };
             // Hovering the label highlights the edge (same as hovering the line).
-            labelMask.PointerEntered += (_, e) =>
-            {
-                line.StrokeThickness = 3;
-                line.Stroke = EdgeHoverBrush;
-                if (arrowhead is not null) arrowhead.Fill = EdgeHoverBrush;
-                label!.Foreground = EdgeHoverBrush;
-                label.FontWeight = FontWeight.SemiBold;
-                SetPortHighlight(line, true);
-                _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(Overlay));
-            };
-            labelMask.PointerExited += (_, _) =>
-            {
-                line.StrokeThickness = 1.5;
-                line.Stroke = EdgeLineBrush;
-                if (arrowhead is not null) arrowhead.Fill = EdgeLineBrush;
-                label!.Foreground = EdgeLabelBrush;
-                label.FontWeight = FontWeight.Normal;
-                SetPortHighlight(line, false);
-                _tooltip.Hide();
-            };
-            labelMask.PointerMoved += (_, e) =>
-            {
-                _tooltip.Move(e.GetPosition(Overlay));
-            };
+            labelMask.PointerEntered += (_, e) => _interaction.OnEdgeLabelEntered(labelMask, line, arrowhead, label!, edge, fromNode, toNode, e);
+            labelMask.PointerExited += (_, _) => _interaction.OnEdgeLabelExited(labelMask, line, arrowhead, label!, edge, fromNode, toNode);
+            labelMask.PointerMoved += (_, e) => _interaction.OnEdgeLabelMoved(labelMask, e);
             // Provisional: centered on the midpoint, shifted a bit left; the
             // final position is set by PositionPendingLabels once the text
             // width is known.
@@ -971,47 +747,9 @@ public partial class NodeGraphView : UserControl
 
         // Hover: thicken the edge (and highlight the arrowhead, the label,
         // and the connected port circles) and show a floating tooltip.
-        line.PointerEntered += (_, e) =>
-        {
-            line.StrokeThickness = 3;
-            line.Stroke = EdgeHoverBrush;
-            if (arrowhead is not null)
-            {
-                arrowhead.Fill = EdgeHoverBrush;
-            }
-            if (label is not null)
-            {
-                label.Foreground = EdgeHoverBrush;
-                label.FontWeight = FontWeight.SemiBold;
-            }
-            SetPortHighlight(line, true);
-            _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(Overlay));
-        };
-        line.PointerExited += (_, _) =>
-        {
-            line.StrokeThickness = 1.5;
-            line.Stroke = EdgeLineBrush;
-            if (arrowhead is not null)
-            {
-                arrowhead.Fill = EdgeLineBrush;
-            }
-            if (label is not null)
-            {
-                label.Foreground = EdgeLabelBrush;
-                label.FontWeight = FontWeight.Normal;
-            }
-            SetPortHighlight(line, false);
-            _tooltip.Hide();
-        };
-        line.PointerMoved += (_, e) =>
-        {
-            if (HoverTip.IsVisible)
-            {
-                Point p = e.GetPosition(Overlay);
-                Canvas.SetLeft(HoverTip, p.X + 14);
-                Canvas.SetTop(HoverTip, p.Y + 14);
-            }
-        };
+        line.PointerEntered += (_, e) => _interaction.OnEdgeEntered(line, arrowhead, label, edge, fromNode, toNode, e);
+        line.PointerExited += (_, _) => _interaction.OnEdgeExited(line, arrowhead, label, edge, fromNode, toNode);
+        line.PointerMoved += (_, e) => _interaction.OnEdgeMoved(line, e);
     }
 
     /// <summary>
@@ -1100,27 +838,9 @@ public partial class NodeGraphView : UserControl
         _edgeRecords.Add((line, fbArrowhead, fbLabelMask, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Hover: thicken the arc, highlight connected port circles, and show a tooltip.
-        line.PointerEntered += (_, e) =>
-        {
-            line.StrokeThickness = 3;
-            SetPortHighlight(line, true);
-            _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(Overlay));
-        };
-        line.PointerExited += (_, _) =>
-        {
-            line.StrokeThickness = 1.5;
-            SetPortHighlight(line, false);
-            _tooltip.Hide();
-        };
-        line.PointerMoved += (_, e) =>
-        {
-            if (HoverTip.IsVisible)
-            {
-                Point p = e.GetPosition(Overlay);
-                Canvas.SetLeft(HoverTip, p.X + 14);
-                Canvas.SetTop(HoverTip, p.Y + 14);
-            }
-        };
+        line.PointerEntered += (_, e) => _interaction.OnFeedbackEdgeEntered(line, edge, fromNode, toNode, e);
+        line.PointerExited += (_, _) => _interaction.OnFeedbackEdgeExited(line, edge, fromNode, toNode);
+        line.PointerMoved += (_, e) => _interaction.OnEdgeMoved(line, e);
     }
 
     private Path AddArrowhead(Point at, Vector direction) => AddArrowhead(at, direction, EdgeLineBrush);
