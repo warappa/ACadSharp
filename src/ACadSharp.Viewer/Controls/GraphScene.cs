@@ -102,9 +102,10 @@ public sealed class GraphScene
         Dictionary<int, GraphNodeInfo> byIndex = new();
         _state.BasePositions.Clear();
         _state.BoxHeights.Clear();
+        Dictionary<int, int> rows = GraphLayout.ComputeRows(model);
         foreach (GraphNodeInfo node in model.Nodes)
         {
-            Point pos = GraphLayout.GetPosition(model, node);
+            Point pos = GraphLayout.GetPosition(model, node, rows);
             positions[node.Index] = pos;
             byIndex[node.Index] = node;
             _state.BasePositions[node.Index] = pos;

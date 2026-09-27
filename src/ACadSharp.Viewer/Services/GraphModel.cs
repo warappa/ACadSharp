@@ -190,8 +190,8 @@ public static class GraphModel
         var result = new Result { MaxDepth = maxDepth };
 
         // Nodes are added in depth-then-index order; the row ordering is a
-        // layout concern (GraphLayout.GetRow), so the model assigns only the
-        // depth (the BFS distance, a graph property).
+        // layout concern (GraphLayout.ComputeRows), so the model assigns only
+        // the depth (the BFS distance, a graph property).
         foreach ((int d, List<int> indices) in byDepth)
         {
             foreach (int nodeIndex in indices)

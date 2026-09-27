@@ -142,10 +142,11 @@ public partial class MiniMapView : UserControl
         // Node positions (the same layout as the main view, plus the
         // user-drag offset so a dragged node follows in the overview).
         Dictionary<int, (Point pos, double height, string kind, bool isTarget)> positions = new();
+        Dictionary<int, int> rows = GraphLayout.ComputeRows(model);
         foreach (GraphNodeInfo node in model.Nodes)
         {
             Vector off = _nodeOffsets.GetValueOrDefault(node.Index);
-            Point anchor = GraphLayout.GetPosition(model, node);
+            Point anchor = GraphLayout.GetPosition(model, node, rows);
             positions[node.Index] = (new Point(anchor.X + off.X, anchor.Y + off.Y), GraphLayout.BoxHeightFor(node), node.Kind, node.Depth == 0);
         }
 

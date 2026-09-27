@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using ACadSharp.Objects.Evaluations;
 using Avalonia;
@@ -47,40 +48,37 @@ public static class GraphLayout
     }
 
     /// <summary>
-    /// The row of a node within its depth column: nodes are ordered by index
-    /// (the <c>GraphModel</c> adds them in depth-then-index order), so the row
-    /// is the node's position among its same-depth peers. Keeping this here
-    /// (rather than storing it on the node) means the layout — not the data
-    /// model — decides the row ordering.
+    /// The row of each node within its depth column, keyed by node index: the
+    /// <c>GraphModel</c> adds nodes in depth-then-index order, so the row is a
+    /// node's position among its same-depth peers. Computed in one pass (O(N)
+    /// total) so <see cref="GetPosition"/> stays O(1) per node. Keeping this
+    /// here (rather than storing it on the node) means the layout — not the
+    /// data model — decides the row ordering.
     /// </summary>
-    public static int GetRow(GraphModel.Result model, GraphNodeInfo node)
+    public static Dictionary<int, int> ComputeRows(GraphModel.Result model)
     {
-        int row = 0;
-        foreach (GraphNodeInfo n in model.Nodes)
+        Dictionary<int, int> rows = new();
+        Dictionary<int, int> counters = new();
+        foreach (GraphNodeInfo node in model.Nodes)
         {
-            if (n.Depth != node.Depth)
-            {
-                continue;
-            }
-            if (n.Index == node.Index)
-            {
-                break;
-            }
-            row++;
+            int count = counters.TryGetValue(node.Depth, out int c) ? c : 0;
+            rows[node.Index] = count;
+            counters[node.Depth] = count + 1;
         }
-        return row;
+        return rows;
     }
 
     /// <summary>
     /// The top-left layout position of a node's box: the column is the BFS
-    /// depth (the target, depth 0, sits in the rightmost column), the row is
-    /// <see cref="GetRow"/>. Single source of truth shared by the main view and
-    /// the mini-map (their content bounds must match).
+    /// depth (the target, depth 0, sits in the rightmost column), the row
+    /// comes from <see cref="ComputeRows"/> (precomputed, so this is O(1)
+    /// per node). Single source of truth shared by the main view and the
+    /// mini-map (their content bounds must match).
     /// </summary>
-    public static Point GetPosition(GraphModel.Result model, GraphNodeInfo node)
+    public static Point GetPosition(GraphModel.Result model, GraphNodeInfo node, Dictionary<int, int> rows)
     {
         double x = (model.MaxDepth - node.Depth) * ColumnWidth + LayoutMargin;
-        double y = GetRow(model, node) * RowHeight + LayoutMargin;
+        double y = rows[node.Index] * RowHeight + LayoutMargin;
         return new Point(x, y);
     }
 
