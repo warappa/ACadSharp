@@ -1,10 +1,8 @@
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using System;
-using System.Collections.Generic;
 
 namespace ACadSharp.Viewer.Controls;
 
@@ -43,42 +41,22 @@ public partial class NodeGraphView : UserControl
     // events to the interaction's callbacks.
     private GraphInteraction _interaction = null!;
 
-    // The scene: owns the element tree, the element state, and the
-    // construction (node boxes, ports, edges, arrowheads). The element state
-    // is shared with the interaction (which reads it for the hover/drag
-    // behavior).
+    // The scene: builds the node boxes and owns the layout (the node
+    // positions, the box heights, the natural size). It reads/writes the
+    // shared element state below and drives the edge factory.
     private GraphScene _scene = null!;
 
-    // Node dragging: per-node offset (viewport-independent, in content
-    // coordinates). Applied on top of the computed layout position.
-    private readonly Dictionary<int, Vector> _nodeOffsets = new();
-    // Container per node: holds the box + port circles + port labels.
-    // Moving the container moves the whole node group.
-    private readonly Dictionary<int, Canvas> _nodeContainers = new();
-    // Base (layout) positions per node, without the drag offset.
-    private readonly Dictionary<int, Point> _basePositions = new();
-    // Box heights per node (for port Y computation).
-    private readonly Dictionary<int, double> _boxHeights = new();
-    // Persistent edge records for real-time geometry updates during drag.
-    // The arrowhead and label (if any) are stored alongside the line so
-    // all three update together.
-    private readonly List<(Path line, Path? arrowhead, Border? labelMask, int fromIdx, int toIdx, int srcPortIdx, int dstPortIdx)> _edgeRecords = new();
+    // The edge factory: builds the edges (the bezier arcs, the feedback arcs,
+    // the arrowheads, the edge labels). Shares the element state with the
+    // scene.
+    private GraphEdgeFactory _edgeFactory = null!;
 
-    // Cross-highlighting: edge Path → its connected port circles, and
-    // port circle → its connected edge Path. Populated after all drawing
-    // in SetGraph.
-    private readonly List<(Path line, int fromIdx, int toIdx, int srcPortIdx, int dstPortIdx)> _pendingEdges = new();
-    private readonly Dictionary<(int nodeIdx, int portIdx, bool isInput), Ellipse> _portCircles = new();
-    private readonly Dictionary<Path, (Ellipse? src, Ellipse? dst)> _edgeToCircles = new();
-    private readonly Dictionary<Ellipse, Path> _circleToEdge = new();
-
-    // Edge labels that still need their final position (the text width is
-    // only known after the first layout pass): (mask, label, start.X, end.X).
-    private readonly List<(Border mask, TextBlock label, double startX, double endX)> _pendingLabels = new();
-
-    // Port labels deferred to a separate pass (drawn after all boxes so
-    // they are not covered by adjacent-column boxes).
-    private readonly List<Border> _pendingPortLabels = new();
+    // The shared element state: the node offsets (the user-drag offsets, which
+    // persist across rebuilds), the node containers, the base positions, the
+    // box heights, the edge records, the pending edges / labels, and the
+    // port-circle cross-highlighting mappings. The scene builds it; the
+    // interaction and the edge factory read it.
+    private readonly GraphElementState _state = null!;
 
     /// <summary>
     /// Raised when a node box is clicked, with the node's full dump.
@@ -132,28 +110,41 @@ public partial class NodeGraphView : UserControl
 		_transform.Changed = rect => ViewChanged?.Invoke(rect);
 		_tooltip = new GraphTooltip(HoverTip, HoverTipText);
 
-		// The scene is built before the interaction so the shared element
-		// state (the dictionaries) can be handed to both; the interaction is
-		// wired back into the scene afterwards (the construction runs only
-		// after construction, by which point the reference is set).
-		_scene = new GraphScene(
-			GraphCanvas, _transform,
-			_nodeOffsets, _nodeContainers, _basePositions, _boxHeights,
-			_edgeRecords, _pendingEdges, _portCircles, _edgeToCircles, _circleToEdge,
-			_pendingLabels, _pendingPortLabels);
+		// The shared element state (the node offsets / containers / edge
+		// records / port-circle mappings). The scene builds it; the interaction
+		// and the edge factory read it.
+		_state = new GraphElementState();
+
+		// 1. The interaction is created first. Its behavior commands (update the
+		//    connected edges, redraw after a drag, cross-highlight the port
+		//    circles) reference the scene / edge factory, which are built
+		//    below, so they are wired via Configure after construction.
 		_interaction = new GraphInteraction(
 			_transform, _tooltip, Scroll, Overlay,
-			_nodeOffsets, _nodeContainers, _circleToEdge,
-			updateConnectedEdges: _scene.UpdateConnectedEdges,
-			redrawAfterDrag: _scene.RedrawAfterDrag,
-			setPortHighlight: _scene.SetPortHighlight,
+			_state,
 			getNodeMoved: () => NodeMoved,
 			getOnNodeClicked: () => OnNodeClicked);
-		_scene.AttachInteraction(_interaction);
+
+		// 2. The edge factory builds the edges (it takes the interaction to
+		//    wire the edges' pointer events).
+		_edgeFactory = new GraphEdgeFactory(GraphCanvas, _interaction, _state);
+
+		// 3. The scene builds the node boxes and owns the layout (it takes the
+		//    interaction and the edge factory).
+		_scene = new GraphScene(GraphCanvas, _transform, _interaction, _edgeFactory, _state);
+
+		// 4. Wire the interaction's behavior commands to the scene / edge
+		//    factory.
+		_interaction.Configure(
+			updateConnectedEdges: _edgeFactory.UpdateConnectedEdges,
+			redrawAfterDrag: _scene.RedrawAfterDrag,
+			setPortHighlight: _scene.SetPortHighlight);
+
+		// 5. The diagnostic readout.
 		_diagnostics = new GraphDiagnostics(
 			_transform, GraphCanvas,
 			() => _scene.FirstLabeledEdge, () => _scene.LastModel,
-			() => _nodeContainers, () => _boxHeights);
+			() => _state.NodeContainers, () => _state.BoxHeights);
 
 		InitializeComponentState();
 	}
@@ -188,12 +179,12 @@ public partial class NodeGraphView : UserControl
 				_transform.Apply();
 			}
 
-			_scene.PositionPendingLabels();
+			_edgeFactory.PositionPendingLabels();
 		};
 
 		// Backup: the canvas's own layout pass (in case the scroll viewer's
 		// LayoutUpdated fires before the labels have been measured).
-		GraphCanvas.LayoutUpdated += (_, _) => _scene.PositionPendingLabels();
+		GraphCanvas.LayoutUpdated += (_, _) => _edgeFactory.PositionPendingLabels();
 	}
 
 	/// <summary>

@@ -16,19 +16,19 @@ namespace ACadSharp.Viewer.Controls;
 /// circles, the edge arcs and their connected port circles), and node
 /// dragging (the live edge update).
 ///
-/// Holds the interaction state and the event-handler callbacks; the
-/// construction (in <see cref="NodeGraphView"/>) owns the element tree and
-/// the element state and wires each element's pointer events to these
-/// callbacks. The construction callbacks let the interaction drive a
-/// redraw (after a drag), update the connected edges (during a drag), and
-/// cross-highlight the port circles connected to a hovered edge.
+/// Holds the interaction state and the event-handler logic. It reads the
+/// shared element state (<see cref="GraphElementState"/>, built by the
+/// <see cref="GraphScene"/>) for the drag deltas, the container
+/// repositioning, and the cross-highlighting. The behavior commands (update
+/// the connected edges during a drag, redraw after a drag, cross-highlight
+/// the port circles) are wired by the host via <see cref="Configure"/> once
+/// the scene and the edge factory are built.
 /// </summary>
 public sealed class GraphInteraction
 {
-    // The element state (owned by the control; mutated by the construction).
-    private readonly Dictionary<int, Vector> _nodeOffsets;
-    private readonly Dictionary<int, Canvas> _nodeContainers;
-    private readonly Dictionary<Ellipse, Path> _circleToEdge;
+    // The shared element state (built by the scene; read here for the drag
+    // deltas, the container repositioning, and the cross-highlighting).
+    private readonly GraphElementState _state;
 
     // The transform (zoom/pan) and the hover tooltip.
     private readonly GraphTransform _transform;
@@ -39,12 +39,15 @@ public sealed class GraphInteraction
     private readonly ScrollViewer _scroll;
     private readonly Canvas _overlay;
 
-    // Construction callbacks: update the connected edges live during a drag,
-    // redraw the whole graph after a drag (skipping the pan reset), and
-    // cross-highlight the port circles connected to a hovered edge.
-    private readonly Action<int> _updateConnectedEdges;
-    private readonly Action _redrawAfterDrag;
-    private readonly Action<Path, bool> _setPortHighlight;
+    // Behavior commands, wired by the host via Configure once the scene and
+    // the edge factory are built: update the connected edges live during a
+    // drag, redraw the whole graph after a drag (skipping the pan reset), and
+    // cross-highlight the port circles connected to a hovered edge. (Set
+    // after construction because they reference the scene / edge factory,
+    // which are built after the interaction.)
+    private Action<int> _updateConnectedEdges = null!;
+    private Action _redrawAfterDrag = null!;
+    private Action<Path, bool> _setPortHighlight = null!;
 
     // The control's events (getters so the interaction always invokes the
     // current handler, even if the host reassigns it after construction).
@@ -79,12 +82,7 @@ public sealed class GraphInteraction
         GraphTooltip tooltip,
         ScrollViewer scroll,
         Canvas overlay,
-        Dictionary<int, Vector> nodeOffsets,
-        Dictionary<int, Canvas> nodeContainers,
-        Dictionary<Ellipse, Path> circleToEdge,
-        Action<int> updateConnectedEdges,
-        Action redrawAfterDrag,
-        Action<Path, bool> setPortHighlight,
+        GraphElementState state,
         Func<Action<int, Vector>?> getNodeMoved,
         Func<Action<string>?> getOnNodeClicked)
     {
@@ -92,14 +90,25 @@ public sealed class GraphInteraction
         _tooltip = tooltip;
         _scroll = scroll;
         _overlay = overlay;
-        _nodeOffsets = nodeOffsets;
-        _nodeContainers = nodeContainers;
-        _circleToEdge = circleToEdge;
+        _state = state;
+        _getNodeMoved = getNodeMoved;
+        _getOnNodeClicked = getOnNodeClicked;
+    }
+
+    /// <summary>
+    /// Wires the behavior commands (called by the host once the scene and
+    /// the edge factory are built): update the connected edges live during a
+    /// drag, redraw the whole graph after a drag (skipping the pan reset),
+    /// and cross-highlight the port circles connected to a hovered edge.
+    /// </summary>
+    public void Configure(
+        Action<int> updateConnectedEdges,
+        Action redrawAfterDrag,
+        Action<Path, bool> setPortHighlight)
+    {
         _updateConnectedEdges = updateConnectedEdges;
         _redrawAfterDrag = redrawAfterDrag;
         _setPortHighlight = setPortHighlight;
-        _getNodeMoved = getNodeMoved;
-        _getOnNodeClicked = getOnNodeClicked;
     }
 
     /// <summary>
@@ -167,15 +176,15 @@ public sealed class GraphInteraction
         double dy = (pos.Y - _dragLastPos.Y) / _transform.Scale;
         _dragLastPos = pos;
 
-        Vector offset = _nodeOffsets.GetValueOrDefault(node.Index);
-        _nodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
-        _getNodeMoved()?.Invoke(node.Index, _nodeOffsets[node.Index]);
+        Vector offset = _state.NodeOffsets.GetValueOrDefault(node.Index);
+        _state.NodeOffsets[node.Index] = new Vector(offset.X + dx, offset.Y + dy);
+        _getNodeMoved()?.Invoke(node.Index, _state.NodeOffsets[node.Index]);
 
         // Move the container (box + ports + labels move together).
-        if (_nodeContainers.TryGetValue(node.Index, out var container))
+        if (_state.NodeContainers.TryGetValue(node.Index, out var container))
         {
-            Canvas.SetLeft(container, position.X + _nodeOffsets[node.Index].X);
-            Canvas.SetTop(container, position.Y + _nodeOffsets[node.Index].Y);
+            Canvas.SetLeft(container, position.X + _state.NodeOffsets[node.Index].X);
+            Canvas.SetTop(container, position.Y + _state.NodeOffsets[node.Index].Y);
         }
 
         // Update connected edges in real-time.
@@ -268,7 +277,7 @@ public sealed class GraphInteraction
     public void OnPortEntered(Ellipse circle, PortInfo port, bool isInput, PointerEventArgs e)
     {
         circle.Fill = EdgeHoverBrush;
-        if (_circleToEdge.TryGetValue(circle, out var edgeLine))
+        if (_state.CircleToEdge.TryGetValue(circle, out var edgeLine))
         {
             edgeLine.StrokeThickness = 3;
             edgeLine.Stroke = EdgeHoverBrush;
@@ -279,7 +288,7 @@ public sealed class GraphInteraction
     public void OnPortExited(Ellipse circle, PortInfo port, bool isInput)
     {
         circle.Fill = Brushes.White;
-        if (_circleToEdge.TryGetValue(circle, out var edgeLine))
+        if (_state.CircleToEdge.TryGetValue(circle, out var edgeLine))
         {
             edgeLine.StrokeThickness = 1.5;
             edgeLine.Stroke = EdgeLineBrush;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text;
 using ACadSharp.Objects.Evaluations;
 using ACadSharp.Viewer.Services;
@@ -65,6 +66,23 @@ public static class GraphDrawing
         });
         geo.Figures!.Add(fig);
         return geo;
+    }
+
+    /// <summary>
+    /// The index of the port in the given list that connects to the given
+    /// peer node index; 0 when no match is found.
+    /// </summary>
+    public static int FindPortIndex(List<PortInfo> ports, int peerIndex)
+    {
+        for (int i = 0; i < ports.Count; i++)
+        {
+            if (ports[i].PeerIndex == peerIndex)
+            {
+                return i;
+            }
+        }
+
+        return 0;
     }
 
     /// <summary>
