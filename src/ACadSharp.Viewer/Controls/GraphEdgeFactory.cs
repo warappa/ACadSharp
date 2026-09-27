@@ -103,8 +103,8 @@ public sealed class GraphEdgeFactory
         _canvas.Children.Add(line);
 
         // Record for cross-highlighting (edge ↔ port circle).
-        int srcPortIdx = fromNode is not null ? GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex) : 0;
-        int dstPortIdx = toNode is not null ? GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex) : 0;
+        int srcPortIdx = fromNode is not null ? GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex) : 0;
+        int dstPortIdx = toNode is not null ? GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex) : 0;
         _state.PendingEdges.Add((line, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Arrowhead at the target end (pointing along the edge direction).
@@ -124,7 +124,11 @@ public sealed class GraphEdgeFactory
         // arrowhead tip.
         TextBlock? label = null;
         Border? labelMask = null;
-        if (edge.Label.Length > 0)
+        // Suppress the per-wire edge label when the edge fans out (WireCount
+        // > 1): the port labels (next to the circles) already name each
+        // wire, so a per-wire edge label would just crowd the gap between
+        // the nodes.
+        if (edge.Label.Length > 0 && edge.WireCount == 1)
         {
             Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
             label = new TextBlock
@@ -208,8 +212,8 @@ public sealed class GraphEdgeFactory
         _canvas.Children.Add(line);
 
         // Record for cross-highlighting (edge ↔ port circle).
-        int srcPortIdx = fromNode is not null ? GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex) : 0;
-        int dstPortIdx = toNode is not null ? GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex) : 0;
+        int srcPortIdx = fromNode is not null ? GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex) : 0;
+        int dstPortIdx = toNode is not null ? GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex) : 0;
         _state.PendingEdges.Add((line, edge.FromIndex, edge.ToIndex, srcPortIdx, dstPortIdx));
 
         // Arrowhead at the target end, pointing along the curve tangent
@@ -224,7 +228,9 @@ public sealed class GraphEdgeFactory
 
         // Label at the arc apex (bezier midpoint, t = 0.5).
         Border? fbLabelMask = null;
-        if (edge.Label.Length > 0)
+        // Suppress the per-wire edge label when the edge fans out (see
+        // AddEdge); the port labels already name each wire.
+        if (edge.Label.Length > 0 && edge.WireCount == 1)
         {
             double apexX = 0.125 * start.X + 0.375 * c1.X + 0.375 * c2.X + 0.125 * end.X;
             double apexY = 0.125 * start.Y + 0.375 * c1.Y + 0.375 * c2.Y + 0.125 * end.Y;

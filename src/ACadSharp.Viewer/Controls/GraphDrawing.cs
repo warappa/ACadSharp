@@ -70,13 +70,15 @@ public static class GraphDrawing
 
     /// <summary>
     /// The index of the port in the given list that connects to the given
-    /// peer node index; 0 when no match is found.
+    /// peer node index and wire; 0 when no match is found. A peer can appear
+    /// several times (once per wire of a multi-wire edge), so the wire index
+    /// disambiguates which of the peer's ports to use.
     /// </summary>
-    public static int FindPortIndex(List<PortInfo> ports, int peerIndex)
+    public static int FindPortIndex(List<PortInfo> ports, int peerIndex, int wireIndex)
     {
         for (int i = 0; i < ports.Count; i++)
         {
-            if (ports[i].PeerIndex == peerIndex)
+            if (ports[i].PeerIndex == peerIndex && ports[i].WireIndex == wireIndex)
             {
                 return i;
             }

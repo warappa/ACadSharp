@@ -6,17 +6,26 @@ using System.Linq;
 namespace ACadSharp.Viewer.Services;
 
 /// <summary>
-/// A named port (slot) on a node, connected to a specific peer node.
+/// A named port (slot) on a node, connected to a specific peer node and wire.
+/// An edge can carry multiple parallel "wires" (<c>TrackedCount</c>); each
+/// wire is its own port here, so a ×2 edge shows two circles (e.g. the X and
+/// Y of a grip) rather than one circle plus a "×2" badge.
 /// </summary>
 public class PortInfo
 {
     public string Name { get; }
     public int PeerIndex { get; }
 
-    public PortInfo(string name, int peerIndex)
+    /// <summary>
+    /// The wire (0-based) within the edge this port belongs to.
+    /// </summary>
+    public int WireIndex { get; }
+
+    public PortInfo(string name, int peerIndex, int wireIndex)
     {
         Name = name;
         PeerIndex = peerIndex;
+        WireIndex = wireIndex;
     }
 }
 
@@ -88,13 +97,30 @@ public class GraphEdgeInfo
     /// </summary>
     public bool IsFeedback { get; }
 
-    public GraphEdgeInfo(int fromIndex, int toIndex, string label, bool isDashed, bool isFeedback = false)
+    /// <summary>
+    /// The wire (0-based) within the logical edge this <c>GraphEdgeInfo</c>
+    /// represents. A logical edge with <c>TrackedCount</c> = N produces N
+    /// <c>GraphEdgeInfo</c> entries (wire 0..N-1), drawn as N parallel lines.
+    /// </summary>
+    public int WireIndex { get; }
+
+    /// <summary>
+    /// The total number of wires the logical edge carries (1 for a plain
+    /// edge). Used to suppress the per-wire edge label when the edge fans
+    /// out — the port labels (next to the circles) already name each wire,
+    /// so a per-wire edge label would just crowd the gap between the nodes.
+    /// </summary>
+    public int WireCount { get; }
+
+    public GraphEdgeInfo(int fromIndex, int toIndex, string label, bool isDashed, bool isFeedback = false, int wireIndex = 0, int wireCount = 1)
     {
         FromIndex = fromIndex;
         ToIndex = toIndex;
         Label = label;
         IsDashed = isDashed;
         IsFeedback = isFeedback;
+        WireIndex = wireIndex;
+        WireCount = wireCount;
     }
 }
 
@@ -174,28 +200,13 @@ public static class GraphModel
             }
         }
 
-        // Edges: every edge whose both ends are in the subgraph. The
+        // Ports + edges: for each logical edge, one output port on the
+        // source and one input port on the target, per wire (the edge's
+        // TrackedCount). The port name is the name of the corresponding
+        // connection on the target; a ×2 edge yields two ports (e.g. the X
+        // and Y of a grip) and two parallel edge lines, so the "where is the
+        // second value?" question is answered by the picture itself. The
         // "reverse" direction of an invertible pair is skipped (DAG).
-        for (int i = 0; i < graph.Edges.Count; i++)
-        {
-            if (graph.IsReverseLookupEdge(i))
-            {
-                continue;
-            }
-            EvaluationGraph.Edge edge = graph.Edges[i];
-            if (!depth.ContainsKey(edge.FromNodeIndex) || !depth.ContainsKey(edge.ToNodeIndex))
-            {
-                continue;
-            }
-
-            // An edge goes right-to-left when the source is in a lower-depth
-            // column (more to the right) than the target.
-            bool isFeedback = depth[edge.FromNodeIndex] < depth[edge.ToNodeIndex];
-            result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback));
-        }
-
-        // Ports: for each edge, the port name (from the target's connection)
-        // is an output port on the source and an input port on the target.
         var inputPorts = new Dictionary<int, List<PortInfo>>();
         var outputPorts = new Dictionary<int, List<PortInfo>>();
         foreach (int nodeIndex in depth.Keys)
@@ -216,9 +227,18 @@ public static class GraphModel
                 continue;
             }
 
-            string portName = GetPortName(byIndex, edge);
-            outputPorts[edge.FromNodeIndex].Add(new PortInfo(portName, edge.ToNodeIndex));
-            inputPorts[edge.ToNodeIndex].Add(new PortInfo(portName, edge.FromNodeIndex));
+            // An edge goes right-to-left when the source is in a lower-depth
+            // column (more to the right) than the target.
+            bool isFeedback = depth[edge.FromNodeIndex] < depth[edge.ToNodeIndex];
+            List<string> portNames = GetPortNames(byIndex, edge);
+
+            // One edge line + one port pair per wire.
+            for (int wire = 0; wire < portNames.Count; wire++)
+            {
+                result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback, portNames[wire], wire, portNames.Count));
+                outputPorts[edge.FromNodeIndex].Add(new PortInfo(portNames[wire], edge.ToNodeIndex, wire));
+                inputPorts[edge.ToNodeIndex].Add(new PortInfo(portNames[wire], edge.FromNodeIndex, wire));
+            }
         }
 
         foreach (GraphNodeInfo node in result.Nodes)
@@ -231,38 +251,23 @@ public static class GraphModel
     }
 
     /// <summary>
-    /// Edge label: the port name of the connection on the TO element bound to
-    /// the FROM element, plus a ×N count when the edge tracks multiple
-    /// connections. Lookup edges (flag 4 or a lookup action/parameter) get a
-    /// "lookup ×N" label and are drawn dashed.
+    /// The display names for a logical edge's wires: one name per wire
+    /// (<c>TrackedCount</c>). Each name is the <c>Name</c> field of the
+    /// corresponding connection on the target node that references the source
+    /// node. Falls back to a type-specific default (indexed for the surplus
+    /// wires) when fewer connections than wires are found (the EvalConnection
+    /// entries are not always populated by the file reader).
     /// </summary>
-    /// <summary>
-    /// The port name for an edge: the <c>Name</c> field of the connection on
-    /// the target node that references the source node. Falls back to a
-    /// type-specific default when no matching connection is found (the
-    /// EvalConnection entries are not always populated by the file reader).
-    /// </summary>
-    private static string GetPortName(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
+    private static List<string> GetPortNames(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
     {
+        int count = Math.Max(1, edge.TrackedCount);
+
         EvaluationExpression? toExpr = GetExpression(byIndex, edge.ToNodeIndex);
         EvaluationExpression? fromExpr = GetExpression(byIndex, edge.FromNodeIndex);
 
-        if (toExpr is null || fromExpr is null)
-        {
-            return "Value";
-        }
-
-        foreach ((int id, string name) in GetConnections(toExpr))
-        {
-            if (id == fromExpr.Id)
-            {
-                return name;
-            }
-        }
-
-        // Fallback: the EvalConnection entries are not always populated by the
-        // file reader; use a type-specific default port name.
-        return toExpr switch
+        // The type-specific fallback name (the EvalConnection entries are not
+        // always populated by the file reader).
+        string fallback = toExpr is null ? "Value" : toExpr switch
         {
             BlockLookupAction => "Lookup",
             Block1PtParameter => "Displacement",   // covers BlockLookupParameter, BlockPointParameter
@@ -277,9 +282,60 @@ public static class GraphModel
             BlockFlipAction => "Flip",
             _ => "Value",
         };
+
+        // The names of the connections on the target that reference the source.
+        List<string> names = new();
+        if (toExpr is not null && fromExpr is not null)
+        {
+            foreach ((int id, string name) in GetConnections(toExpr))
+            {
+                if (id == fromExpr.Id)
+                {
+                    names.Add(name);
+                }
+            }
+        }
+
+        // Build exactly `count` display names: use the connection names in
+        // order, padding with indexed fallbacks when there are fewer names
+        // than wires.
+        List<string> result = new();
+        for (int i = 0; i < count; i++)
+        {
+            if (i < names.Count)
+            {
+                result.Add(names[i]);
+            }
+            else if (names.Count == 0)
+            {
+                // No explicit connections: one fallback for the first wire,
+                // indexed for the rest.
+                result.Add(i == 0 ? fallback : $"{fallback} {i + 1}");
+            }
+            else
+            {
+                // Fewer names than wires: index the surplus wires.
+                result.Add($"{names[^1]} {i + 1}");
+            }
+        }
+
+        return result;
     }
 
-    private static GraphEdgeInfo BuildEdgeLabel(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge, bool isFeedback)
+    /// <summary>
+    /// Edge label for one wire: the port name of the connection on the TO
+    /// element bound to the FROM element. Lookup edges (flag 4 or a lookup
+    /// action/parameter) get a "lookup (name)" label and are drawn dashed. The
+    /// ×N count is no longer appended — each wire is its own line, so the
+    /// count is visible as the number of parallel lines / port circles.
+    /// </summary>
+    private static GraphEdgeInfo BuildEdgeLabel(
+        Dictionary<int, EvaluationGraph.Node> byIndex,
+        EvaluationGraph.Edge edge,
+        bool isFeedback,
+        string portName,
+        int wireIndex,
+        int wireCount)
     {
         EvaluationExpression? toExpr = GetExpression(byIndex, edge.ToNodeIndex);
         EvaluationExpression? fromExpr = GetExpression(byIndex, edge.FromNodeIndex);
@@ -290,26 +346,11 @@ public static class GraphModel
             || toExpr is BlockLookupAction
             || fromExpr is BlockLookupAction;
 
-        string portName = GetPortName(byIndex, edge);
+        string label = isLookup
+            ? (portName.Length == 0 ? "lookup" : $"lookup ({portName})")
+            : portName;
 
-        string label;
-        if (isLookup)
-        {
-            label = portName.Length == 0
-                ? "lookup"
-                : $"lookup ({portName})";
-        }
-        else
-        {
-            label = portName;
-        }
-
-        if (edge.TrackedCount > 1)
-        {
-            label = label.Length == 0 ? $"×{edge.TrackedCount}" : $"{label} ×{edge.TrackedCount}";
-        }
-
-        return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup, isFeedback);
+        return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup, isFeedback, wireIndex, wireCount);
     }
 
     // O(1) lookup via the pre-built index (was a linear scan of graph.Nodes

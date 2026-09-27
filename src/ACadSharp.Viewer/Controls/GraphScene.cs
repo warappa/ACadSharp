@@ -146,8 +146,8 @@ public sealed class GraphScene
                 continue;
             }
 
-            int srcIdx = GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex);
-            int dstIdx = GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex);
+            int srcIdx = GraphDrawing.FindPortIndex(fromNode.OutputPorts, edge.ToIndex, edge.WireIndex);
+            int dstIdx = GraphDrawing.FindPortIndex(toNode.InputPorts, edge.FromIndex, edge.WireIndex);
             Point start = outputPortPos[edge.FromIndex][srcIdx];
             Point end = inputPortPos[edge.ToIndex][dstIdx];
             _edgeFactory.AddEdge(start, end, edge, fromNode, toNode);
