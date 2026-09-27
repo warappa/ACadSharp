@@ -71,12 +71,13 @@ public class EvaluationGraphTests
 	}
 
 	[Fact]
-	public void ForwardOrderFollowsForwardLookupDirectionTest()
+	public void ActivatedEndpointFollowsForwardLookupDirectionTest()
 	{
 		(EvaluationGraph graph, _, _) = buildLookupPair();
 
-		// Forward evaluation (the default): the forward direction of the flag-4 pair is
-		// followed (node 0 -> node 1), so starting from node 0 the order is [0, 1].
+		// Node 0 is the start (activated) node: the direction of the flag-4 pair is
+		// resolved from it and the edge is followed away from node 0 (node 0 -> node 1),
+		// so the order is [0, 1].
 		List<int> order = graph.GetTopologicalOrder(new[] { 0 });
 
 		Assert.Equal(new[] { 0, 1 }, order);
@@ -107,15 +108,71 @@ public class EvaluationGraphTests
 	}
 
 	[Fact]
-	public void ForwardOrderIgnoresReverseLookupDirectionTest()
+	public void ActivatedEndpointInvertsLookupEdgeTest()
 	{
 		(EvaluationGraph graph, _, _) = buildLookupPair();
 
-		// In forward mode the reverse direction is ignored, so starting from node 1 the
-		// only reachable node is node 1 itself (the reverse edge 1 is skipped).
+		// Node 1 is the start (activated) node: the direction of the flag-4 pair is
+		// resolved from it and the edge is followed away from node 1 (node 1 -> node 0,
+		// the "inverted" direction), so the order is [1, 0].
 		List<int> order = graph.GetTopologicalOrder(new[] { 1 });
 
-		Assert.Equal(new[] { 1 }, order);
+		Assert.Equal(new[] { 1, 0 }, order);
+	}
+
+	[Fact]
+	public void InactiveLookupPairIsSkippedTest()
+	{
+		// Node 2 is the only activated node and is connected to node 0 by a one-way edge;
+		// the flag-4 pair (node 0 <-> node 1) has no activated endpoint, so it is skipped
+		// and node 1 is not reachable.
+		(EvaluationGraph graph, EvaluationGraph.Node n0, _) = buildLookupPair();
+
+		EvaluationGraph.Node n2 = graph.CreateNode();
+		n2.Index = 2;
+
+		EvaluationGraph.Edge e2 = new()
+		{
+			Index = 2,
+			FromNodeIndex = 2,
+			ToNodeIndex = 0,
+			Flags = EvaluationGraph.EdgeFlags.None,
+			ReverseEdge = -1,
+			PrevInEdge = -1, NextInEdge = -1,
+			PrevOutEdge = -1, NextOutEdge = -1,
+		};
+		graph.Edges.Add(e2);
+
+		// n2: outgoing = edge 2, no incoming.  (n0/n1 keep their edges from buildLookupPair.)
+		n2.FirstOutEdge = 2;
+		n2.LastOutEdge = 2;
+		n2.FirstInEdge = -1;
+		n2.LastInEdge = -1;
+		// n0 gains an incoming edge (edge 2) before its existing incoming (edge 1).
+		n0.FirstInEdge = 2;
+		e2.NextInEdge = 1;
+		e2.PrevInEdge = -1;
+		EvaluationGraph.Edge e1 = graph.Edges[1];
+		e1.PrevInEdge = 2;
+
+		List<int> order = graph.GetTopologicalOrder(new[] { 2 });
+
+		// Node 2 -> node 0 (one-way edge); node 1 is NOT reachable (the flag-4 pair is
+		// inactive: neither endpoint is activated).
+		Assert.Equal(new[] { 2, 0 }, order);
+	}
+
+	[Fact]
+	public void BothEndpointsActivatedFollowsForwardDirectionTest()
+	{
+		(EvaluationGraph graph, _, _) = buildLookupPair();
+
+		// Both node 0 and node 1 are activated: the stored (forward) direction is the
+		// default (the reverse direction is skipped so the pair stays acyclic), so the
+		// order is [0, 1].
+		List<int> order = graph.GetTopologicalOrder(new[] { 0, 1 });
+
+		Assert.Equal(new[] { 0, 1 }, order);
 	}
 
 	[Fact]
@@ -334,5 +391,75 @@ public class EvaluationGraphTests
 		// The action's CurrentValue is the matched cell.
 		Assert.Equal(EvaluationValueType.String, action.CurrentValue.Type);
 		Assert.Equal("Matched", action.CurrentValue.StringValue);
+	}
+
+	[Fact]
+	public void EvaluateActivatedLookupActionWritesOutputTest()
+	{
+		// The direction of the invertible pair is resolved from the activated nodes: the
+		// lookup action (node 1) is activated, so the edge is inverted (node 1 -> node 0)
+		// and the action is evaluated first — no "reverse" mode needed.
+		EvaluationGraph graph = new();
+
+		EvaluationGraph.Node n0 = graph.CreateNode();
+		EvaluationGraph.Node n1 = graph.CreateNode();
+		n0.Index = 0;
+		n1.Index = 1;
+
+		EvaluationGraph.Edge e0 = new()
+		{
+			Index = 0, FromNodeIndex = 0, ToNodeIndex = 1,
+			Flags = EvaluationGraph.EdgeFlags.Invertible, ReverseEdge = 1,
+			PrevInEdge = -1, NextInEdge = -1, PrevOutEdge = -1, NextOutEdge = -1,
+		};
+		EvaluationGraph.Edge e1 = new()
+		{
+			Index = 1, FromNodeIndex = 1, ToNodeIndex = 0,
+			Flags = EvaluationGraph.EdgeFlags.Invertible, ReverseEdge = 0,
+			PrevInEdge = -1, NextInEdge = -1, PrevOutEdge = -1, NextOutEdge = -1,
+		};
+		graph.Edges.Add(e0);
+		graph.Edges.Add(e1);
+
+		n0.FirstOutEdge = 0; n0.LastOutEdge = 0;
+		n0.FirstInEdge = 1; n0.LastInEdge = 1;
+		n1.FirstInEdge = 0; n1.LastInEdge = 0;
+		n1.FirstOutEdge = 1; n1.LastOutEdge = 1;
+
+		// Node 0: a text parameter. Node 1: a lookup action (input "5" -> output "Matched",
+		// UnmatchedName "Default").
+		n0.Expression = new BlockTextParameter { Id = 1, Value = "original" };
+		BlockLookupAction.ColumnData input = new()
+		{
+			NodeId = 1, ValueType = 40, Type = 2, ConnectionName = "value",
+		};
+		BlockLookupAction.ColumnData output = new()
+		{
+			NodeId = 1, ValueType = 1, Type = 0, IsLookupProperty = true,
+			ConnectionName = "lookupString", UnmatchedName = "Default",
+		};
+		input.Rows.Add("5");
+		output.Rows.Add("Matched");
+		BlockLookupAction action = new() { Id = 1 };
+		action.Columns = new List<BlockLookupAction.ColumnData> { input, output };
+		n1.Expression = action;
+
+		// Activate the lookup action (node 1) and evaluate in the default direction: the
+		// edge is inverted (node 1 -> node 0), so the action is evaluated first (it writes
+		// its output to node 0's "lookupString" port) and the parameter is evaluated after.
+		graph.Activate(new[] { 1 });
+		bool ok = graph.Evaluate();
+
+		Assert.True(ok);
+
+		// The action's output column wrote "Default" (no input match — node 0's "value"
+		// port is empty) to node 0's "lookupString" port.
+		Assert.True(graph.Context.TryGetValue(1, "lookupString", out EvaluationValue v));
+		Assert.Equal("Default", v.StringValue);
+
+		// The parameter's "Value" port is still set (the parameter was evaluated after the
+		// action).
+		Assert.True(graph.Context.TryGetValue(1, "Value", out EvaluationValue p));
+		Assert.Equal("original", p.StringValue);
 	}
 }

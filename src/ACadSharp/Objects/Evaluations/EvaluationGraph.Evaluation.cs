@@ -18,7 +18,9 @@ public partial class EvaluationGraph
 	/// <para>
 	/// Mirrors the ObjectARX <c>AcDbEvalGraph::activate(nodes)</c>. The activated nodes are
 	/// the starting points of the evaluation: the subgraph reachable from them (following
-	/// outgoing edges) is the subgraph that gets evaluated.
+	/// outgoing edges) is the subgraph that gets evaluated. The activated nodes also
+	/// resolve the direction of invertible (flag-4) edges: the edge is followed away from
+	/// the activated endpoint.
 	/// </para>
 	/// </summary>
 	/// <param name="nodeIndices">The indices of the nodes to activate.</param>
@@ -52,6 +54,13 @@ public partial class EvaluationGraph
 	/// traversed in topological order, and each node's <c>evaluate()</c> is invoked. A node's
 	/// failure aborts the evaluation.
 	/// </para>
+	/// <para>
+	/// The direction of an invertible (flag-4) edge is resolved per edge from the activated
+	/// nodes (<c>AcDbEvalGraph::addEdge</c> with <c>bInvertible = true</c>: the edge "can be
+	/// inverted depending on which of the nodes has been activated"): the edge is followed
+	/// away from the activated endpoint; when neither endpoint is activated the edge is
+	/// inactive, and when both are activated the stored (forward) direction is the default.
+	/// </para>
 	/// </summary>
 	/// <returns>True when the evaluation succeeded; false when a cycle was detected or a
 	/// node's evaluation failed.</returns>
@@ -61,11 +70,9 @@ public partial class EvaluationGraph
 	}
 
 	/// <summary>
-	/// Evaluates the graph in the "reverse" direction: for invertible (flag-4) edge pairs
-	/// the reverse direction (lookup action → parameter) is followed instead of the forward
-	/// direction, mirroring AutoCAD's activation-based inversion of invertible edges
-	/// (<c>AcDbEvalGraph::addEdge</c> with <c>bInvertible = true</c>: the edge "can be
-	/// inverted depending on which of the nodes has been activated").
+	/// Evaluates the graph in the legacy "reverse" direction: the reverse direction of every
+	/// invertible (flag-4) edge pair (lookup action → parameter) is followed and the forward
+	/// direction is ignored, regardless of which nodes were activated.
 	/// <para>
 	/// This is the evaluation a lookup table drives: the activated lookup action writes its
 	/// matched cells back to the connected parameters (table → parameter), and the updated

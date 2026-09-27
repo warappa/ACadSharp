@@ -194,31 +194,39 @@ public partial class EvaluationGraph
 	/// following outgoing edges. A node appears after all of its predecessors (the nodes
 	/// whose values it depends on).
 	/// </summary>
-	/// <param name="startNodes">The indices of the nodes to start from (the user-activated nodes).</param>
+	/// <param name="startNodes">
+	/// The indices of the start nodes (the user-activated nodes). The start nodes also
+	/// resolve the direction of invertible (flag-4) edges: the edge is followed away from
+	/// the activated endpoint.
+	/// </param>
 	/// <param name="reverse">
-	/// When false (the default, "forward" evaluation) the reverse direction of invertible
-	/// (flag-4) edge pairs is ignored so that the bidirectional lookup connections do not
-	/// prevent a valid ordering, while the forward direction is still followed (parameter →
-	/// lookup action). When true ("reverse" evaluation) the forward direction of the pairs
-	/// is ignored and the reverse direction is followed instead (lookup action → parameter),
-	/// mirroring AutoCAD's activation-based inversion of invertible edges: the direction is
-	/// resolved by which node of the pair was activated.
+	/// When true (the legacy "reverse" evaluation) the forward direction of every invertible
+	/// (flag-4) edge pair is ignored and the reverse direction is followed instead
+	/// (lookup action → parameter), regardless of which nodes were activated. When false
+	/// (the default) the direction of each invertible edge is resolved per edge from the
+	/// activated (start) nodes, mirroring AutoCAD's activation-based inversion of invertible
+	/// edges (<c>AcDbEvalGraph::addEdge</c> with <c>bInvertible = true</c>: the edge "can be
+	/// inverted depending on which of the nodes has been activated").
 	/// </param>
 	/// <returns>The topologically ordered node indices, or an empty list when the reachable subgraph has a cycle.</returns>
 	public List<int> GetTopologicalOrder(IEnumerable<int> startNodes, bool reverse = false)
 	{
-		// Build the reachable subgraph (following outgoing edges, skipping the direction of
-		// invertible flag-4 pairs that is not being evaluated).
-		HashSet<int> reachable = new HashSet<int>();
+		// The start nodes are the activated nodes: they seed the reachable subgraph and
+		// resolve the direction of invertible (flag-4) edges.
+		HashSet<int> activated = new HashSet<int>();
 		Stack<int> stack = new Stack<int>();
 		foreach (int s in startNodes)
 		{
 			if (s >= 0 && s < this._nodes.Count)
 			{
+				activated.Add(s);
 				stack.Push(s);
 			}
 		}
 
+		// Build the reachable subgraph (following outgoing edges, skipping the inactive
+		// direction of invertible flag-4 pairs).
+		HashSet<int> reachable = new HashSet<int>();
 		while (stack.Count > 0)
 		{
 			int n = stack.Pop();
@@ -229,7 +237,7 @@ public partial class EvaluationGraph
 
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				if (this.SkipEdge(e, reverse))
+				if (this.SkipEdge(e, activated, reverse))
 				{
 					continue;
 				}
@@ -249,7 +257,7 @@ public partial class EvaluationGraph
 		{
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				if (this.SkipEdge(e, reverse))
+				if (this.SkipEdge(e, activated, reverse))
 				{
 					continue;
 				}
@@ -278,7 +286,7 @@ public partial class EvaluationGraph
 
 			foreach (int e in this.GetOutgoingEdges(n))
 			{
-				if (this.SkipEdge(e, reverse))
+				if (this.SkipEdge(e, activated, reverse))
 				{
 					continue;
 				}
@@ -307,14 +315,52 @@ public partial class EvaluationGraph
 	}
 
 	/// <summary>
-	/// Whether an edge should be skipped for the given evaluation direction. In forward mode
-	/// the reverse direction of invertible flag-4 pairs is skipped; in reverse mode the
-	/// forward direction is skipped (the reverse direction is followed instead). Non-invertible
-	/// edges are never skipped (they are one-way and are followed in both directions).
+	/// Whether an edge should be skipped for the given evaluation. Non-invertible edges are
+	/// never skipped (they are one-way and are followed in both modes). For invertible
+	/// (flag-4) edge pairs:
+	/// <list type="bullet">
+	/// <item>legacy "reverse" mode (<c>reverse = true</c>): the forward direction is skipped
+	/// and the reverse direction is followed, for every pair;</item>
+	/// <item>the default (activation-based) mode: the direction is resolved per pair from the
+	/// activated nodes, mirroring AutoCAD's <c>AcDbEvalGraph::addEdge</c> with
+	/// <c>bInvertible = true</c> (the edge "can be inverted depending on which of the nodes
+	/// has been activated"): one activated endpoint → the edge is followed away from that
+	/// endpoint; no activated endpoint → the edge is inactive (skipped); both endpoints
+	/// activated → the stored (forward) direction is the default (the pair stays acyclic).</item>
+	/// </list>
 	/// </summary>
-	private bool SkipEdge(int edgeIndex, bool reverse)
+	private bool SkipEdge(int edgeIndex, HashSet<int> activated, bool reverse)
 	{
-		return reverse ? this.IsForwardLookupEdge(edgeIndex) : this.IsReverseLookupEdge(edgeIndex);
+		Edge e = this.Edges[edgeIndex];
+		if (e.Flags != EdgeFlags.Invertible)
+		{
+			return false;
+		}
+
+		if (reverse)
+		{
+			return this.IsForwardLookupEdge(edgeIndex);
+		}
+
+		bool fromActivated = activated.Contains(e.FromNodeIndex);
+		bool toActivated = activated.Contains(e.ToNodeIndex);
+		if (fromActivated != toActivated)
+		{
+			// Exactly one endpoint is activated: follow the edge away from it (the record is
+			// followed when its FromNodeIndex is the activated endpoint).
+			return !fromActivated;
+		}
+
+		if (!fromActivated)
+		{
+			// Neither endpoint is activated: the edge is not a value source and takes no
+			// part in this evaluation.
+			return true;
+		}
+
+		// Both endpoints are activated: the stored (forward) direction is the default; the
+		// reverse direction is skipped so the pair stays acyclic.
+		return !this.IsForwardLookupEdge(edgeIndex);
 	}
 
 	private static bool ListsEqual(IList<int> a, IList<int> b)
