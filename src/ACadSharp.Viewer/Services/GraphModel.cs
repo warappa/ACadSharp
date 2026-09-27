@@ -207,11 +207,13 @@ public static class GraphModel
 
         // Ports + edges: for each logical edge, one output port on the
         // source and one input port on the target, per wire (the edge's
-        // TrackedCount). The port name is the name of the corresponding
-        // connection on the target; a ×2 edge yields two ports (e.g. the X
-        // and Y of a grip) and two parallel edge lines, so the "where is the
-        // second value?" question is answered by the picture itself. The
-        // "reverse" direction of an invertible pair is skipped (DAG).
+        // TrackedCount). The output port is named after the source's stored
+        // port; the input port is named after the target's C# property (the
+        // connection's semantic role), so the two ends of a connection carry
+        // different names. A ×2 edge yields two ports (e.g. the X and Y of a
+        // grip) and two parallel edge lines, so the "where is the second
+        // value?" question is answered by the picture itself. The "reverse"
+        // direction of an invertible pair is skipped (DAG).
         var inputPorts = new Dictionary<int, List<PortInfo>>();
         var outputPorts = new Dictionary<int, List<PortInfo>>();
         foreach (int nodeIndex in depth.Keys)
@@ -235,14 +237,16 @@ public static class GraphModel
             // An edge goes right-to-left when the source is in a lower-depth
             // column (more to the right) than the target.
             bool isFeedback = depth[edge.FromNodeIndex] < depth[edge.ToNodeIndex];
-            List<string> portNames = GetPortNames(byIndex, edge);
+            var (outputNames, inputNames) = GetPortNames(byIndex, edge);
 
-            // One edge line + one port pair per wire.
-            for (int wire = 0; wire < portNames.Count; wire++)
+            // One edge line + one port pair per wire. The output port keeps
+            // the source's stored port name; the input port is named after
+            // the target's C# property, so the two ends differ.
+            for (int wire = 0; wire < outputNames.Count; wire++)
             {
-                result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback, portNames[wire], wire, portNames.Count));
-                outputPorts[edge.FromNodeIndex].Add(new PortInfo(portNames[wire], edge.ToNodeIndex, wire));
-                inputPorts[edge.ToNodeIndex].Add(new PortInfo(portNames[wire], edge.FromNodeIndex, wire));
+                result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback, outputNames[wire], wire, outputNames.Count));
+                outputPorts[edge.FromNodeIndex].Add(new PortInfo(outputNames[wire], edge.ToNodeIndex, wire));
+                inputPorts[edge.ToNodeIndex].Add(new PortInfo(inputNames[wire], edge.FromNodeIndex, wire));
             }
         }
 
@@ -256,14 +260,17 @@ public static class GraphModel
     }
 
     /// <summary>
-    /// The display names for a logical edge's wires: one name per wire
-    /// (<c>TrackedCount</c>). Each name is the <c>Name</c> field of the
-    /// corresponding connection on the target node that references the source
-    /// node. Falls back to a type-specific default (indexed for the surplus
-    /// wires) when fewer connections than wires are found (the EvalConnection
-    /// entries are not always populated by the file reader).
+    /// The display names for a logical edge's wires: one (output, input) pair
+    /// per wire (<c>TrackedCount</c>). The <em>output</em> name is the
+    /// <c>Name</c> field of the corresponding connection on the target node
+    /// that references the source node (the source's stored port); the
+    /// <em>input</em> name is the target's C# property that holds the
+    /// connection (its semantic role), humanized. Falls back to a type-specific
+    /// default (indexed for the surplus wires) when fewer connections than wires
+    /// are found (the EvalConnection entries are not always populated by the
+    /// file reader); the input then falls back to the same name.
     /// </summary>
-    private static List<string> GetPortNames(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
+    private static (List<string> Output, List<string> Input) GetPortNames(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
     {
         int count = Math.Max(1, edge.TrackedCount);
 
@@ -288,43 +295,50 @@ public static class GraphModel
             _ => "Value",
         };
 
-        // The names of the connections on the target that reference the source.
-        List<string> names = new();
+        // The connections on the target that reference the source: each with
+        // its port name (output) and its C# property name (input).
+        List<(string PortName, string PropertyName)> names = new();
         if (toExpr is not null && fromExpr is not null)
         {
-            foreach ((int id, string name) in GetConnections(toExpr))
+            foreach ((int id, string portName, string propertyName) in GetConnections(toExpr))
             {
                 if (id == fromExpr.Id)
                 {
-                    names.Add(name);
+                    names.Add((portName, propertyName));
                 }
             }
         }
 
-        // Build exactly `count` display names: use the connection names in
-        // order, padding with indexed fallbacks when there are fewer names
-        // than wires.
-        List<string> result = new();
+        // Build exactly `count` (output, input) pairs: use the connection
+        // names in order, padding with indexed fallbacks when there are fewer
+        // names than wires.
+        List<string> output = new();
+        List<string> input = new();
         for (int i = 0; i < count; i++)
         {
             if (i < names.Count)
             {
-                result.Add(names[i]);
+                output.Add(names[i].PortName);
+                input.Add(Humanize(names[i].PropertyName));
             }
             else if (names.Count == 0)
             {
                 // No explicit connections: one fallback for the first wire,
                 // indexed for the rest.
-                result.Add(i == 0 ? fallback : $"{fallback} {i + 1}");
+                string f = i == 0 ? fallback : $"{fallback} {i + 1}";
+                output.Add(f);
+                input.Add(f);
             }
             else
             {
                 // Fewer names than wires: index the surplus wires.
-                result.Add($"{names[^1]} {i + 1}");
+                string f = $"{names[^1].PortName} {i + 1}";
+                output.Add(f);
+                input.Add(f);
             }
         }
 
-        return result;
+        return (output, input);
     }
 
     /// <summary>
@@ -371,20 +385,23 @@ public static class GraphModel
     }
 
     /// <summary>
-    /// Collects all (targetId, portName) connection entries of an expression
-    /// (mirrors the pattern in ACadSharp.Examples).
+    /// Collects all (targetId, portName, propertyName) connection entries of an
+    /// expression (mirrors the pattern in ACadSharp.Examples). The
+    /// <c>propertyName</c> is the C# property on the target that holds the
+    /// connection (its semantic input role); for a lookup-table column there is
+    /// no such property, so it equals the port name.
     /// </summary>
-    private static List<(int Id, string Name)> GetConnections(EvaluationExpression expr)
+    private static List<(int Id, string PortName, string PropertyName)> GetConnections(EvaluationExpression expr)
     {
-        List<(int Id, string Name)> result = new();
-        void Add(EvalConnection? c)
+        List<(int Id, string PortName, string PropertyName)> result = new();
+        void Add(EvalConnection? c, string property)
         {
             if (c is not null && c.Id != 0)
             {
-                result.Add((c.Id, c.Name));
+                result.Add((c.Id, c.Name, property));
             }
         }
-        void AddProp(EvalParameterProperty? p)
+        void AddProp(EvalParameterProperty? p, string property)
         {
             if (p is null)
             {
@@ -393,7 +410,7 @@ public static class GraphModel
 
             foreach (EvalConnection c in p.Connections)
             {
-                Add(c);
+                Add(c, property);
             }
         }
         switch (expr)
@@ -403,71 +420,100 @@ public static class GraphModel
                 {
                     if (col.NodeId != 0)
                     {
-                        result.Add((col.NodeId, col.ConnectionName));
+                        // No C# property behind a table column: the input name
+                        // is the connection name.
+                        result.Add((col.NodeId, col.ConnectionName, col.ConnectionName));
                     }
                 }
                 break;
             case BlockFlipParameter p:
-                AddProp(p.FirstPointDisplacementX);
-                AddProp(p.FirstPointDisplacementY);
-                AddProp(p.SecondPointDisplacementX);
-                AddProp(p.SecondPointDisplacementY);
-                Add(p.UpdatedFlipConnection);
+                AddProp(p.FirstPointDisplacementX, nameof(p.FirstPointDisplacementX));
+                AddProp(p.FirstPointDisplacementY, nameof(p.FirstPointDisplacementY));
+                AddProp(p.SecondPointDisplacementX, nameof(p.SecondPointDisplacementX));
+                AddProp(p.SecondPointDisplacementY, nameof(p.SecondPointDisplacementY));
+                Add(p.UpdatedFlipConnection, nameof(p.UpdatedFlipConnection));
                 break;
             case Block1PtParameter p:
-                AddProp(p.DisplacementX);
-                AddProp(p.DisplacementY);
+                AddProp(p.DisplacementX, nameof(p.DisplacementX));
+                AddProp(p.DisplacementY, nameof(p.DisplacementY));
                 break;
             case Block2PtParameter p:
-                AddProp(p.FirstPointDisplacementX);
-                AddProp(p.FirstPointDisplacementY);
-                AddProp(p.SecondPointDisplacementX);
-                AddProp(p.SecondPointDisplacementY);
+                AddProp(p.FirstPointDisplacementX, nameof(p.FirstPointDisplacementX));
+                AddProp(p.FirstPointDisplacementY, nameof(p.FirstPointDisplacementY));
+                AddProp(p.SecondPointDisplacementX, nameof(p.SecondPointDisplacementX));
+                AddProp(p.SecondPointDisplacementY, nameof(p.SecondPointDisplacementY));
                 break;
             case BlockGripLocationComponent c:
-                Add(c.Connection);
+                Add(c.Connection, nameof(c.Connection));
                 break;
             case BlockScaleAction a:
-                Add(a.ScaleConnection);
-                Add(a.XScaleConnection);
-                Add(a.YScaleConnection);
-                Add(a.UpdateBaseXConnection);
-                Add(a.UpdateBaseYConnection);
+                Add(a.ScaleConnection, nameof(a.ScaleConnection));
+                Add(a.XScaleConnection, nameof(a.XScaleConnection));
+                Add(a.YScaleConnection, nameof(a.YScaleConnection));
+                Add(a.UpdateBaseXConnection, nameof(a.UpdateBaseXConnection));
+                Add(a.UpdateBaseYConnection, nameof(a.UpdateBaseYConnection));
                 break;
             case BlockMoveAction a:
-                Add(a.XDeltaConnection);
-                Add(a.YDeltaConnection);
+                Add(a.XDeltaConnection, nameof(a.XDeltaConnection));
+                Add(a.YDeltaConnection, nameof(a.YDeltaConnection));
                 break;
             case BlockRotationAction a:
-                Add(a.AngleDeltaConnection);
-                Add(a.UpdateBaseXConnection);
-                Add(a.UpdateBaseYConnection);
+                Add(a.AngleDeltaConnection, nameof(a.AngleDeltaConnection));
+                Add(a.UpdateBaseXConnection, nameof(a.UpdateBaseXConnection));
+                Add(a.UpdateBaseYConnection, nameof(a.UpdateBaseYConnection));
                 break;
             case BlockStretchAction a:
-                Add(a.EndXDeltaConnection);
-                Add(a.EndYDeltaConnection);
+                Add(a.EndXDeltaConnection, nameof(a.EndXDeltaConnection));
+                Add(a.EndYDeltaConnection, nameof(a.EndYDeltaConnection));
                 break;
             case BlockPolarStretchAction a:
-                Add(a.BaseConnection);
-                Add(a.BaseXDeltaConnection);
-                Add(a.BaseYDeltaConnection);
-                Add(a.EndConnection);
-                Add(a.UpdatedBaseConnection);
-                Add(a.UpdatedEndConnection);
+                Add(a.BaseConnection, nameof(a.BaseConnection));
+                Add(a.BaseXDeltaConnection, nameof(a.BaseXDeltaConnection));
+                Add(a.BaseYDeltaConnection, nameof(a.BaseYDeltaConnection));
+                Add(a.EndConnection, nameof(a.EndConnection));
+                Add(a.UpdatedBaseConnection, nameof(a.UpdatedBaseConnection));
+                Add(a.UpdatedEndConnection, nameof(a.UpdatedEndConnection));
                 break;
             case BlockArrayAction a:
-                Add(a.BaseConnection);
-                Add(a.EndConnection);
-                Add(a.UpdatedBaseConnection);
-                Add(a.UpdatedEndConnection);
+                Add(a.BaseConnection, nameof(a.BaseConnection));
+                Add(a.EndConnection, nameof(a.EndConnection));
+                Add(a.UpdatedBaseConnection, nameof(a.UpdatedBaseConnection));
+                Add(a.UpdatedEndConnection, nameof(a.UpdatedEndConnection));
                 break;
             case BlockFlipAction a:
-                Add(a.FlipConnection);
-                Add(a.UpdatedBaseConnection);
-                Add(a.UpdatedEndConnection);
-                Add(a.UpdatedFlipConnection);
+                Add(a.FlipConnection, nameof(a.FlipConnection));
+                Add(a.UpdatedBaseConnection, nameof(a.UpdatedBaseConnection));
+                Add(a.UpdatedEndConnection, nameof(a.UpdatedEndConnection));
+                Add(a.UpdatedFlipConnection, nameof(a.UpdatedFlipConnection));
                 break;
         }
         return result;
+    }
+
+    /// <summary>
+    /// Humanizes a PascalCase C# property name into a space-separated label
+    /// (e.g. "AngleDeltaConnection" → "Angle Delta Connection"): a space is
+    /// inserted before an uppercase letter that follows a lowercase letter or
+    /// is followed by one.
+    /// </summary>
+    private static string Humanize(string name)
+    {
+        if (string.IsNullOrEmpty(name))
+        {
+            return name;
+        }
+
+        var sb = new System.Text.StringBuilder(name.Length + 4);
+        for (int i = 0; i < name.Length; i++)
+        {
+            char c = name[i];
+            if (i > 0 && char.IsUpper(c) &&
+                (char.IsLower(name[i - 1]) || (i + 1 < name.Length && char.IsLower(name[i + 1]))))
+            {
+                sb.Append(' ');
+            }
+            sb.Append(c);
+        }
+        return sb.ToString();
     }
 }

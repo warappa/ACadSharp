@@ -5,6 +5,7 @@ using ACadSharp.Viewer.Services;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace ACadSharp.Viewer;
 
@@ -65,6 +66,14 @@ static class EdgeInspector
                 foreach (GraphNodeInfo node in sub.Nodes)
                 {
                     Console.WriteLine($"  node {node.Index,2} (d{node.Depth}): {node.Expression.GetType().Name}");
+                    if (node.InputPorts.Count > 0)
+                    {
+                        Console.WriteLine($"      in : {JoinNames(node.InputPorts)}");
+                    }
+                    if (node.OutputPorts.Count > 0)
+                    {
+                        Console.WriteLine($"      out: {JoinNames(node.OutputPorts)}");
+                    }
                 }
                 Console.WriteLine("  edges:");
                 foreach (GraphEdgeInfo edge in sub.Edges)
@@ -80,5 +89,10 @@ static class EdgeInspector
         Console.WriteLine();
         Console.WriteLine($"Edge result: {shown} property subgraph(s) shown");
         return 0;
+    }
+
+    private static string JoinNames(List<PortInfo> ports)
+    {
+        return string.Join(", ", ports.Select(p => p.Name));
     }
 }
