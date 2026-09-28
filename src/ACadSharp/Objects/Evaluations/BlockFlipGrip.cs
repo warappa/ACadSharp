@@ -1,4 +1,4 @@
-﻿using ACadSharp.Attributes;
+using ACadSharp.Attributes;
 using ACadSharp.Classes;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -37,6 +37,21 @@ public class BlockFlipGrip : BlockGrip, IDxfClassDefined
 	/// </summary>
 	[DxfCodeValue(93)]
 	public int FlipExpressionId { get; set; }
+
+	/// <summary>
+	/// Evaluates the flip grip: writes the base grip ports (displacement and updated
+	/// location) and the "UpdatedFlip" port (the flip state, 0 = not flipped).
+	/// <para>
+	/// The flip state is a discrete toggle; without a user interaction the grip is in its
+	/// base (not flipped) state.
+	/// </para>
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		bool result = base.Evaluate(context);
+		context.SetValue(this.Id, "UpdatedFlip", 0.0);
+		return result;
+	}
 
 	/// <inheritdoc/>
 	public override string ObjectName => DxfFileToken.ObjectBlockFlipGrip;

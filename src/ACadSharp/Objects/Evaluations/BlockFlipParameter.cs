@@ -68,16 +68,15 @@ public class BlockFlipParameter : Block2PtParameter, IDxfClassDefined
 	/// </summary>
 	public override bool Evaluate(EvaluationContext context)
 	{
-		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+		this.WritePorts(context);
 
-		XYZ updatedFirst = this.FirstPoint + firstDisp;
-		XYZ updatedSecond = this.SecondPoint + secondDisp;
-
-		// The flip state: 0 = base state, 1 = flipped state. Default to 0 (not flipped).
+		// The flip state: 0 = base state, 1 = flipped state. The state is not derived from
+		// the geometry (it is toggled by the user), so the default (untouched) state is 0
+		// (not flipped). Both the "Flip" and "UpdatedFlip" ports carry it.
 		double flip = 0;
 
+		context.SetValue(this.Id, "Flip", flip);
 		context.SetValue(this.Id, "UpdatedFlip", flip);
-		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
 		base.CurrentValue = EvaluationValue.FromDouble(flip);
 
 		return true;

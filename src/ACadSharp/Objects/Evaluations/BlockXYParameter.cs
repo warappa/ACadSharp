@@ -58,17 +58,18 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 
 	public override bool Evaluate(EvaluationContext context)
 	{
-		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+		this.WritePorts(context);
 
-		double x = firstDisp.X;
-		double y = firstDisp.Y;
-
-		XYZ updatedFirst = this.FirstPoint + firstDisp;
-		XYZ updatedSecond = this.SecondPoint + secondDisp;
+		// The X and Y values = the (updated) relative vector (the stored second point
+		// minus the stored first point, plus the (second minus first) displacement). In
+		// the initial state this is the stored offset, for example (1, 1) for a scale
+		// parameter (no scaling).
+		XYZ relative = this.GetRelativeVector(context);
+		double x = relative.X;
+		double y = relative.Y;
 
 		context.SetValue(this.Id, "XScale", x);
 		context.SetValue(this.Id, "YScale", y);
-		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
 		base.CurrentValue = EvaluationValue.FromPoint2d(new XY(x, y));
 
 		return true;

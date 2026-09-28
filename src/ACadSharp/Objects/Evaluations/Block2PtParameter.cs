@@ -1,5 +1,6 @@
 using ACadSharp.Attributes;
 using CSMath;
+using System;
 using System.Collections.Generic;
 
 namespace ACadSharp.Objects.Evaluations;
@@ -87,6 +88,69 @@ public abstract class Block2PtParameter : BlockParameter
 		context.SetValue(this.Id, "UpdatedBaseY", updatedFirst.Y);
 		context.SetValue(this.Id, "UpdatedEndX", updatedSecond.X);
 		context.SetValue(this.Id, "UpdatedEndY", updatedSecond.Y);
+	}
+
+	/// <summary>
+	/// Writes the parameter's full set of point ports into the context.
+	/// <para>
+	/// The ports carry the base (first) and end (second) points, their displacements
+	/// (zero when the connected grips are not activated), and the updated points
+	/// (the stored points plus the displacements):
+	/// <list type="bullet">
+	/// <item><description>"BaseX/Y" / "EndX/Y" - the stored first/second point;</description></item>
+	/// <item><description>"BaseXDelta/Y" / "EndXDelta/Y" - the first/second point displacement;</description></item>
+	/// <item><description>"UpdatedBaseX/Y" / "UpdatedEndX/Y" - the updated first/second point;</description></item>
+	/// <item><description>"Base" / "End" / "UpdatedBase" / "UpdatedEnd" - the same as point values.</description></item>
+	/// </list>
+	/// </para>
+	/// </summary>
+	protected void WritePorts(EvaluationContext context)
+	{
+		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+
+		XYZ updatedFirst = this.FirstPoint + firstDisp;
+		XYZ updatedSecond = this.SecondPoint + secondDisp;
+
+		context.SetValue(this.Id, "BaseX", this.FirstPoint.X);
+		context.SetValue(this.Id, "BaseY", this.FirstPoint.Y);
+		context.SetValue(this.Id, "EndX", this.SecondPoint.X);
+		context.SetValue(this.Id, "EndY", this.SecondPoint.Y);
+		context.SetValue(this.Id, "BaseXDelta", firstDisp.X);
+		context.SetValue(this.Id, "BaseYDelta", firstDisp.Y);
+		context.SetValue(this.Id, "EndXDelta", secondDisp.X);
+		context.SetValue(this.Id, "EndYDelta", secondDisp.Y);
+		context.SetValue(this.Id, "UpdatedBaseX", updatedFirst.X);
+		context.SetValue(this.Id, "UpdatedBaseY", updatedFirst.Y);
+		context.SetValue(this.Id, "UpdatedEndX", updatedSecond.X);
+		context.SetValue(this.Id, "UpdatedEndY", updatedSecond.Y);
+		context.SetValue(this.Id, "Base", EvaluationValue.FromPoint(this.FirstPoint));
+		context.SetValue(this.Id, "End", EvaluationValue.FromPoint(this.SecondPoint));
+		context.SetValue(this.Id, "UpdatedBase", EvaluationValue.FromPoint(updatedFirst));
+		context.SetValue(this.Id, "UpdatedEnd", EvaluationValue.FromPoint(updatedSecond));
+	}
+
+	/// <summary>
+	/// Normalizes an angle to the [-pi, pi] range.
+	/// </summary>
+	protected static double NormalizeAngle(double angle)
+	{
+		while (angle > Math.PI) { angle -= 2.0 * Math.PI; }
+		while (angle < -Math.PI) { angle += 2.0 * Math.PI; }
+		return angle;
+	}
+
+	/// <summary>
+	/// Computes the parameter's relative vector: the stored second point minus the stored
+	/// first point, plus the (second minus first) point displacement.
+	/// <para>
+	/// This is the vector from the (updated) base point to the (updated) end point. In the
+	/// initial state (no activated grips) it equals the stored <c>SecondPoint - FirstPoint</c>.
+	/// </para>
+	/// </summary>
+	protected XYZ GetRelativeVector(EvaluationContext context)
+	{
+		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+		return (this.SecondPoint - this.FirstPoint) + (secondDisp - firstDisp);
 	}
 
 	private static void ReadPort(EvalParameterProperty property, string port, EvaluationContext context, out double value)

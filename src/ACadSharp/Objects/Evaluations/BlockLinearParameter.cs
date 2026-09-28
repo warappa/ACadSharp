@@ -55,10 +55,7 @@ public class BlockLinearParameter : Block2PtParameter, IDxfClassDefined
 	/// </summary>
 	public override bool Evaluate(EvaluationContext context)
 	{
-		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
-
-		XYZ updatedFirst = this.FirstPoint + firstDisp;
-		XYZ updatedSecond = this.SecondPoint + secondDisp;
+		this.WritePorts(context);
 
 		// The parameter's axis (the initial direction from the base to the end point).
 		XYZ axis = this.SecondPoint - this.FirstPoint;
@@ -72,14 +69,17 @@ public class BlockLinearParameter : Block2PtParameter, IDxfClassDefined
 			axis = new XYZ(1, 0, 0);
 		}
 
-		// The value = the signed distance from the base to the end point along the axis.
-		XYZ delta = updatedSecond - updatedFirst;
-		double value = delta.Dot(axis);
+		// The value = the signed distance from the (updated) base to the (updated) end
+		// point along the axis.
+		XYZ relative = this.GetRelativeVector(context);
+		double value = relative.Dot(axis);
 
-		context.SetValue(this.Id, "Scale", value);
-		context.SetValue(this.Id, "XScale", value);
-		context.SetValue(this.Id, "YScale", value);
-		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		// The scale factor = the current distance over the default distance (1 when the
+		// parameter is untouched).
+		double scale = axisLength > 1e-9 ? value / axisLength : 1.0;
+		context.SetValue(this.Id, "Scale", scale);
+		context.SetValue(this.Id, "XScale", scale);
+		context.SetValue(this.Id, "YScale", scale);
 		base.CurrentValue = EvaluationValue.FromDouble(value);
 
 		return true;

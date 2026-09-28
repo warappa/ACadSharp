@@ -79,18 +79,21 @@ public class BlockPolarParameter : Block2PtParameter, IDxfClassDefined
 
 	public override bool Evaluate(EvaluationContext context)
 	{
-		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+		this.WritePorts(context);
 
-		XYZ updatedFirst = this.FirstPoint + firstDisp;
-		XYZ updatedSecond = this.SecondPoint + secondDisp;
+		// The distance = the length of the (updated) relative vector (the absolute
+		// distance from the base to the end point, used by polar stretch actions).
+		XYZ relative = this.GetRelativeVector(context);
+		double distance = relative.GetLength();
+		double angle = Math.Atan2(relative.Y, relative.X);
 
-		XYZ delta = updatedSecond - updatedFirst;
-		double distance = delta.GetLength();
-		double angle = Math.Atan2(delta.Y, delta.X);
+		// The angle delta = the change from the default direction (0 when the
+		// parameter is untouched).
+		double defaultAngle = Math.Atan2(this.SecondPoint.Y - this.FirstPoint.Y, this.SecondPoint.X - this.FirstPoint.X);
+		double angleDelta = NormalizeAngle(angle - defaultAngle);
 
 		context.SetValue(this.Id, "Scale", distance);
-		context.SetValue(this.Id, "AngleDelta", angle);
-		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		context.SetValue(this.Id, "AngleDelta", angleDelta);
 		base.CurrentValue = EvaluationValue.FromPoint(new XYZ(distance, angle, 0));
 
 		return true;

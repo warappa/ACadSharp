@@ -680,4 +680,182 @@ public class EvaluationValueTests
 		Assert.Equal(3, n2In.Count);
 		Assert.Equal(new[] { e0, e1, e2 }, n2In);
 	}
+
+	// ------------------------------------------------------------------
+	// Port-model semantics: each node writes the full set of ports its
+	// consumers reference, with spec-correct initial-state values.
+	// ------------------------------------------------------------------
+
+	/// <summary>
+	/// Reads a scalar port, asserting that it is present and scalar.
+	/// </summary>
+	private static double Dbl(EvaluationContext context, int id, string name)
+	{
+		Assert.True(context.TryGetValue(id, name, out double v), $"port {name} missing on node {id}");
+		return v;
+	}
+
+	/// <summary>
+	/// Reads a point port, asserting that it is present and a point.
+	/// </summary>
+	private static XYZ Pt(EvaluationContext context, int id, string name)
+	{
+		Assert.True(context.TryGetValue(id, name, out EvaluationValue v), $"port {name} missing on node {id}");
+		Assert.Equal(EvaluationValueType.Point, v.Type);
+		return v.PointValue.Value;
+	}
+
+	[Fact]
+	public void LinearParameterInitialScaleIsOneTest()
+	{
+		// A 30-unit door: FP=(0,0), SP=(30,0). Untouched, the scale is 1 (no scaling)
+		// and the value is the (absolute) distance along the axis.
+		BlockLinearParameter parameter = new() { Id = 10, FirstPoint = new XYZ(0, 0, 0), SecondPoint = new XYZ(30, 0, 0) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		// The scale ports: current distance / default distance = 1.
+		Assert.Equal(1.0, Dbl(context, 10, "Scale"));
+		Assert.Equal(1.0, Dbl(context, 10, "XScale"));
+		Assert.Equal(1.0, Dbl(context, 10, "YScale"));
+
+		// The value: the signed distance along the axis (30).
+		Assert.Equal(EvaluationValueType.Double, ((EvaluationExpression)parameter).CurrentValue.Type);
+		Assert.Equal(30.0, ((EvaluationExpression)parameter).CurrentValue.DoubleValue);
+
+		// The generic point ports: stored points, zero displacements, updated = stored.
+		Assert.Equal(0.0, Dbl(context, 10, "BaseXDelta"));
+		Assert.Equal(0.0, Dbl(context, 10, "EndXDelta"));
+		Assert.Equal(30.0, Dbl(context, 10, "UpdatedEndX"));
+		Assert.Equal(new XYZ(0, 0, 0), Pt(context, 10, "Base"));
+		Assert.Equal(new XYZ(30, 0, 0), Pt(context, 10, "UpdatedEnd"));
+	}
+
+	[Fact]
+	public void LinearParameterGripDisplacementScalesTest()
+	{
+		// The same 30-unit door, but the (activated) second-point grip is dragged +10
+		// along the axis: the distance is 40, so the scale is 40/30.
+		BlockLinearGrip grip = new() { Id = 11, Location = new XYZ(30, 0, 0) };
+		grip.ActivatedLocation = new XYZ(40, 0, 0);
+
+		BlockLinearParameter parameter = new() { Id = 10, FirstPoint = new XYZ(0, 0, 0), SecondPoint = new XYZ(30, 0, 0) };
+		parameter.SecondPointDisplacementX.Connections.Add(new EvalConnection { Id = 11, Name = "DisplacementX" });
+		parameter.SecondPointDisplacementY.Connections.Add(new EvalConnection { Id = 11, Name = "DisplacementY" });
+
+		EvaluationContext context = new();
+		Assert.True(grip.Evaluate(context));
+		Assert.True(parameter.Evaluate(context));
+
+		// The displacement flowed through: the end point moved to (40, 0, 0).
+		Assert.Equal(10.0, Dbl(context, 10, "EndXDelta"));
+		Assert.Equal(40.0, Dbl(context, 10, "UpdatedEndX"));
+		Assert.Equal(40.0 / 30.0, Dbl(context, 10, "Scale"));
+		Assert.Equal(40.0, ((EvaluationExpression)parameter).CurrentValue.DoubleValue);
+	}
+
+	[Fact]
+	public void PolarParameterInitialTest()
+	{
+		// A polar parameter pointing left: FP=(0,0), SP=(-1.25,0). The distance is the
+		// (absolute) 1.25, and the angle delta is 0 (untouched).
+		BlockPolarParameter parameter = new() { Id = 20, FirstPoint = new XYZ(0, 0, 0), SecondPoint = new XYZ(-1.25, 0, 0) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		Assert.Equal(1.25, Dbl(context, 20, "Scale"));
+		Assert.Equal(0.0, Dbl(context, 20, "AngleDelta"));
+
+		// The value: (distance, angle) = (1.25, pi).
+		Assert.Equal(EvaluationValueType.Point, ((EvaluationExpression)parameter).CurrentValue.Type);
+		XYZ value = ((EvaluationExpression)parameter).CurrentValue.PointValue.Value;
+		Assert.Equal(1.25, value.X);
+		Assert.Equal(Math.PI, value.Y);
+	}
+
+	[Fact]
+	public void RotationParameterAngleDeltaIsZeroAtRestTest()
+	{
+		// A rotation parameter pointing up (the North Arrow case): FP=(0,0), SP=(0,1.57).
+		// The value is the absolute angle (pi/2); the delta from the default is 0 —
+		// the block must not rotate at rest.
+		BlockRotationParameter parameter = new() { Id = 30, FirstPoint = new XYZ(0, 0, 0), SecondPoint = new XYZ(0, 1.57, 0) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		Assert.Equal(0.0, Dbl(context, 30, "AngleDelta"));
+		Assert.Equal(Math.PI / 2, ((EvaluationExpression)parameter).CurrentValue.DoubleValue);
+	}
+
+	[Fact]
+	public void XYParameterInitialTest()
+	{
+		// The Detail Layout Grid case: FP=(0,0), SP=(1,1). Untouched, the scale is
+		// (1, 1) (no scaling) — the relative vector, not the (zero) displacement.
+		BlockXYParameter parameter = new() { Id = 40, FirstPoint = new XYZ(0, 0, 0), SecondPoint = new XYZ(1, 1, 0) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		Assert.Equal(1.0, Dbl(context, 40, "XScale"));
+		Assert.Equal(1.0, Dbl(context, 40, "YScale"));
+
+		Assert.Equal(EvaluationValueType.Point2d, ((EvaluationExpression)parameter).CurrentValue.Type);
+		XY value = ((EvaluationExpression)parameter).CurrentValue.Point2dValue.Value;
+		Assert.Equal(1.0, value.X);
+		Assert.Equal(1.0, value.Y);
+	}
+
+	[Fact]
+	public void FlipParameterInitialTest()
+	{
+		// Untouched, a flip parameter is in its base (not flipped) state: both the
+		// "Flip" and "UpdatedFlip" ports are 0.
+		BlockFlipParameter parameter = new() { Id = 50, FirstPoint = new XYZ(0, 0, 0), SecondPoint = new XYZ(1, 0, 0) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		Assert.Equal(0.0, Dbl(context, 50, "Flip"));
+		Assert.Equal(0.0, Dbl(context, 50, "UpdatedFlip"));
+		Assert.Equal(EvaluationValueType.Double, ((EvaluationExpression)parameter).CurrentValue.Type);
+		Assert.Equal(0.0, ((EvaluationExpression)parameter).CurrentValue.DoubleValue);
+	}
+
+	[Fact]
+	public void GripInitialTest()
+	{
+		// An untouched grip: the displacement is zero, the updated location equals the
+		// stored location, and the value is the (zero) displacement.
+		BlockLinearGrip grip = new() { Id = 60, Location = new XYZ(2, 3, 4) };
+		EvaluationContext context = new();
+
+		Assert.True(grip.Evaluate(context));
+
+		Assert.Equal(0.0, Dbl(context, 60, "DisplacementX"));
+		Assert.Equal(0.0, Dbl(context, 60, "DisplacementY"));
+		Assert.Equal(2.0, Dbl(context, 60, "UpdatedX"));
+		Assert.Equal(3.0, Dbl(context, 60, "UpdatedY"));
+		Assert.Equal(EvaluationValueType.Point, ((EvaluationExpression)grip).CurrentValue.Type);
+		Assert.Equal(new XYZ(0, 0, 0), ((EvaluationExpression)grip).CurrentValue.PointValue.Value);
+	}
+
+	[Fact]
+	public void BasePointParameterStaticPortsTest()
+	{
+		// A base point is static: the displacement ports are zero and the updated
+		// location equals the stored location.
+		BlockBasePointParameter parameter = new() { Id = 70, Location = new XYZ(1, 2, 3) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		Assert.Equal(0.0, Dbl(context, 70, "XDelta"));
+		Assert.Equal(0.0, Dbl(context, 70, "YDelta"));
+		Assert.Equal(1.0, Dbl(context, 70, "UpdatedX"));
+		Assert.Equal(2.0, Dbl(context, 70, "UpdatedY"));
+	}
 }

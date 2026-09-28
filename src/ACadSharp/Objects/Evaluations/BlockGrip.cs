@@ -57,8 +57,12 @@ public abstract class BlockGrip : BlockElement
 	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
 
 	/// <summary>
-	/// Evaluates the grip: writes its displacement (the "DisplacementX/Y" output ports) into
-	/// the context. The displacement is zero when the grip is not activated.
+	/// Evaluates the grip: writes its displacement (the "DisplacementX/Y" output ports) and
+	/// its updated location (the "UpdatedX/Y" output ports) into the context.
+	/// <para>
+	/// The displacement is zero when the grip is not activated, in which case the updated
+	/// location equals the base <see cref="Location"/>.
+	/// </para>
 	/// </summary>
 	public override bool Evaluate(EvaluationContext context)
 	{
@@ -66,6 +70,8 @@ public abstract class BlockGrip : BlockElement
 
 		context.SetValue(this.Id, "DisplacementX", displacement.X);
 		context.SetValue(this.Id, "DisplacementY", displacement.Y);
+		context.SetValue(this.Id, "UpdatedX", this.Location.X + displacement.X);
+		context.SetValue(this.Id, "UpdatedY", this.Location.Y + displacement.Y);
 		base.CurrentValue = EvaluationValue.FromPoint(displacement);
 
 		return true;

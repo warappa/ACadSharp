@@ -43,16 +43,18 @@ public class BlockRotationParameter : Block2PtParameter, IDxfClassDefined
 	/// </summary>
 	public override bool Evaluate(EvaluationContext context)
 	{
-		this.GetDisplacements(context, out XYZ firstDisp, out XYZ secondDisp);
+		this.WritePorts(context);
 
-		XYZ updatedFirst = this.FirstPoint + firstDisp;
-		XYZ updatedSecond = this.SecondPoint + secondDisp;
+		// The value = the current angle from the (updated) base to the (updated) end point.
+		XYZ relative = this.GetRelativeVector(context);
+		double angle = Math.Atan2(relative.Y, relative.X);
 
-		XYZ delta = updatedSecond - updatedFirst;
-		double angle = Math.Atan2(delta.Y, delta.X);
+		// The angle delta = the change from the default direction (0 when the parameter
+		// is untouched); this is what a rotation action applies.
+		double defaultAngle = Math.Atan2(this.SecondPoint.Y - this.FirstPoint.Y, this.SecondPoint.X - this.FirstPoint.X);
+		double angleDelta = NormalizeAngle(angle - defaultAngle);
 
-		context.SetValue(this.Id, "AngleDelta", angle);
-		this.WriteUpdatedPoints(context, updatedFirst, updatedSecond);
+		context.SetValue(this.Id, "AngleDelta", angleDelta);
 		base.CurrentValue = EvaluationValue.FromDouble(angle);
 
 		return true;
