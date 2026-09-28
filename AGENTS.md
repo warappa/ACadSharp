@@ -29,6 +29,7 @@ But: If a user reported a bug and and a bugfix is being developed, then don't co
 - `src/ACadSharp.Tests` — xUnit tests.
 - `src/ACadSharp.Examples` — runnable examples (`eval` / `evalgraph` subcommands drive the evaluation engine).
 - `docs/` — articles and plans; `reference/` — research material; `samples/` — test DWG/DXF files (incl. `samples/dynamic-blocks/`).
+- `tools/` — preserved debug/research tools, each self-documenting in its own `README.md`: `dwg-rawdump` (bit-level DWG object-section decoder), `eval-probe` (dump a dynamic block's node values after evaluation), `eval-regression` (forward + reverse evaluation sweep over a whole DWG). Throwaway scratch lives in git-ignored `.tmp-*` dirs; a tool that proves reusable gets moved to `tools/`.
 
 ## Evaluation engine (dynamic-block graphs)
 
@@ -38,7 +39,7 @@ The evaluation engine lives in `src/ACadSharp/Objects/Evaluations/`.
 - `EvaluationValue` (sealed) is a shape-agnostic value holder. `EvaluationValueType` has **8 shapes**: `None`, `Double`, `Point` (3D), `Point2d`, `String`, `Int`, `Char`, `ObjectId`.
 - `EvaluationValue` factories: `None`/`FromDouble`/`FromPoint(XYZ)`/`FromPoint2d(XY)`/`FromString`/`FromInt`/`FromChar`/`FromObjectId(long)`; safe accessors (`DoubleValue`, `PointValue`, `Point2dValue`, `StringValue`, `IntValue`, `CharValue`, `ObjectIdValue`); `As<T>()` throws on a shape mismatch.
 - `EvaluationContext` is a `Dictionary<int, Dictionary<string, EvaluationValue>>` (node id → port name → value). `SetValue(int, string, EvaluationValue)` + `double`/`string` overloads (there are **no** `int`/`long`/`char` overloads — use the `EvaluationValue` overload for those).
-- `EvaluationExpression` (base node) has `CurrentValue` (`EvaluationValue`, `internal set`, not serialized) and `virtual bool Evaluate(EvaluationContext)` (default no-op). A leaf with one value shape adds a typed `new EvaluationValue<T> CurrentValue => base.CurrentValue.As<T>()` override.
+- `EvaluationExpression` (base node) has `CurrentValue` (`EvaluationValue`, `internal set`, not serialized) and `virtual bool Evaluate(EvaluationContext)` (default no-op). A leaf with one value shape adds a typed `new EvaluationValue<T> CurrentValue => base.CurrentValue.As<T>()` override. It also has `protected abstract GetDefaultValue()`: when a node has not yet been evaluated, `CurrentValue` falls back to this, so **every concrete node must explicitly declare a default** (a stateful node → its initial value, e.g. a grip's zero `Displacement`; a stateless one → `EvaluationValue.None`). The abstract method makes a missing default a compile error (CS0534).
 
 ### Graph structure
 - `EvaluationGraph` holds `Nodes` (each wraps an `EvaluationExpression`) and `Edges`.
@@ -49,7 +50,7 @@ The evaluation engine lives in `src/ACadSharp/Objects/Evaluations/`.
 ### Adding a new evaluation node type (8 touch points)
 1. `DxfFileToken.cs` — `ObjectXxx = "XXX"` (the DXF object name).
 2. `DxfSubclassMarker.cs` — `Xxx = "AcDbXxx"` (the subclass marker).
-3. `Objects/Evaluations/Xxx.cs` — the class. For a parameter, inherit `BlockParameter`; add `[DxfName]`/`[DxfSubClass]` attrs, a `Value` with a `[DxfCodeValue]`, an `Evaluate` that writes the `"Value"` port (`context.SetValue(this.Id, "Value", EvaluationValue.FromX(...))` + set `base.CurrentValue`), a typed `CurrentValue` override, and `GetDxfClass()` (ItemClassId=499, MaintenanceVersion=55, ProxyFlags=EraseAllowed|CloningAllowed|DisablesProxyWarningDialog).
+3. `Objects/Evaluations/Xxx.cs` — the class. For a parameter, inherit `BlockParameter`; add `[DxfName]`/`[DxfSubClass]` attrs, a `Value` with a `[DxfCodeValue]`, an `Evaluate` that writes the `"Value"` port (`context.SetValue(this.Id, "Value", EvaluationValue.FromX(...))` + set `base.CurrentValue`), a typed `CurrentValue` override, a `GetDefaultValue()` override (**required** — the method is abstract: a stateful node returns its initial value, e.g. a grip's zero `Displacement`; a stateless node returns `EvaluationValue.None`), and `GetDxfClass()` (ItemClassId=499, MaintenanceVersion=55, ProxyFlags=EraseAllowed|CloningAllowed|DisablesProxyWarningDialog).
 4. `IO/Templates/CadXxxTemplate.cs` — the template (`: CadBlockParameterTemplate`, typed property + parameterless and object-taking ctors).
 5. `IO/DXF/DxfStreamReader/DxfObjectsSectionReader.cs` — `readXxx` (specific codes; `default` falls through to `readBlockParameter`) + a dispatch case.
 6. `IO/DXF/DxfStreamWriter/DxfObjectsSectionWriter.cs` — `writeXxx` (`writeBlockParameter` + `Write(100, marker)` + per-code `Write`) + a dispatch case.

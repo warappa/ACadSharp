@@ -310,6 +310,57 @@ The evaluation engine is implemented in `src/ACadSharp/Objects/Evaluations/`, mi
 - **`EvaluationExpression.Evaluate(context)`** — virtual, **default no-op** (matching `AcDbEvalExpr::evaluate()`). Plus a `CurrentValue` property (the node's value, updated during `evaluate()`, mirroring `AcDbEvalExpr::value()`). `CurrentValue` is a shape-agnostic **`EvaluationValue`** ("object") that can hold either a scalar (`double`) or a point (`XYZ`), so a multi-valued expression carries its **whole** value rather than a single representative component. A leaf with a single, well-known value shape exposes a typed `new EvaluationValue<T> CurrentValue` view reading `base.CurrentValue.As<T>()` (same name, correctly typed); the base property is the single storage `Evaluate` writes.
 - **Topological order** (`GetTopologicalOrder`) — a reachability BFS from the activated nodes (skipping `flag=4` lookup/reverse edges to break lookup cycles) + Kahn's algorithm; returns an empty list on a cycle.
 
+### Class hierarchy (verified against real files)
+
+The ACadSharp classes in `src/ACadSharp/Objects/Evaluations/` mirror the ObjectARX `AcDb*` class names 1:1. The **inheritance structure itself was verified against real AutoCAD files**: a DXF object carries its full ARX subclass chain as a sequence of `100` (marker) groups, so the samples give the true parent→child order. Evidence from `samples/dynamic-blocks/`:
+
+```
+BLOCKLINEARPARAMETER object:              BLOCKGRIPLOCATIONCOMPONENT object:
+  100 AcDbEvalExpr                          100 AcDbEvalExpr
+  100 AcDbBlockElement                        100 AcDbBlockGripExpr   ← direct child of the base
+  100 AcDbBlockParameter
+  100 AcDbBlock2PtParameter
+  100 AcDbBlockLinearParameter
+```
+
+Two findings stand out. First, the **component is *not* a `BlockElement`**: its chain is `AcDbEvalExpr → AcDbBlockGripExpr` (it carries no `300` name / `1071` group, unlike a `BlockElement`), so in the ACadSharp code it inherits `EvaluationExpression` **directly**, not `BlockElement`. Second, `AcDbBlockGripExpr` is a **single concrete class** (the DXF object name `BLOCKGRIPLOCATIONCOMPONENT` is just that class's DXF name) — there is no separate "component family" in ARX.
+
+The full tree:
+
+```
+EvaluationExpression  (≡ AcDbEvalExpr)  — abstract; holds CurrentValue + abstract GetDefaultValue()
+└── BlockElement      (≡ AcDbBlockElement)  — abstract; adds ElementName (300) + Value1071 (1071)
+    ├── BlockParameter (≡ AcDbBlockParameter) — abstract
+    │   ├── Block1PtParameter / Block2PtParameter  — abstract (point-count specialisation)
+    │   └── 16 concrete leaves (XY, User, Char, Text, Handle, Linear, Point,
+    │       BasePoint, Visibility, Polar, Rotation, Alignment, HorizontalConstraint,
+    │       VerticalConstraint, Lookup, Flip)
+    ├── BlockGrip     (≡ AcDbBlockGrip) — abstract
+    │   └── 8 concrete leaves (Linear, Polar, XY, Visibility, Lookup, Rotation, Alignment, Flip)
+    └── BlockAction   (≡ AcDbBlockAction) — abstract
+        └── BlockActionBasePt — abstract (base-point specialisation)
+            └── 8 concrete leaves (Move, Scale, Rotation, Stretch, Flip, Array, PolarStretch, Lookup)
++ EvaluationExpression's direct children (single concrete classes, NOT under BlockElement):
+    ├── BlockGripLocationComponent  (≡ AcDbBlockGripExpr)
+    ├── BlockPropertiesTable        (≡ AcDbBlockPropertiesTable)      — data-only stub
+    ├── BlockPropertiesTableGrip    (≡ AcDbBlockPropertiesTableGrip)  — data-only stub
+    └── BlockDynamicBlockProxyNode  (≡ AcDbDynamicBlockProxyNode)     — placeholder
+```
+
+#### The three value-semantics archetypes
+
+Grouped by *what a node's value means before the graph has been evaluated*, the leaves fall into three archetypes, and the default-value design follows the grouping:
+
+| Archetype | Members | Pre-evaluation value | `GetDefaultValue()` |
+|---|---|---|---|
+| **Stateful — parameter** | the 16 `BlockParameter` leaves | a stored value/geometry, but the *shape and initial value differ per type* (stored value, zero displacement, `atan2` of stored points, …) | **abstract** — each leaf implements its own |
+| **Stateful — grip** | the 8 `BlockGrip` leaves | the stored `Displacement` (zero initially) | **shared at the archetype**: `BlockGrip` overrides it to `FromPoint(Displacement)`; leaves inherit |
+| **Stateless** | the 8 `BlockAction` leaves, the component, the 2 table stubs, the proxy | none — pure computation / data-only / placeholder | **shared at the archetype**: `BlockAction` overrides it to `EvaluationValue.None`; the 4 single-class children each carry an explicit, documented `=> None` |
+
+`EvaluationExpression.GetDefaultValue()` is **`protected abstract`**, so the decision is *compile-time-enforced*: a new concrete node that forgets a default is a `CS0534` build error. `BlockParameter` stays abstract (propagating the requirement to every parameter leaf); `BlockGrip` and `BlockAction` supply a shared default their leaves inherit; the 4 single-class direct children of `EvaluationExpression` cannot share an intermediate class (ARX has none for them — the component's real chain is `AcDbEvalExpr → AcDbBlockGripExpr`), so each states `=> None` explicitly.
+
+The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not yet been evaluated (`_currentValue.Type == None`), so a node exposes its meaningful initial value *before* `Evaluate()` runs — this is what makes the viewer render a stored parameter value (or `<unset>` for a stateless node) rather than a blank.
+
 ### Per-class `Evaluate` formulas
 
 `CurrentValue` is an `EvaluationValue` (the "object"); the **shape** column is the `T` of the leaf's typed `CurrentValue` view (`EvaluationValue<T>`). **Point** = the whole (X, Y) value; **Scalar** = a single `double`.
