@@ -67,6 +67,9 @@ public class BlockRotationParameter : Block2PtParameter, IDxfClassDefined
 	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromDouble(Math.Atan2(this.SecondPoint.Y - this.FirstPoint.Y, this.SecondPoint.X - this.FirstPoint.X));
+
+	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{
 		return new DxfClass

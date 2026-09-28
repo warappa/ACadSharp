@@ -77,6 +77,9 @@ public class BlockPolarParameter : Block2PtParameter, IDxfClassDefined
 	/// </summary>
 	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
 
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromPoint(new XYZ((this.SecondPoint - this.FirstPoint).GetLength(), Math.Atan2(this.SecondPoint.Y - this.FirstPoint.Y, this.SecondPoint.X - this.FirstPoint.X), 0));
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.WritePorts(context);

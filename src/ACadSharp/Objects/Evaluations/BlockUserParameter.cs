@@ -51,17 +51,10 @@ public class BlockUserParameter : BlockParameter, IDxfClassDefined
 	/// current value rather than an empty placeholder.
 	/// </para>
 	/// </summary>
-	public new EvaluationValue<double> CurrentValue
-	{
-		get
-		{
-			if (base.CurrentValue.Type == EvaluationValueType.None)
-			{
-				return EvaluationValue<double>.Of(this.Value);
-			}
-			return base.CurrentValue.As<double>();
-		}
-	}
+	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromDouble(this.Value);
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

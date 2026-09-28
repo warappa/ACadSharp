@@ -472,4 +472,338 @@ public class EvaluationTests : IOTestsBase
 		assertClose(0.0, grip.CurrentValue.Value.Y);
 		assertClose(5.0, grip.CurrentValue.Value.Z);
 	}
+
+	/// <summary>
+	/// The base (untyped) <see cref="EvaluationExpression.CurrentValue"/> falls back to the node's
+	/// default when the node has not been evaluated yet. This is what the node viewer's
+	/// <c>ValueFormatter</c> reads (via an <see cref="EvaluationExpression"/> reference), so an
+	/// unevaluated node exposes its default value rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void BaseCurrentValueFallsBackToDefaultTest()
+	{
+		// A user parameter (not evaluated): the base CurrentValue falls back to the stored value.
+		EvaluationExpression userParam = new BlockUserParameter { Id = 1, Value = 42.0 };
+		EvaluationValue userBase = userParam.CurrentValue;
+		Assert.Equal(EvaluationValueType.Double, userBase.Type);
+		assertClose(42.0, userBase.DoubleValue ?? 0.0);
+
+		// A grip (not evaluated, not activated): the base CurrentValue falls back to zero.
+		EvaluationExpression grip = new BlockLinearGrip { Id = 2, Location = new XYZ(1, 2, 0) };
+		EvaluationValue gripBase = grip.CurrentValue;
+		Assert.Equal(EvaluationValueType.Point, gripBase.Type);
+		XYZ p = gripBase.PointValue ?? XYZ.Zero;
+		assertClose(0.0, p.X);
+		assertClose(0.0, p.Y);
+		assertClose(0.0, p.Z);
+	}
+
+	/// <summary>
+	/// XY parameter (not evaluated): the <see cref="BlockXYParameter.CurrentValue"/> falls back to
+	/// the stored offset (the second point minus the first point) rather than an empty
+	/// placeholder.
+	/// </summary>
+	[Fact]
+	public void XYParameterCurrentValueFallsBackToStoredOffsetTest()
+	{
+		BlockXYParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(1, 2, 0),
+			SecondPoint = new XYZ(3, 4, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored offset (2, 2).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored offset.");
+		XY v = param.CurrentValue.Value;
+		assertClose(2.0, v.X);
+		assertClose(2.0, v.Y);
+
+		// After evaluation (no activated grips), the CurrentValue is the same stored offset.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		v = param.CurrentValue.Value;
+		assertClose(2.0, v.X);
+		assertClose(2.0, v.Y);
+	}
+
+	/// <summary>
+	/// Linear parameter (not evaluated): the <see cref="BlockLinearParameter.CurrentValue"/> falls
+	/// back to the stored distance (the length of the second point minus the first point) rather
+	/// than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void LinearParameterCurrentValueFallsBackToStoredDistanceTest()
+	{
+		BlockLinearParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(0, 0, 0),
+			SecondPoint = new XYZ(3, 4, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored distance (5).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored distance.");
+		assertClose(5.0, param.CurrentValue.Value);
+
+		// After evaluation (no activated grips), the CurrentValue is the same stored distance.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(5.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Rotation parameter (not evaluated): the <see cref="BlockRotationParameter.CurrentValue"/>
+	/// falls back to the stored angle (from the first point to the second point) rather than an
+	/// empty placeholder.
+	/// </summary>
+	[Fact]
+	public void RotationParameterCurrentValueFallsBackToStoredAngleTest()
+	{
+		BlockRotationParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(0, 0, 0),
+			SecondPoint = new XYZ(1, 1, 0),
+		};
+
+		double expected = Math.Atan2(1.0, 1.0);
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored angle.
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored angle.");
+		assertClose(expected, param.CurrentValue.Value);
+
+		// After evaluation (no activated grips), the CurrentValue is the same stored angle.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(expected, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Alignment parameter (not evaluated): the <see cref="BlockAlignmentParameter.CurrentValue"/>
+	/// falls back to the stored angle (from the first point to the second point) rather than an
+	/// empty placeholder.
+	/// </summary>
+	[Fact]
+	public void AlignmentParameterCurrentValueFallsBackToStoredAngleTest()
+	{
+		BlockAlignmentParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(0, 0, 0),
+			SecondPoint = new XYZ(0, 1, 0),
+		};
+
+		double expected = Math.Atan2(1.0, 0.0);
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored angle.
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored angle.");
+		assertClose(expected, param.CurrentValue.Value);
+
+		// After evaluation (no activated grips), the CurrentValue is the same stored angle.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(expected, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Polar parameter (not evaluated): the <see cref="BlockPolarParameter.CurrentValue"/> falls
+	/// back to the stored (distance, angle) pair rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void PolarParameterCurrentValueFallsBackToStoredPolarTest()
+	{
+		BlockPolarParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(0, 0, 0),
+			SecondPoint = new XYZ(3, 4, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to (5, Atan2(4, 3), 0).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored (distance, angle).");
+		XYZ v = param.CurrentValue.Value;
+		assertClose(5.0, v.X);
+		assertClose(Math.Atan2(4.0, 3.0), v.Y);
+		assertClose(0.0, v.Z);
+
+		// After evaluation (no activated grips), the CurrentValue is the same (distance, angle).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		v = param.CurrentValue.Value;
+		assertClose(5.0, v.X);
+		assertClose(Math.Atan2(4.0, 3.0), v.Y);
+		assertClose(0.0, v.Z);
+	}
+
+	/// <summary>
+	/// Horizontal constraint parameter (not evaluated): the
+	/// <see cref="BlockHorizontalConstraintParameter.CurrentValue"/> falls back to the stored
+	/// horizontal distance rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void HorizontalConstraintParameterCurrentValueFallsBackToStoredDistanceTest()
+	{
+		BlockHorizontalConstraintParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(1, 2, 0),
+			SecondPoint = new XYZ(4, 9, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored horizontal distance (3).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored distance.");
+		assertClose(3.0, param.CurrentValue.Value);
+
+		// After evaluation (no activated grips), the CurrentValue is the same stored distance.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(3.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Vertical constraint parameter (not evaluated): the
+	/// <see cref="BlockVerticalConstraintParameter.CurrentValue"/> falls back to the stored
+	/// vertical distance rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void VerticalConstraintParameterCurrentValueFallsBackToStoredDistanceTest()
+	{
+		BlockVerticalConstraintParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(1, 2, 0),
+			SecondPoint = new XYZ(9, 5, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored vertical distance (3).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored distance.");
+		assertClose(3.0, param.CurrentValue.Value);
+
+		// After evaluation (no activated grips), the CurrentValue is the same stored distance.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(3.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Point parameter (not evaluated, not activated): the
+	/// <see cref="BlockPointParameter.CurrentValue"/> falls back to the zero displacement rather
+	/// than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void PointParameterCurrentValueFallsBackToZeroDisplacementTest()
+	{
+		BlockPointParameter param = new()
+		{
+			Id = 1,
+			Location = new XYZ(1, 2, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the zero displacement.
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the zero displacement.");
+		XYZ v = param.CurrentValue.Value;
+		assertClose(0.0, v.X);
+		assertClose(0.0, v.Y);
+		assertClose(0.0, v.Z);
+
+		// After evaluation (no activated grips), the CurrentValue is the zero displacement.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		v = param.CurrentValue.Value;
+		assertClose(0.0, v.X);
+		assertClose(0.0, v.Y);
+		assertClose(0.0, v.Z);
+	}
+
+	/// <summary>
+	/// Lookup parameter (not evaluated, not activated): the
+	/// <see cref="BlockLookupParameter.CurrentValue"/> falls back to the zero displacement rather
+	/// than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void LookupParameterCurrentValueFallsBackToZeroDisplacementTest()
+	{
+		BlockLookupParameter param = new()
+		{
+			Id = 1,
+			Location = new XYZ(1, 2, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the zero displacement.
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the zero displacement.");
+		XYZ v = param.CurrentValue.Value;
+		assertClose(0.0, v.X);
+		assertClose(0.0, v.Y);
+		assertClose(0.0, v.Z);
+
+		// After evaluation (no activated grips), the CurrentValue is the zero displacement.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		v = param.CurrentValue.Value;
+		assertClose(0.0, v.X);
+		assertClose(0.0, v.Y);
+		assertClose(0.0, v.Z);
+	}
+
+	/// <summary>
+	/// Base point parameter (not evaluated): the <see cref="BlockBasePointParameter.CurrentValue"/>
+	/// falls back to the stored (static) location rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void BasePointParameterCurrentValueFallsBackToStoredLocationTest()
+	{
+		BlockBasePointParameter param = new()
+		{
+			Id = 1,
+			Location = new XYZ(7, 8, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the stored location (7, 8, 0).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored location.");
+		XYZ v = param.CurrentValue.Value;
+		assertClose(7.0, v.X);
+		assertClose(8.0, v.Y);
+		assertClose(0.0, v.Z);
+
+		// After evaluation, the CurrentValue is the same stored location (the point never moves).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		v = param.CurrentValue.Value;
+		assertClose(7.0, v.X);
+		assertClose(8.0, v.Y);
+		assertClose(0.0, v.Z);
+	}
+
+	/// <summary>
+	/// Flip parameter (not evaluated): the <see cref="BlockFlipParameter.CurrentValue"/> falls back
+	/// to the initial flip state (0 = base state) rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void FlipParameterCurrentValueFallsBackToInitialStateTest()
+	{
+		BlockFlipParameter param = new()
+		{
+			Id = 1,
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the initial flip state (0).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the initial flip state.");
+		assertClose(0.0, param.CurrentValue.Value);
+
+		// After evaluation, the CurrentValue is the same initial flip state (0).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(0.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Visibility parameter (not evaluated): the <see cref="BlockVisibilityParameter.CurrentValue"/>
+	/// falls back to the initial state index (0) rather than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void VisibilityParameterCurrentValueFallsBackToInitialStateTest()
+	{
+		BlockVisibilityParameter param = new()
+		{
+			Id = 1,
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the initial state index (0).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the initial state index.");
+		Assert.Equal(0, param.CurrentValue.Value);
+
+		// After evaluation, the CurrentValue is the same initial state index (0).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.Equal(0, param.CurrentValue.Value);
+	}
 }

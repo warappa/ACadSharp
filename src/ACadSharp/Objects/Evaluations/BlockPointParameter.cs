@@ -51,6 +51,9 @@ public class BlockPointParameter : Block1PtParameter, IDxfClassDefined
 	/// </summary>
 	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
 
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromPoint(new XYZ());
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.GetDisplacement(context, out XYZ displacement);

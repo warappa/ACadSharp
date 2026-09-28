@@ -48,17 +48,10 @@ public class BlockTextParameter : BlockParameter, IDxfClassDefined
 	/// its current value rather than an empty placeholder.
 	/// </para>
 	/// </summary>
-	public new EvaluationValue<string> CurrentValue
-	{
-		get
-		{
-			if (base.CurrentValue.Type == EvaluationValueType.None)
-			{
-				return EvaluationValue<string>.Of(this.Value);
-			}
-			return base.CurrentValue.As<string>();
-		}
-	}
+	public new EvaluationValue<string> CurrentValue => base.CurrentValue.As<string>();
+
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromString(this.Value);
 
 	/// <summary>
 	/// Evaluates the text parameter: writes the held text (the "Value" port) into the context.

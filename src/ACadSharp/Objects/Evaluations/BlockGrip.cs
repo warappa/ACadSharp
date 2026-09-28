@@ -59,17 +59,10 @@ public abstract class BlockGrip : BlockElement
 	/// its current value rather than an empty placeholder.
 	/// </para>
 	/// </summary>
-	public new EvaluationValue<XYZ> CurrentValue
-	{
-		get
-		{
-			if (base.CurrentValue.Type == EvaluationValueType.None)
-			{
-				return EvaluationValue<XYZ>.Of(this.Displacement);
-			}
-			return base.CurrentValue.As<XYZ>();
-		}
-	}
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromPoint(this.Displacement);
 
 	/// <summary>
 	/// Evaluates the grip: writes its displacement (the "DisplacementX/Y" output ports) and

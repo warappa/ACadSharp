@@ -50,8 +50,36 @@ public abstract class EvaluationExpression : NonGraphicalObject
 	/// (a <c>new</c> <see cref="EvaluationValue{T}"/> property reading <c>base.CurrentValue.As&lt;T&gt;()</c>);
 	/// this base property is the single storage that <see cref="Evaluate"/> writes.
 	/// </para>
+	/// <para>
+	/// When the node has not been evaluated yet (the stored value is unset), the value falls back
+	/// to <see cref="GetDefaultValue"/> (the node's default value, known to leaf classes) so the
+	/// node always exposes its current value rather than an empty placeholder.
+	/// </para>
 	/// </summary>
-	public EvaluationValue CurrentValue { get; internal set; } = EvaluationValue.None;
+	private EvaluationValue _currentValue = EvaluationValue.None;
+
+	public EvaluationValue CurrentValue
+	{
+		get
+		{
+			if (this._currentValue.Type == EvaluationValueType.None)
+			{
+				return this.GetDefaultValue();
+			}
+			return this._currentValue;
+		}
+		internal set => this._currentValue = value;
+	}
+
+	/// <summary>
+	/// The default value of the expression (the value when the node has not been evaluated yet).
+	/// <para>
+	/// The base default is <see cref="EvaluationValue.None"/> (no default). A leaf with a single,
+	/// well-known value shape overrides this to provide its default (for example the stored value
+	/// of a parameter, or the zero displacement of a grip).
+	/// </para>
+	/// </summary>
+	protected virtual EvaluationValue GetDefaultValue() => EvaluationValue.None;
 
 	/// <summary>
 	/// Evaluates the expression, writing its output values into the <paramref name="context"/>.

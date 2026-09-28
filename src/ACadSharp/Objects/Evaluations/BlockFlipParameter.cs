@@ -89,6 +89,9 @@ public class BlockFlipParameter : Block2PtParameter, IDxfClassDefined
 	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromDouble(0.0);
+
+	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{
 		return new DxfClass

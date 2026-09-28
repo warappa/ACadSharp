@@ -56,6 +56,9 @@ public class BlockXYParameter : Block2PtParameter, IDxfClassDefined
 	/// </summary>
 	public new EvaluationValue<XY> CurrentValue => base.CurrentValue.As<XY>();
 
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromPoint2d(new XY(this.SecondPoint.X - this.FirstPoint.X, this.SecondPoint.Y - this.FirstPoint.Y));
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		this.WritePorts(context);

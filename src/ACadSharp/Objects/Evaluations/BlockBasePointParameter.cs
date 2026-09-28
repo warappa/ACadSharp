@@ -31,6 +31,9 @@ public class BlockBasePointParameter : Block1PtParameter, IDxfClassDefined
 	/// </summary>
 	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
 
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromPoint(this.Location);
+
 	/// <summary>
 	/// Evaluates the base point parameter: a base point is a static reference point (the
 	/// block's insertion point), so its value is the stored location (written to the

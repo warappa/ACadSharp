@@ -84,6 +84,9 @@ public class BlockVerticalConstraintParameter : Block2PtParameter, IDxfClassDefi
 	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromDouble(this.SecondPoint.Y - this.FirstPoint.Y);
+
+	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{
 		return new DxfClass

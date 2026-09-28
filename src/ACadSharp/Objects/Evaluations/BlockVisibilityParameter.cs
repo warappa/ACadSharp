@@ -103,6 +103,9 @@ public partial class BlockVisibilityParameter : Block1PtParameter, IDxfClassDefi
 	public new EvaluationValue<int> CurrentValue => base.CurrentValue.As<int>();
 
 	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromInt(0);
+
+	/// <inheritdoc/>
 	public override CadObject Clone()
 	{
 		BlockVisibilityParameter clone = (BlockVisibilityParameter)base.Clone();

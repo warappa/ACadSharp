@@ -48,17 +48,10 @@ public class BlockHandleParameter : BlockParameter, IDxfClassDefined
 	/// exposes its current value rather than an empty placeholder.
 	/// </para>
 	/// </summary>
-	public new EvaluationValue<long> CurrentValue
-	{
-		get
-		{
-			if (base.CurrentValue.Type == EvaluationValueType.None)
-			{
-				return EvaluationValue<long>.Of(this.Value);
-			}
-			return base.CurrentValue.As<long>();
-		}
-	}
+	public new EvaluationValue<long> CurrentValue => base.CurrentValue.As<long>();
+
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromObjectId(this.Value);
 
 	/// <summary>
 	/// Evaluates the handle parameter: writes the held object handle (the "Value" port) into the context.

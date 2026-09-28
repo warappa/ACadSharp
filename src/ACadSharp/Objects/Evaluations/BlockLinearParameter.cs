@@ -92,6 +92,9 @@ public class BlockLinearParameter : Block2PtParameter, IDxfClassDefined
 	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
 	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromDouble((this.SecondPoint - this.FirstPoint).GetLength());
+
+	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{
 		return new DxfClass

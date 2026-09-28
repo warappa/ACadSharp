@@ -48,17 +48,10 @@ public class BlockCharParameter : BlockParameter, IDxfClassDefined
 	/// exposes its current value rather than an empty placeholder.
 	/// </para>
 	/// </summary>
-	public new EvaluationValue<char> CurrentValue
-	{
-		get
-		{
-			if (base.CurrentValue.Type == EvaluationValueType.None)
-			{
-				return EvaluationValue<char>.Of(this.Value);
-			}
-			return base.CurrentValue.As<char>();
-		}
-	}
+	public new EvaluationValue<char> CurrentValue => base.CurrentValue.As<char>();
+
+	/// <inheritdoc/>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromChar(this.Value);
 
 	/// <summary>
 	/// Evaluates the character parameter: writes the held character (the "Value" port) into the context.
