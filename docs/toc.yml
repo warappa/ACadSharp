@@ -1,5 +1,7 @@
 - name: Articles
   href: articles/
+- name: Design
+  href: design/
 - name: API
   href: api/
   homepage: api/index.md
