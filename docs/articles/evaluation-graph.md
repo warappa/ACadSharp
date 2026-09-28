@@ -271,7 +271,7 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 1. ~~`Edge.TrackedCount` (94)~~ — **decoded** (wires: port connections / grip-binding fallback / lookup columns); the "max vs. fallback" ambiguity needs a sample with both a `GripIds` slot *and* port connections for the same grip to fully disambiguate.
 2. ~~`NodeFlags`~~ — **resolved**: `0x20` is universal across all 10 samples (both DWG and DXF); the `NodeFlags` enum was reworked to neutral names (`None`/`Bit0`–`Bit4`/`Bit5=0x20`/`All`).
 3. `96` in the lookup column definition (2 for double, 0 for string) — meaning (still open).
-4. ~~Per-class evaluation formulas~~ — **resolved** (see [The implemented evaluation engine](#the-implemented-evaluation-engine-phase-3)): grip = displacement, linear = signed distance along the axis, XY = (X, Y) offsets, polar = (distance, angle), rotation/alignment = angle, point = (XΔ, YΔ); `140` is the `LabelOffset` (not a value).
+4. ~~Per-class evaluation formulas~~ — **resolved** (see the `Per-class Evaluate formulas` table in [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md)): grip = displacement, linear = signed distance along the axis, XY = (X, Y) offsets, polar = (distance, angle), rotation/alignment = angle, point = (XΔ, YΔ); `140` is the `LabelOffset` (not a value).
 5. ~~Unevaluated sentinels per class~~ — **partially resolved**: the component's `1.797693134862314E+99` ("not yet evaluated") and the base-component `0` are confirmed; per-class sentinels for the other classes are not yet catalogued.
 6. Whether the `98`/`99` tag values are version-dependent (2007: 27/31/25/8; modern: 33/329) — still open.
 
@@ -299,113 +299,12 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 
 ---
 
-## The implemented evaluation engine (Phase 3)
+## Implementation and verified results
 
-The evaluation engine is implemented in `src/ACadSharp/Objects/Evaluations/`, mirroring the ObjectARX `AcDbEval*` model.
-
-### Design
-
-- **`EvaluationContext`** — a value store keyed by `(expression id, port name)`, mirroring `AcDbEvalContext` (the key→value container). `SetValue`/`TryGetValue`/`HasValue`/`Clear`.
-- **`EvaluationGraph.Activate(nodes)` / `IsActivated(node)` / `Evaluate()`** — marks the user-touched nodes and evaluates the **reachable subgraph** (following outgoing edges) in **topological order**, invoking each node's `Evaluate(context)`. Mirrors `AcDbEvalGraph::activate()` + `evaluate()`. A node's failure **aborts** the evaluation (matching ObjectARX); **no activated nodes = a no-op (return true)** (the reachable subgraph is empty, not a cycle).
-- **`EvaluationExpression.Evaluate(context)`** — virtual, **default no-op** (matching `AcDbEvalExpr::evaluate()`). Plus a `CurrentValue` property (the node's value, updated during `evaluate()`, mirroring `AcDbEvalExpr::value()`). `CurrentValue` is a shape-agnostic **`EvaluationValue`** ("object") that can hold either a scalar (`double`) or a point (`XYZ`), so a multi-valued expression carries its **whole** value rather than a single representative component. A leaf with a single, well-known value shape exposes a typed `new EvaluationValue<T> CurrentValue` view reading `base.CurrentValue.As<T>()` (same name, correctly typed); the base property is the single storage `Evaluate` writes.
-- **Topological order** (`GetTopologicalOrder`) — a reachability BFS from the activated nodes (skipping `flag=4` lookup/reverse edges to break lookup cycles) + Kahn's algorithm; returns an empty list on a cycle.
-
-### Class hierarchy (verified against real files)
-
-The ACadSharp classes in `src/ACadSharp/Objects/Evaluations/` mirror the ObjectARX `AcDb*` class names 1:1. The **inheritance structure itself was verified against real AutoCAD files**: a DXF object carries its full ARX subclass chain as a sequence of `100` (marker) groups, so the samples give the true parent→child order. Evidence from `samples/dynamic-blocks/`:
-
-```
-BLOCKLINEARPARAMETER object:              BLOCKGRIPLOCATIONCOMPONENT object:
-  100 AcDbEvalExpr                          100 AcDbEvalExpr
-  100 AcDbBlockElement                        100 AcDbBlockGripExpr   ← direct child of the base
-  100 AcDbBlockParameter
-  100 AcDbBlock2PtParameter
-  100 AcDbBlockLinearParameter
-```
-
-Two findings stand out. First, the **component is *not* a `BlockElement`**: its chain is `AcDbEvalExpr → AcDbBlockGripExpr` (it carries no `300` name / `1071` group, unlike a `BlockElement`), so in the ACadSharp code it inherits `EvaluationExpression` **directly**, not `BlockElement`. Second, `AcDbBlockGripExpr` is a **single concrete class** (the DXF object name `BLOCKGRIPLOCATIONCOMPONENT` is just that class's DXF name) — there is no separate "component family" in ARX.
-
-The full tree:
-
-```
-EvaluationExpression  (≡ AcDbEvalExpr)  — abstract; holds CurrentValue + abstract GetDefaultValue()
-└── BlockElement      (≡ AcDbBlockElement)  — abstract; adds ElementName (300) + Value1071 (1071)
-    ├── BlockParameter (≡ AcDbBlockParameter) — abstract
-    │   ├── Block1PtParameter / Block2PtParameter  — abstract (point-count specialisation)
-    │   └── 16 concrete leaves (XY, User, Char, Text, Handle, Linear, Point,
-    │       BasePoint, Visibility, Polar, Rotation, Alignment, HorizontalConstraint,
-    │       VerticalConstraint, Lookup, Flip)
-    ├── BlockGrip     (≡ AcDbBlockGrip) — abstract
-    │   └── 8 concrete leaves (Linear, Polar, XY, Visibility, Lookup, Rotation, Alignment, Flip)
-    └── BlockAction   (≡ AcDbBlockAction) — abstract
-        └── BlockActionBasePt — abstract (base-point specialisation)
-            └── 8 concrete leaves (Move, Scale, Rotation, Stretch, Flip, Array, PolarStretch, Lookup)
-+ EvaluationExpression's direct children (single concrete classes, NOT under BlockElement):
-    ├── BlockGripLocationComponent  (≡ AcDbBlockGripExpr)
-    ├── BlockPropertiesTable        (≡ AcDbBlockPropertiesTable)      — data-only stub
-    ├── BlockPropertiesTableGrip    (≡ AcDbBlockPropertiesTableGrip)  — data-only stub
-    └── BlockDynamicBlockProxyNode  (≡ AcDbDynamicBlockProxyNode)     — placeholder
-```
-
-#### The three value-semantics archetypes
-
-Grouped by *what a node's value means before the graph has been evaluated*, the leaves fall into three archetypes, and the default-value design follows the grouping:
-
-| Archetype | Members | Pre-evaluation value | `GetDefaultValue()` |
-|---|---|---|---|
-| **Stateful — parameter** | the 16 `BlockParameter` leaves | a stored value/geometry, but the *shape and initial value differ per type* (stored value, zero displacement, `atan2` of stored points, …) | **abstract** — each leaf implements its own |
-| **Stateful — grip** | the 8 `BlockGrip` leaves | the stored `Displacement` (zero initially) | **shared at the archetype**: `BlockGrip` overrides it to `FromPoint(Displacement)`; leaves inherit |
-| **Stateless** | the 8 `BlockAction` leaves, the component, the 2 table stubs, the proxy | none — pure computation / data-only / placeholder | **shared at the archetype**: `BlockAction` overrides it to `EvaluationValue.None`; the 4 single-class children each carry an explicit, documented `=> None` |
-
-`EvaluationExpression.GetDefaultValue()` is **`protected abstract`**, so the decision is *compile-time-enforced*: a new concrete node that forgets a default is a `CS0534` build error. `BlockParameter` stays abstract (propagating the requirement to every parameter leaf); `BlockGrip` and `BlockAction` supply a shared default their leaves inherit; the 4 single-class direct children of `EvaluationExpression` cannot share an intermediate class (ARX has none for them — the component's real chain is `AcDbEvalExpr → AcDbBlockGripExpr`), so each states `=> None` explicitly.
-
-The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not yet been evaluated (`_currentValue.Type == None`), so a node exposes its meaningful initial value *before* `Evaluate()` runs — this is what makes the viewer render a stored parameter value (or `<unset>` for a stateless node) rather than a blank.
-
-### Per-class `Evaluate` formulas
-
-`CurrentValue` is an `EvaluationValue` (the "object"); the **shape** column is the `T` of the leaf's typed `CurrentValue` view (`EvaluationValue<T>`). **Point** = the whole (X, Y) value; **Scalar** = a single `double`.
-
-| Class | `CurrentValue` (shape) | Writes to the context |
-|-------|------------------------|----------------------|
-| `BlockGrip` | the full (X, Y) **displacement** (Point) | `DisplacementX/Y` = `(ActivatedLocation ?? Location) − Location` (zero when not activated) |
-| `BlockGripLocationComponent` | the read coordinate (Scalar) | reads the connected parameter's updated coordinate (the port named by `Connection`, e.g. `UpdatedEndX`) → `EvaluatedValue` (code `40`) |
-| `BlockLinearParameter` | the signed **distance** along the axis (Scalar) | `Scale`/`XScale`/`YScale` = `(updatedSecond − updatedFirst)·axis`; `UpdatedBaseX/Y`, `UpdatedEndX/Y` |
-| `BlockXYParameter` | the (X, Y) **offset** (Point) | `XScale`/`YScale` = `(firstDisp.X, firstDisp.Y)`; updated points |
-| `BlockPolarParameter` | the (distance, angle) **pair** (Point, polar-space: X = distance, Y = angle) | `Scale`/`AngleDelta` = `(‖delta‖, atan2)`; updated points |
-| `BlockRotationParameter` | the **angle** (Scalar) | `AngleDelta` = `atan2`; updated points |
-| `BlockAlignmentParameter` | the **angle** (Scalar) | `AngleDelta` = `atan2`; updated points |
-| `BlockPointParameter` | the full (X, Y) **displacement** (Point) | `XDelta`/`YDelta`; `UpdatedX/Y` |
-| `BlockFlipParameter` | the **flip state** (0/1, Scalar) | `UpdatedFlip` = 0 (default); updated points |
-| `BlockVisibilityParameter` | the **state index** (0, Scalar) | `Value` = 0 (default); updated location |
-| `BlockLookupParameter` | the full (X, Y) **displacement** (Point) | `UpdatedX/Y` (the table is not decoded, so table-driven selection is not implemented) |
-| `BlockScaleAction` | the **scale** factor (Scalar) | reads the `Scale` port |
-| `BlockMoveAction` | the (X, Y) **displacement** (Point) | reads `XDelta`/`YDelta` |
-| `BlockRotationAction` | the **angle** (Scalar) | reads `AngleDelta` |
-| `BlockStretchAction` | the (X, Y) **displacement** (Point) | reads `EndXDelta`/`EndYDelta` |
-| `BlockPolarStretchAction` | the (X, Y) **displacement** (Point) | reads `BaseXDelta`/`BaseYDelta` |
-| `BlockArrayAction` | the base value (Scalar) | reads the `Base` port |
-| `BlockFlipAction` | the **flip** state (Scalar) | reads the `Flip` port |
-| `BlockLookupAction` | the **matched row** index (−1 = none, Scalar) | reads each column's input value, finds the matching row (simplified; chained lookups / default-on-no-match not implemented) |
-
-**Notes:**
-- `CurrentValue` is a shape-agnostic **`EvaluationValue`** ("object") that can hold either a scalar or a point, mirroring the ObjectARX `AcDbEvalVariant` (which can hold a structured value). Multi-valued expressions (XY, point, lookup parameters; move/stretch/polar-stretch actions; grips) carry the **whole** (X, Y) value; single-valued expressions (linear, polar, rotation, alignment, flip, visibility, scale, array, lookup actions) carry their natural scalar. A leaf with a single, well-known value shape exposes a typed `new EvaluationValue<T> CurrentValue` view reading `base.CurrentValue.As<T>()` (same name, correctly typed); the base property is the single storage `Evaluate` writes. The context ports are unchanged (still the fine-grained X/Y channels downstream nodes read).
-- **Lookup actions** are **excluded from the forward evaluation**: they are only reachable via `flag=4` (reverse) edges, which the topological order skips. So a lookup action's `CurrentValue` stays unset (`null`) after a forward `evaluate()` — the lookup is a separate (reverse) evaluation.
-- **Actions** read the connected parameter's value and store it as their `CurrentValue`; the full transform application to the block's entities is **out of scope** for the core engine.
-
-## Verified results (Phase 4)
-
-Running the evaluator on all 10 samples (`dotnet run --project src/ACadSharp.Examples -- eval <file>`, activating all grips with zero displacement) produces consistent values:
-
-| Sample | Parameter value | Interpretation |
-|--------|----------------|---------------|
-| `BLOCKLINEARPARAMETER` | 5 | distance between base (0,0,0) and end (5,0,0) |
-| `BLOCKPOLARPARAMETER` | 9.082 | distance between base (2.007,2.346) and end (8.429,8.767) |
-| `BLOCKROTATIONPARAMETER` | 1.571 | angle = atan2 = 90° (1.571 rad) |
-| `BLOCKALIGNMENTPARAMETER` | 0.524 | angle = atan2 = 30° (0.524 rad) |
-| `BLOCKXYPARAMETER` / `BLOCKPOINTPARAMETER` | (0,0,0) | zero (X, Y) displacement (grips not moved) — now the **whole point**, not just X |
-| `BLOCKFLIPPARAMETER` / `BLOCKVISIBILITYPARAMETER` | 0 | default state |
-
-End-to-end `EvaluationTests` (activate a grip with a known `ActivatedLocation`, evaluate, compare against the geometry) confirm: linear 5→8 (move end grip by (3,0,0)), polar 9.08→10.59 (move by (2,0,0)), rotation 90°→135° (rotate by 45°), point (0,0,0)→(2,3,0) (move by (2,3,0) — the **whole** (X, Y) displacement, not just X), and that a component's stored `EvaluatedValue` (code `40`) is updated from the `1.797693134862314E+99` sentinel to the computed value.
+The implementation of the evaluation engine — design, class hierarchy, the value-semantics archetypes, the per-class
+`Evaluate` formulas, and the verified results on all 10 samples — has moved to
+[`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md), which is the single source of truth for the
+implementation. This article keeps the AutoCAD specification and on-disk format analysis.
 
 ---
 
@@ -432,7 +331,7 @@ End-to-end `EvaluationTests` (activate a grip with a known `ActivatedLocation`, 
 
 ### Phase 3 — Evaluation engine — ✅ *done (commit `41f66449`)*
 
-See [The implemented evaluation engine](#the-implemented-evaluation-engine-phase-3) for the design and the per-class `Evaluate` formulas.
+See [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md) for the design and the per-class `Evaluate` formulas.
 
 - ✅ `EvaluationContext` (expression-ID → port → value), `Activate(nodes)` + `Evaluate()` topological traversal, per-class `Evaluate(context)` on the `Block*` classes writing into the context and the stored `EvaluatedValue` (code `40`)
 - ✅ Per-class semantics for grips, location components, all parameter types (linear/point/XY/polar/rotation/alignment/flip/visibility/lookup), and all action types (scale/move/rotate/stretch/polar-stretch/array/flip/lookup)
@@ -440,7 +339,7 @@ See [The implemented evaluation engine](#the-implemented-evaluation-engine-phase
 
 ### Phase 4 — Validation — ✅ *done (commits `ade3cc67`, `4014ff4e`)*
 
-See [Verified results](#verified-results-phase-4).
+See the `Verified results` section of [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md).
 
 - ✅ `DynamicBlockTests.ValidateEvaluationGraphTest`: assert the invariants (linked-list consistency + valid topological order) on all 10 samples (DWG + DXF)
 - ✅ `EvaluationTests`: for each sample, activate the known "user-moved" node(s) with a known `ActivatedLocation`, evaluate, and compare results against the geometry and the stored `EvaluatedValue`s

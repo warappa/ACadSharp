@@ -28,6 +28,14 @@ NUGET_PACKAGES=$PWD/.tmp-nuget DOTNET_ROLL_FORWARD=Major dotnet run --project ui
 #   --graph    file.dwg ...             → full node/edge dump
 ```
 
+## Capturing the screenshots to analyze
+
+Produce the PNGs with the Viewer's built-in headless mode (no display needed — the pipeline and its gotchas, e.g. the `UseHeadlessDrawing=false` + real Skia renderer requirement, are in [`docs/agents/ui-verification.md`](../../docs/agents/ui-verification.md)):
+
+```bash
+NUGET_PACKAGES=$PWD/.tmp-nuget DOTNET_ROLL_FORWARD=Major dotnet run --project src/ACadSharp.Viewer/ACadSharp.Viewer.csproj -- --screenshot out.png samples/dynamic-blocks/BLOCKLOOKUPPARAMETER.dwg dialog
+```
+
 ## What the output shows
 
 - **Default**: `BLOCKLOOKUPPARAMETER.dwg: 0 of 22 edges go right-to-left` — `0` is the
