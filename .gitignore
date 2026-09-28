@@ -356,3 +356,4 @@ MigrationBackup/
 *.dwl
 *.dwl2
 .tmp-*/
+AGENTS.local.md

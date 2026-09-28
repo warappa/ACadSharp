@@ -6,12 +6,26 @@ Guidance for AI coding agents working in this repository.
 
 After a **sound, reasonable change package** — a completed phase or a completed todo entry — make a **git commit** to reflect that committable increment and progress. Do not let changes accumulate unstaged across unrelated work.
 
-But: If a user reported a bug and and a bugfix is being developed, then don't commit automatically but ask for user approval to check if the bug is actually fixed.
+**Always do**
 
-- Group by **coherent unit** (one logical change, verified green), not per tiny edit.
-- A good commit is a self-contained, meaningful increment with a clear message (imperative subject + short body).
-- Stage only the files belonging to the change (exclude editor/tooling dirs such as `.vscode/`).
-- Build and test the change **green before** committing.
+- Group by **coherent unit** (one logical change), not per tiny edit.
+- Write a clear message: imperative subject + short body.
+- **Build and test the change green before** committing.
+- Keep `AGENTS.md` and the docs it references current — update them in the same change that makes them stale (a stale AGENTS.md is worse than none).
+
+**Ask first**
+
+- A bugfix for a user-reported bug: do not commit automatically — present the fix and ask the user to confirm the bug is actually fixed.
+- Restructuring `AGENTS.md` or large documentation edits: present the change and ask for review before committing.
+
+**Never do**
+
+- Stage editor/tooling dirs (`.vscode/`, `.tmp-*/`).
+- Commit a red (failing) build or test.
+
+## Personal overlay
+
+Machine-specific or personal preferences that are not for the team go in `AGENTS.local.md` at the repo root — it is gitignored and loaded alongside `AGENTS.md` by DeepSeek Harness. (Claude Code uses `CLAUDE.local.md` instead and does not read `AGENTS.local.md`.)
 
 ## Build & test
 
