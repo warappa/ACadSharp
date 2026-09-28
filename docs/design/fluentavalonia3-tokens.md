@@ -42,6 +42,8 @@ From `src/ACadSharp.Viewer/App.axaml`:
 - `FluentAvaloniaTheme` properties: `CustomAccentColor` (`Color?`, highest precedence),
   `PreferSystemTheme`, `PreferUserAccentColor`, `TextVerticalAlignmentOverrideBehavior`
   (default `EnabledNonWindows`), `UseSystemFontOnWindows`, `MergedDictionaries`.
+- **App-defined design tokens** (your own keys alongside FA's): the verified XAML forms,
+  the broken ones, and the v12 API moves are in [§9](#9-app-defined-design-tokens-verified-avalonia-1213--fa-302).
 
 **Theme dictionaries.** Three: **Default = Light**, **Dark**, **HighContrast**.
 (Note: in WinUI, *Default = Dark*; in FluentAvalonia, *Default = Light*.)
@@ -78,8 +80,11 @@ Two important caveats:
 
 - The `SystemAccentColor*` brushes are **not** defined in the XAML — they are **derived in C#**
   by `FluentAvaloniaTheme`.
-- Base accent (Win11 default) is **`#0078D4`**; `CustomAccentColor` overrides the
-  `PreferUserAccentColor` system value; setting it to `null` restores the system accent.
+- **Default accent is `#9b8aff`** (the Windows 11 purple) — verified at runtime:
+  `AccentFillColorDefaultBrush` resolves to `#9b8aff` in **both** variants with no
+  `CustomAccentColor` set. (The older Win10-era `#0078D4` is *not* the 3.0.2 default.)
+  `CustomAccentColor` overrides the `PreferUserAccentColor` system value; setting it to
+  `null` restores the system accent.
 - **Per-theme brush mapping** (verified in the dictionaries):
   - **Light theme** → `SystemAccentColorDark1/2/3` (e.g. lines 17–19, 58–60).
   - **Dark theme** → `SystemAccentColorLight2/3` (e.g. lines 1997–2040).
@@ -210,3 +215,58 @@ Already in use in the Viewer: `FASymbolIcon`, `FAMenuFlyout`, `FARadioMenuFlyout
 - **Don't re-derive the type ramp.** Use the NuGet's `TypographyPage` values (Caption 12/16,
   Body 14/20, BodyStrong 14/20, Subtitle 20/28, Title 28/36, TitleLarge 40/52, Display 68/92);
   Microsoft's full ramp adds 18/24 steps that the NuGet does not expose.
+
+---
+
+## 9. App-defined design tokens (verified: Avalonia 12.1.3 + FA 3.0.2)
+
+End-to-end verified on headless Linux (`UseHeadless` + `UseSkia`): every "works" form below
+compiled **and** resolved to its expected value at runtime, including a captured frame
+confirming the shadows actually render. This is the pattern the Viewer should follow.
+
+### Architecture
+
+- **Theme-invariant tokens** (font sizes, corner radii) → plain resources in a
+  `ResourceDictionary` with `x:Class` (+ a partial C# class calling
+  `AvaloniaXamlLoader.Load(this)`).
+- **Theme-dependent tokens** (colors, brushes) → `ResourceDictionary.ThemeDictionaries`
+  with **plain keys** in `Default`/`Dark` sub-dictionaries — the exact FA 3.0.2 pattern
+  (no `Theme=...` attribute on the keys).
+- **Shadows** → **C# static `BoxShadows`** members, referenced in XAML via `{x:Static}` —
+  *not* XAML resources (see "What does not").
+
+### What works (verified)
+
+| Form | Evidence |
+| --- | --- |
+| `<x:Double x:Key="BodyFontSize">14</x:Double>` (value resources) | compiles + resolves at runtime |
+| `<CornerRadius x:Key="InPageCornerRadius">4</CornerRadius>` (plain element) | compiles + resolves (mirrors FA's 4/8) |
+| `ThemeDictionaries` `Default`/`Dark` with plain `Color` / `SolidColorBrush` keys | per-variant: `#0F6CBD`/`#3D7EBF`, `#0F7B0F`/`#6CCB5F` |
+| Cross-dictionary reference: app dict → FA dict, e.g. `Color="{DynamicResource SystemFillColorCaution}"` | resolves (Light `#9D5D00` / Dark `#FCE100`) |
+| `BoxShadows` C# static + `BoxShadow="{x:Static local:ProbeTokens.CardShadow}"` | 2 `Border`s with non-empty `BoxShadow`; shadow visible in a captured 520×420 frame |
+| `x:Class` on a `ResourceDictionary` + `AvaloniaXamlLoader.Load` | compiles + loads |
+
+### What does not (verified broken)
+
+| Form | Failure |
+| --- | --- |
+| `<BoxShadows x:Key="…">` as a XAML resource | **ICE** — `BoxShadows` has **no TypeConverter** in Avalonia 12.1.3 (reflection-verified), so there is no string attribute form either. Use a C# static + `{x:Static}` |
+| `<x:CornerRadius x:Key="…">` | **AVLN2000** — the `x:` prefix resolves to a `System.*` type; `CornerRadius` is an Avalonia type. Use the plain `<CornerRadius>` element |
+| `Avalonia.Styling.ResourceDictionary` (in C#) | **CS0234** — the type moved in v12 |
+
+### Avalonia 12 API moves (reflection-verified)
+
+| v11-era spelling | Avalonia 12.1.3 reality |
+| --- | --- |
+| `Avalonia.Styling.ResourceDictionary` | **`Avalonia.Controls.ResourceDictionary`** (in `Avalonia.Base.dll`) |
+| `Avalonia.Object` (base type) | **`Avalonia.AvaloniaObject`** |
+| `AvaloniaXamlLoader` | **`Avalonia.Markup.Xaml.AvaloniaXamlLoader`** |
+| `visual.GetVisualChildren()` (instance method) | **extension** `Avalonia.VisualTree.VisualExtensions.GetVisualChildren(visual)` — `using Avalonia.VisualTree;` |
+| `Avalonia.Media.BoxShadows` | unchanged (in `Avalonia.Base.dll`) |
+
+### Headless runtime notes
+
+- .NET on Linux: `Thread.SetApartmentState` throws `PlatformNotSupportedException` — the
+  headless platform does not need STA, so do not set it.
+- FA 3.0.2 with no OS accent (headless): the accent resolves to **`#9b8aff`** (Win11
+  purple) in both variants — see §3.
