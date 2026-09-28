@@ -297,4 +297,59 @@ public class EvaluationTests : IOTestsBase
 		double evalValue = (double)component.EvaluatedValue.Value;
 		assertClose(8.0, evalValue);
 	}
+
+	/// <summary>
+	/// Horizontal constraint parameter: the value is the horizontal (X) distance from the
+	/// base point to the end point. With no activated grips the value is the stored distance.
+	/// </summary>
+	[Fact]
+	public void EvaluateHorizontalConstraintParameterTest()
+	{
+		BlockHorizontalConstraintParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(0, 0, 0),
+			SecondPoint = new XYZ(5, 0, 0),
+		};
+
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.True(param.CurrentValue.IsSet, "The value is not set.");
+		assertClose(5.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Vertical constraint parameter: the value is the vertical (Y) distance from the base
+	/// point to the end point.
+	/// </summary>
+	[Fact]
+	public void EvaluateVerticalConstraintParameterTest()
+	{
+		BlockVerticalConstraintParameter param = new()
+		{
+			Id = 1,
+			FirstPoint = new XYZ(0, 0, 0),
+			SecondPoint = new XYZ(0, 8, 0),
+		};
+
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.True(param.CurrentValue.IsSet, "The value is not set.");
+		assertClose(8.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// User parameter: the value is the stored double (the user's input).
+	/// </summary>
+	[Fact]
+	public void EvaluateUserParameterTest()
+	{
+		BlockUserParameter param = new()
+		{
+			Id = 1,
+			Value = 42.0,
+		};
+
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.True(param.CurrentValue.IsSet, "The value is not set.");
+		assertClose(42.0, param.CurrentValue.Value);
+	}
 }

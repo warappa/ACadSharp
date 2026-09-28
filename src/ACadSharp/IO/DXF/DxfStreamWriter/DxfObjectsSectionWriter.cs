@@ -552,6 +552,24 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 			case BlockLinearParameter blockLinearParameter:
 				this.writeBlockLinearParameter(blockLinearParameter);
 				break;
+			case BlockHorizontalConstraintParameter blockHorizontalConstraintParameter:
+				this.writeBlockHorizontalConstraintParameter(blockHorizontalConstraintParameter);
+				break;
+			case BlockVerticalConstraintParameter blockVerticalConstraintParameter:
+				this.writeBlockVerticalConstraintParameter(blockVerticalConstraintParameter);
+				break;
+			case BlockUserParameter blockUserParameter:
+				this.writeBlockUserParameter(blockUserParameter);
+				break;
+			case BlockDynamicBlockProxyNode blockDynamicBlockProxyNode:
+				this.writeBlockDynamicBlockProxyNode(blockDynamicBlockProxyNode);
+				break;
+			case BlockPropertiesTable blockPropertiesTable:
+				this.writeBlockPropertiesTable(blockPropertiesTable);
+				break;
+			case BlockPropertiesTableGrip blockPropertiesTableGrip:
+				this.writeBlockPropertiesTableGrip(blockPropertiesTableGrip);
+				break;
 			case PlotSettings plotSettings:
 				this.writePlotSettings(plotSettings);
 				break;
@@ -1163,6 +1181,73 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 		this._writer.Write(303, parameter.Label, map);
 		this._writer.Write(304, parameter.Description, map);
 		this._writer.Write(94, (int)parameter.Value, map);
+	}
+
+	private void writeBlockUserParameter(BlockUserParameter parameter)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockUserParameter>();
+
+		this.writeBlockParameter(parameter);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockUserParameter);
+		this._writer.Write(140, parameter.Value, map);
+		this.writeParameterValueSet(parameter.ValueSet, 307, 96, 141, 175);
+	}
+
+	private void writeBlockHorizontalConstraintParameter(BlockHorizontalConstraintParameter parameter)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockHorizontalConstraintParameter>();
+
+		this.writeBlock2PtParameter(parameter);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockHorizontalConstraintParameter);
+		this._writer.Write(305, parameter.Label, map);
+		this._writer.Write(306, parameter.Description, map);
+		this._writer.Write(140, parameter.LabelOffset, map);
+		this.writeParameterValueSet(parameter.ValueSet, 307, 96, 141, 175);
+	}
+
+	private void writeBlockVerticalConstraintParameter(BlockVerticalConstraintParameter parameter)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockVerticalConstraintParameter>();
+
+		this.writeBlock2PtParameter(parameter);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockVerticalConstraintParameter);
+		this._writer.Write(305, parameter.Label, map);
+		this._writer.Write(306, parameter.Description, map);
+		this._writer.Write(140, parameter.LabelOffset, map);
+		this.writeParameterValueSet(parameter.ValueSet, 307, 96, 141, 175);
+	}
+
+	private void writeBlockDynamicBlockProxyNode(BlockDynamicBlockProxyNode node)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockDynamicBlockProxyNode>();
+
+		this.writeEvaluationExpression(node);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockDynamicBlockProxyNode);
+		this._writer.Write(300, node.ProxyName, map);
+	}
+
+	private void writeBlockPropertiesTable(BlockPropertiesTable table)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockPropertiesTable>();
+
+		this.writeEvaluationExpression(table);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockPropertiesTable);
+		this._writer.Write(90, table.RowCount, map);
+	}
+
+	private void writeBlockPropertiesTableGrip(BlockPropertiesTableGrip grip)
+	{
+		DxfClassMap map = DxfClassMap.Create<BlockPropertiesTableGrip>();
+
+		this.writeEvaluationExpression(grip);
+
+		this._writer.Write(100, DxfSubclassMarker.BlockPropertiesTableGrip);
+		this._writer.Write(91, (int)grip.GripId, map);
 	}
 
 	private void writeBlockPolarParameter(BlockPolarParameter parameter)

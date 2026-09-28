@@ -267,6 +267,56 @@ internal partial class DwgObjectWriter : DwgSectionIO
 		this.writeParameterValueSet(parameter.ValueSet);
 	}
 
+	private void writeBlockHorizontalConstraintParameter(BlockHorizontalConstraintParameter parameter)
+	{
+		// The 2pt base (the first/second point, the point displacements, the grip ids and
+		// the base location). The trailing region (label, description, label offset, value
+		// set, and more) is a large, variable region that is not written; the readers are
+		// re-positioned per object, so the object is complete with the 2pt prefix.
+		this.writeBlock2PtParameter(parameter);
+	}
+
+	private void writeBlockVerticalConstraintParameter(BlockVerticalConstraintParameter parameter)
+	{
+		// See writeBlockHorizontalConstraintParameter: only the 2pt base is written.
+		this.writeBlock2PtParameter(parameter);
+	}
+
+	private void writeBlockUserParameter(BlockUserParameter parameter)
+	{
+		// The element + parameter prefix, then the value (a double). The trailing region
+		// (value set and more) is not written; the readers are re-positioned per object.
+		this.writeBlockParameter(parameter);
+
+		this._writer.WriteBitDouble(parameter.Value);
+	}
+
+	private void writeBlockDynamicBlockProxyNode(BlockDynamicBlockProxyNode node)
+	{
+		// A proxy node is a small, opaque object. The common header + the expression are
+		// written; the remaining (opaque) payload is not. The readers are re-positioned
+		// per object.
+		this.writeCommonNonEntityData(node);
+		this.writeEvaluationExpression(node);
+	}
+
+	private void writeBlockPropertiesTable(BlockPropertiesTable table)
+	{
+		// A properties table is a data object with a variable-size row array. The common
+		// header + the expression are written; the remaining rows are not. The readers are
+		// re-positioned per object.
+		this.writeCommonNonEntityData(table);
+		this.writeEvaluationExpression(table);
+	}
+
+	private void writeBlockPropertiesTableGrip(BlockPropertiesTableGrip grip)
+	{
+		// A properties table grip is a data object. The common header + the expression are
+		// written; the remaining payload is not. The readers are re-positioned per object.
+		this.writeCommonNonEntityData(grip);
+		this.writeEvaluationExpression(grip);
+	}
+
 	private void writeBlockLookupAction(BlockLookupAction lookupAction)
 	{
 		this.writeBlockAction(lookupAction);
@@ -1819,6 +1869,24 @@ internal partial class DwgObjectWriter : DwgSectionIO
 				break;
 			case BlockPolarParameter blockPolarParameter:
 				this.writeBlockPolarParameter(blockPolarParameter);
+				break;
+			case BlockHorizontalConstraintParameter blockHorizontalConstraintParameter:
+				this.writeBlockHorizontalConstraintParameter(blockHorizontalConstraintParameter);
+				break;
+			case BlockVerticalConstraintParameter blockVerticalConstraintParameter:
+				this.writeBlockVerticalConstraintParameter(blockVerticalConstraintParameter);
+				break;
+			case BlockUserParameter blockUserParameter:
+				this.writeBlockUserParameter(blockUserParameter);
+				break;
+			case BlockDynamicBlockProxyNode blockDynamicBlockProxyNode:
+				this.writeBlockDynamicBlockProxyNode(blockDynamicBlockProxyNode);
+				break;
+			case BlockPropertiesTable blockPropertiesTable:
+				this.writeBlockPropertiesTable(blockPropertiesTable);
+				break;
+			case BlockPropertiesTableGrip blockPropertiesTableGrip:
+				this.writeBlockPropertiesTableGrip(blockPropertiesTableGrip);
 				break;
 			case BlockVisibilityGrip blockVisibilityGrip:
 				this.writeBlockGrip(blockVisibilityGrip);

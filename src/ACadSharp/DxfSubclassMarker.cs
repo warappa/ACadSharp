@@ -4,6 +4,8 @@ public static class DxfSubclassMarker
 {
 	public const string AcDbDynamicBlockPurgePreventer = "AcDbDynamicBlockPurgePreventer";
 
+	public const string BlockDynamicBlockProxyNode = "AcDbDynamicBlockProxyNode";
+
 	public const string AcDbPlaceHolder = "AcDbPlaceHolder";
 
 	public const string AecDbCleanupGroupDef = "AecDbCleanupGroupDef";
@@ -72,6 +74,8 @@ public static class DxfSubclassMarker
 
 	public const string BlockHandleParameter = "AcDbBlockHandleParameter";
 
+	public const string BlockHorizontalConstraintParameter = "AcDbBlockHorizontalConstraintParameter";
+
 	public const string BlockLinearGrip = "AcDbBlockLinearGrip";
 
 	public const string BlockLinearParameter = "AcDbBlockLinearParameter";
@@ -94,6 +98,10 @@ public static class DxfSubclassMarker
 
 	public const string BlockPolarStretchAction = "AcDbBlockPolarStretchAction";
 
+	public const string BlockPropertiesTable = "AcDbBlockPropertiesTable";
+
+	public const string BlockPropertiesTableGrip = "AcDbBlockPropertiesTableGrip";
+
 	public const string BlockRecord = "AcDbBlockTableRecord";
 
 	public const string BlockRepresentationData = "AcDbBlockRepresentationData";
@@ -109,6 +117,10 @@ public static class DxfSubclassMarker
 	public const string BlockStretchAction = "AcDbBlockStretchAction";
 
 	public const string BlockTextParameter = "AcDbBlockTextParameter";
+
+	public const string BlockUserParameter = "AcDbBlockUserParameter";
+
+	public const string BlockVerticalConstraintParameter = "AcDbBlockVerticalConstraintParameter";
 
 	public const string BlockVisibilityGrip = "AcDbBlockVisibilityGrip";
 

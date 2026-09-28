@@ -6100,6 +6100,24 @@ namespace ACadSharp.IO.DWG
 				case DxfFileToken.ObjectBlockHandleParameter:
 					template = this.readBlockHandleParameter();
 					break;
+				case DxfFileToken.ObjectBlockUserParameter:
+					template = this.readBlockUserParameter();
+					break;
+				case DxfFileToken.ObjectBlockHorizontalConstraintParameter:
+					template = this.readBlockHorizontalConstraintParameter();
+					break;
+				case DxfFileToken.ObjectBlockVerticalConstraintParameter:
+					template = this.readBlockVerticalConstraintParameter();
+					break;
+				case DxfFileToken.ObjectBlockPropertiesTable:
+					template = this.readBlockPropertiesTable();
+					break;
+				case DxfFileToken.ObjectBlockPropertiesTableGrip:
+					template = this.readBlockPropertiesTableGrip();
+					break;
+				case DxfFileToken.ObjectDynamicBlockProxyNode:
+					template = this.readBlockDynamicBlockProxyNode();
+					break;
 				case DxfFileToken.ObjectBlockAlignmentParameter:
 					template = this.readBlockAlignmentParameter();
 					break;

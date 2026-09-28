@@ -420,6 +420,90 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 		}
 	}
 
+	private bool readBlockHorizontalConstraintParameter(CadTemplate template, DxfMap map)
+	{
+		var tmp = template as CadBlockHorizontalConstraintParameterTemplate;
+		var parameter = tmp.CadObject as BlockHorizontalConstraintParameter;
+
+		switch (this._reader.Code)
+		{
+			case 307:
+				parameter.ValueSet = this.readParameterValueSet();
+				return true;
+			default:
+				if (!this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockHorizontalConstraintParameter]))
+				{
+					return this.readBlock2PtParameter(template, map);
+				}
+				return true;
+		}
+	}
+
+	private bool readBlockVerticalConstraintParameter(CadTemplate template, DxfMap map)
+	{
+		var tmp = template as CadBlockVerticalConstraintParameterTemplate;
+		var parameter = tmp.CadObject as BlockVerticalConstraintParameter;
+
+		switch (this._reader.Code)
+		{
+			case 307:
+				parameter.ValueSet = this.readParameterValueSet();
+				return true;
+			default:
+				if (!this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockVerticalConstraintParameter]))
+				{
+					return this.readBlock2PtParameter(template, map);
+				}
+				return true;
+		}
+	}
+
+	private bool readBlockUserParameter(CadTemplate template, DxfMap map)
+	{
+		var tmp = template as CadBlockUserParameterTemplate;
+		var parameter = tmp.CadObject as BlockUserParameter;
+
+		switch (this._reader.Code)
+		{
+			case 307:
+				parameter.ValueSet = this.readParameterValueSet();
+				return true;
+			default:
+				if (!this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockUserParameter]))
+				{
+					return this.readBlockParameter(template, map);
+				}
+				return true;
+		}
+	}
+
+	private bool readBlockDynamicBlockProxyNode(CadTemplate template, DxfMap map)
+	{
+		switch (this._reader.Code)
+		{
+			default:
+				return this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockDynamicBlockProxyNode]);
+		}
+	}
+
+	private bool readBlockPropertiesTable(CadTemplate template, DxfMap map)
+	{
+		switch (this._reader.Code)
+		{
+			default:
+				return this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockPropertiesTable]);
+		}
+	}
+
+	private bool readBlockPropertiesTableGrip(CadTemplate template, DxfMap map)
+	{
+		switch (this._reader.Code)
+		{
+			default:
+				return this.tryAssignCurrentValue(template.CadObject, map.SubClasses[DxfSubclassMarker.BlockPropertiesTableGrip]);
+		}
+	}
+
 	private bool readBlockLookupParameter(CadTemplate template, DxfMap map)
 	{
 		switch (this._reader.Code)
@@ -2374,6 +2458,18 @@ internal class DxfObjectsSectionReader : DxfSectionReaderBase
 				return this.readObjectCodes<BlockCharParameter>(new CadBlockCharParameterTemplate(), this.readBlockCharParameter);
 			case DxfFileToken.ObjectBlockHandleParameter:
 				return this.readObjectCodes<BlockHandleParameter>(new CadBlockHandleParameterTemplate(), this.readBlockHandleParameter);
+			case DxfFileToken.ObjectBlockUserParameter:
+				return this.readObjectCodes<BlockUserParameter>(new CadBlockUserParameterTemplate(), this.readBlockUserParameter);
+			case DxfFileToken.ObjectBlockHorizontalConstraintParameter:
+				return this.readObjectCodes<BlockHorizontalConstraintParameter>(new CadBlockHorizontalConstraintParameterTemplate(), this.readBlockHorizontalConstraintParameter);
+			case DxfFileToken.ObjectBlockVerticalConstraintParameter:
+				return this.readObjectCodes<BlockVerticalConstraintParameter>(new CadBlockVerticalConstraintParameterTemplate(), this.readBlockVerticalConstraintParameter);
+			case DxfFileToken.ObjectBlockPropertiesTable:
+				return this.readObjectCodes<BlockPropertiesTable>(new CadBlockPropertiesTableTemplate(), this.readBlockPropertiesTable);
+			case DxfFileToken.ObjectBlockPropertiesTableGrip:
+				return this.readObjectCodes<BlockPropertiesTableGrip>(new CadBlockPropertiesTableGripTemplate(), this.readBlockPropertiesTableGrip);
+			case DxfFileToken.ObjectDynamicBlockProxyNode:
+				return this.readObjectCodes<BlockDynamicBlockProxyNode>(new CadBlockDynamicBlockProxyNodeTemplate(), this.readBlockDynamicBlockProxyNode);
 			case DxfFileToken.ObjectBlockFlipGrip:
 				return this.readObjectCodes<BlockFlipGrip>(new CadBlockGripTemplate(new BlockFlipGrip()), this.readBlockGripSubclass);
 			case DxfFileToken.ObjectBlockLinearGrip:

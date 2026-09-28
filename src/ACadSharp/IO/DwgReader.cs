@@ -1,4 +1,4 @@
-﻿using ACadSharp.Header;
+using ACadSharp.Header;
 using CSUtilities.IO;
 using CSUtilities.Converters;
 using CSUtilities.Text;

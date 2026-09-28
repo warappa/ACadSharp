@@ -192,6 +192,8 @@ public static class DxfFileToken
 
 	public const string ObjectBlockHandleParameter = "BLOCKHANDLEPARAMETER";
 
+	public const string ObjectBlockHorizontalConstraintParameter = "BLOCKHORIZONTALCONSTRAINTPARAMETER";
+
 	public const string ObjectBlockLinearGrip = "BLOCKLINEARGRIP";
 
 	public const string ObjectBlockLinearParameter = "BLOCKLINEARPARAMETER";
@@ -212,6 +214,10 @@ public static class DxfFileToken
 
 	public const string ObjectBlockPolarStretchAction = "BLOCKPOLARSTRETCHACTION";
 
+	public const string ObjectBlockPropertiesTable = "BLOCKPROPERTIESTABLE";
+
+	public const string ObjectBlockPropertiesTableGrip = "BLOCKPROPERTIESTABLEGRIP";
+
 	public const string ObjectBlockRepresentationData = "ACDB_BLOCKREPRESENTATION_DATA";
 
 	public const string ObjectBlockRotateAction = "BLOCKROTATEACTION";
@@ -225,6 +231,10 @@ public static class DxfFileToken
 	public const string ObjectBlockStretchAction = "BLOCKSTRETCHACTION";
 
 	public const string ObjectBlockTextParameter = "BLOCKTEXTPARAMETER";
+
+	public const string ObjectBlockUserParameter = "BLOCKUSERPARAMETER";
+
+	public const string ObjectBlockVerticalConstraintParameter = "BLOCKVERTICALCONSTRAINTPARAMETER";
 
 	public const string ObjectBlockVisibilityGrip = "BLOCKVISIBILITYGRIP";
 
@@ -249,6 +259,8 @@ public static class DxfFileToken
 	public const string ObjectDimensionAssociation = "DIMASSOC";
 
 	public const string ObjectDynamicBlockPurgePreventer = "ACDB_DYNAMICBLOCKPURGEPREVENTER_VERSION";
+
+	public const string ObjectDynamicBlockProxyNode = "ACDB_DYNAMICBLOCKPROXYNODE";
 
 	public const string ObjectEvalGraph = "ACAD_EVALUATION_GRAPH";
 

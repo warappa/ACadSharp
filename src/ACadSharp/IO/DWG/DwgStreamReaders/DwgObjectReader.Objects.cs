@@ -260,6 +260,84 @@ internal partial class DwgObjectReader : DwgSectionIO
 		return template;
 	}
 
+	private CadTemplate readBlockHorizontalConstraintParameter()
+	{
+		BlockHorizontalConstraintParameter parameter = new();
+		CadBlockHorizontalConstraintParameterTemplate template = new CadBlockHorizontalConstraintParameterTemplate(parameter);
+
+		// The 2pt base (the first/second point, the point displacements, the grip ids and
+		// the base location). The evaluation only needs this; the trailing region (label,
+		// description, label offset, value set and more) is a large, variable region that is
+		// not decoded. The readers are re-positioned per object, so the unconsumed tail is
+		// safely discarded.
+		this.readBlock2PtParameter(template);
+
+		return template;
+	}
+
+	private CadTemplate readBlockVerticalConstraintParameter()
+	{
+		BlockVerticalConstraintParameter parameter = new();
+		CadBlockVerticalConstraintParameterTemplate template = new CadBlockVerticalConstraintParameterTemplate(parameter);
+
+		// See readBlockHorizontalConstraintParameter: only the 2pt base is decoded.
+		this.readBlock2PtParameter(template);
+
+		return template;
+	}
+
+	private CadTemplate readBlockUserParameter()
+	{
+		BlockUserParameter parameter = new();
+		CadBlockUserParameterTemplate template = new CadBlockUserParameterTemplate(parameter);
+
+		// The element + parameter prefix (the common header is read by readEvaluationExpression).
+		this.readBlockParameter(template);
+
+		// The value (a double). The trailing region (value set and more) is a variable region
+		// that is not decoded; the readers are re-positioned per object, so it is discarded.
+		parameter.Value = this._mergedReaders.ReadBitDouble();
+
+		return template;
+	}
+
+	private CadTemplate readBlockDynamicBlockProxyNode()
+	{
+		BlockDynamicBlockProxyNode node = new();
+		CadBlockDynamicBlockProxyNodeTemplate template = new CadBlockDynamicBlockProxyNodeTemplate(node);
+
+		// A proxy node is a small, opaque object. Only the common header is decoded; the
+		// remaining (opaque) payload is discarded. The readers are re-positioned per object.
+		this.readCommonNonEntityData(template);
+
+		return template;
+	}
+
+	private CadTemplate readBlockPropertiesTable()
+	{
+		BlockPropertiesTable table = new();
+		CadBlockPropertiesTableTemplate template = new CadBlockPropertiesTableTemplate(table);
+
+		// A properties table is a data object with a variable-size row array. Only the
+		// common header is decoded; the remaining rows are discarded. The readers are
+		// re-positioned per object.
+		this.readCommonNonEntityData(template);
+
+		return template;
+	}
+
+	private CadTemplate readBlockPropertiesTableGrip()
+	{
+		BlockPropertiesTableGrip grip = new();
+		CadBlockPropertiesTableGripTemplate template = new CadBlockPropertiesTableGripTemplate(grip);
+
+		// A properties table grip is a data object. Only the common header is decoded; the
+		// remaining payload is discarded. The readers are re-positioned per object.
+		this.readCommonNonEntityData(template);
+
+		return template;
+	}
+
 	private CadTemplate readBlockLookupAction()
 	{
 		var lookupAction = new BlockLookupAction();
