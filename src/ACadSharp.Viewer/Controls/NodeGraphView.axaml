@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:ACadSharp.Viewer"
              x:Class="ACadSharp.Viewer.Controls.NodeGraphView">
     <Grid>
         <!-- Scrollbars are disabled: zoom and pan are driven by a manual
@@ -15,10 +16,11 @@
         <!-- Hover tooltip for nodes and edges (Avalonia 12 removed ToolTipService,
              so this is a small floating card positioned at the pointer). -->
         <Canvas x:Name="Overlay" IsHitTestVisible="False">
-            <Border x:Name="HoverTip" IsVisible="False" CornerRadius="6" Padding="8,5"
+            <Border x:Name="HoverTip" IsVisible="False" CornerRadius="{StaticResource CardCornerRadius}" Padding="8,5"
                     Background="{DynamicResource SolidBackgroundFillColorBase}"
-                    BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1">
-                <TextBlock x:Name="HoverTipText" FontSize="12" TextWrapping="Wrap" MaxWidth="260" />
+                    BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1"
+                    BoxShadow="{x:Static local:DesignTokenShadows.TooltipShadow}">
+                <TextBlock x:Name="HoverTipText" FontSize="{StaticResource CaptionFontSize}" TextWrapping="Wrap" MaxWidth="260" />
             </Border>
         </Canvas>
     </Grid>
