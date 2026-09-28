@@ -33,6 +33,12 @@ public class BlockDynamicBlockProxyNode : EvaluationExpression, IDxfClassDefined
 	/// <inheritdoc/>
 	public override string SubclassMarker => DxfSubclassMarker.BlockDynamicBlockProxyNode;
 
+	/// <summary>
+	/// The proxy node is a placeholder for an unknown (unimplemented) node type, so it has no
+	/// meaningful value before evaluation.
+	/// </summary>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.None;
+
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{

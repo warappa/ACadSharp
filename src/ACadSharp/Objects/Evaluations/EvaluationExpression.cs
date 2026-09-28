@@ -74,12 +74,14 @@ public abstract class EvaluationExpression : NonGraphicalObject
 	/// <summary>
 	/// The default value of the expression (the value when the node has not been evaluated yet).
 	/// <para>
-	/// The base default is <see cref="EvaluationValue.None"/> (no default). A leaf with a single,
-	/// well-known value shape overrides this to provide its default (for example the stored value
-	/// of a parameter, or the zero displacement of a grip).
+	/// This is abstract so that every concrete node type makes an explicit decision about its
+	/// default: a leaf with a single, well-known value shape overrides this to provide its default
+	/// (for example the stored value of a parameter, or the zero displacement of a grip), and a
+	/// node without a meaningful initial value (for example a pure computation action, or a
+	/// data-only stub) overrides this to <see cref="EvaluationValue.None"/>.
 	/// </para>
 	/// </summary>
-	protected virtual EvaluationValue GetDefaultValue() => EvaluationValue.None;
+	protected abstract EvaluationValue GetDefaultValue();
 
 	/// <summary>
 	/// Evaluates the expression, writing its output values into the <paramref name="context"/>.

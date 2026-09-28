@@ -27,6 +27,12 @@ public class BlockPropertiesTable : EvaluationExpression, IDxfClassDefined
 	/// <inheritdoc/>
 	public override string SubclassMarker => DxfSubclassMarker.BlockPropertiesTable;
 
+	/// <summary>
+	/// The properties table is a data-only stub (the lookup table is not decoded), so it has
+	/// no meaningful value before evaluation.
+	/// </summary>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.None;
+
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
 	{

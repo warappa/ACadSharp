@@ -52,6 +52,13 @@ public abstract class BlockAction : BlockElement
 	/// when the connection is empty, the value is not present, or the value is not a string
 	/// (for example it is a scalar).
 	/// </summary>
+	/// <summary>
+	/// The default value of an action is <see cref="EvaluationValue.None"/>: an action holds no
+	/// stored state — it is a pure computation of the values of the nodes connected to its
+	/// input ports, so it has no meaningful value before the graph has been evaluated.
+	/// </summary>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.None;
+
 	protected static bool ReadConnectionValue(EvalConnection connection, EvaluationContext context, out string value)
 	{
 		value = null;

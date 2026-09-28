@@ -35,6 +35,13 @@ public class BlockGripLocationComponent : EvaluationExpression, IDxfClassDefined
 	/// </summary>
 	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
 
+	/// <summary>
+	/// The location component holds no stored state — it is a pure computation of the value
+	/// of the node connected to its input port, so it has no meaningful value before the
+	/// graph has been evaluated.
+	/// </summary>
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.None;
+
 	public override bool Evaluate(EvaluationContext context)
 	{
 		if (this.Connection == null || this.Connection.Id == 0)
