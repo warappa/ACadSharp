@@ -495,6 +495,25 @@ public class EvaluationValueTests
 	}
 
 	[Fact]
+	public void BasePointParameterEmitsStoredPointTest()
+	{
+		BlockBasePointParameter parameter = new() { Id = 4, Location = new XYZ(1, 2, 3) };
+		EvaluationContext context = new();
+
+		Assert.True(parameter.Evaluate(context));
+
+		// A base point is a static reference point: its value is the stored location
+		// (the kPoint shape), not a value updated by connected actions.
+		Assert.True(context.TryGetValue(4, "Value", out EvaluationValue v));
+		Assert.Equal(EvaluationValueType.Point, v.Type);
+		Assert.Equal(new XYZ(1, 2, 3), v.PointValue);
+
+		// The typed CurrentValue is a set point.
+		Assert.True(parameter.CurrentValue.IsSet);
+		Assert.Equal(new XYZ(1, 2, 3), parameter.CurrentValue.Value);
+	}
+
+	[Fact]
 	public void EveryValueShapeIsEmittedByANodeTest()
 	{
 		// Full type support: every shape in EvaluationValueType is produced by at least one node.
