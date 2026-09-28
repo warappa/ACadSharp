@@ -355,5 +355,6 @@ MigrationBackup/
 
 *.dwl
 *.dwl2
-.tmp-*/
+.tmp-*
+.kilo/
 AGENTS.local.md
