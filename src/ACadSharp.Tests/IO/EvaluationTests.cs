@@ -352,4 +352,96 @@ public class EvaluationTests : IOTestsBase
 		Assert.True(param.CurrentValue.IsSet, "The value is not set.");
 		assertClose(42.0, param.CurrentValue.Value);
 	}
+
+	/// <summary>
+	/// User parameter (not evaluated): the <see cref="BlockUserParameter.CurrentValue"/> falls
+	/// back to the stored <see cref="BlockUserParameter.Value"/> (the user's last input) rather
+	/// than an empty placeholder, so the parameter always exposes its current value.
+	/// </summary>
+	[Fact]
+	public void UserParameterCurrentValueFallsBackToStoredValueTest()
+	{
+		BlockUserParameter param = new()
+		{
+			Id = 1,
+			Value = 42.0,
+		};
+
+		// Do NOT evaluate: the CurrentValue should still be set (to the stored value).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored value.");
+		assertClose(42.0, param.CurrentValue.Value);
+
+		// After evaluation, the CurrentValue is the evaluated value (the same as the stored value).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(42.0, param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Character parameter (not evaluated): the <see cref="BlockCharParameter.CurrentValue"/> falls
+	/// back to the stored <see cref="BlockCharParameter.Value"/> (the held character) rather than an
+	/// empty placeholder.
+	/// </summary>
+	[Fact]
+	public void CharParameterCurrentValueFallsBackToStoredValueTest()
+	{
+		BlockCharParameter param = new()
+		{
+			Id = 1,
+			Value = 'A',
+		};
+
+		// Do NOT evaluate: the CurrentValue should still be set (to the stored character).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored character.");
+		Assert.Equal('A', param.CurrentValue.Value);
+
+		// After evaluation, the CurrentValue is the evaluated value (the same as the stored character).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.Equal('A', param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Text parameter (not evaluated): the <see cref="BlockTextParameter.CurrentValue"/> falls
+	/// back to the stored <see cref="BlockTextParameter.Value"/> (the held text) rather than an
+	/// empty placeholder.
+	/// </summary>
+	[Fact]
+	public void TextParameterCurrentValueFallsBackToStoredValueTest()
+	{
+		BlockTextParameter param = new()
+		{
+			Id = 1,
+			Value = "hello",
+		};
+
+		// Do NOT evaluate: the CurrentValue should still be set (to the stored text).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored text.");
+		Assert.Equal("hello", param.CurrentValue.Value);
+
+		// After evaluation, the CurrentValue is the evaluated value (the same as the stored text).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.Equal("hello", param.CurrentValue.Value);
+	}
+
+	/// <summary>
+	/// Handle parameter (not evaluated): the <see cref="BlockHandleParameter.CurrentValue"/> falls
+	/// back to the stored <see cref="BlockHandleParameter.Value"/> (the held object handle) rather
+	/// than an empty placeholder.
+	/// </summary>
+	[Fact]
+	public void HandleParameterCurrentValueFallsBackToStoredValueTest()
+	{
+		BlockHandleParameter param = new()
+		{
+			Id = 1,
+			Value = 12345,
+		};
+
+		// Do NOT evaluate: the CurrentValue should still be set (to the stored handle).
+		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the stored handle.");
+		Assert.Equal(12345L, param.CurrentValue.Value);
+
+		// After evaluation, the CurrentValue is the evaluated value (the same as the stored handle).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.Equal(12345L, param.CurrentValue.Value);
+	}
 }

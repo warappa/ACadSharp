@@ -42,8 +42,23 @@ public class BlockTextParameter : BlockParameter, IDxfClassDefined
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
 	/// a computed read of it). For a text parameter this is the held text.
+	/// <para>
+	/// Falls back to the stored <see cref="Value"/> (the text held by the parameter) when the node
+	/// has not been evaluated yet (the evaluation result is unset), so the parameter always exposes
+	/// its current value rather than an empty placeholder.
+	/// </para>
 	/// </summary>
-	public new EvaluationValue<string> CurrentValue => base.CurrentValue.As<string>();
+	public new EvaluationValue<string> CurrentValue
+	{
+		get
+		{
+			if (base.CurrentValue.Type == EvaluationValueType.None)
+			{
+				return EvaluationValue<string>.Of(this.Value);
+			}
+			return base.CurrentValue.As<string>();
+		}
+	}
 
 	/// <summary>
 	/// Evaluates the text parameter: writes the held text (the "Value" port) into the context.

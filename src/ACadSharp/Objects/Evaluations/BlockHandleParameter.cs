@@ -42,8 +42,23 @@ public class BlockHandleParameter : BlockParameter, IDxfClassDefined
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
 	/// a computed read of it). For a handle parameter this is the held object handle.
+	/// <para>
+	/// Falls back to the stored <see cref="Value"/> (the object handle held by the parameter) when
+	/// the node has not been evaluated yet (the evaluation result is unset), so the parameter always
+	/// exposes its current value rather than an empty placeholder.
+	/// </para>
 	/// </summary>
-	public new EvaluationValue<long> CurrentValue => base.CurrentValue.As<long>();
+	public new EvaluationValue<long> CurrentValue
+	{
+		get
+		{
+			if (base.CurrentValue.Type == EvaluationValueType.None)
+			{
+				return EvaluationValue<long>.Of(this.Value);
+			}
+			return base.CurrentValue.As<long>();
+		}
+	}
 
 	/// <summary>
 	/// Evaluates the handle parameter: writes the held object handle (the "Value" port) into the context.

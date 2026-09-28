@@ -42,8 +42,23 @@ public class BlockCharParameter : BlockParameter, IDxfClassDefined
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
 	/// a computed read of it). For a character parameter this is the held character.
+	/// <para>
+	/// Falls back to the stored <see cref="Value"/> (the character held by the parameter) when the
+	/// node has not been evaluated yet (the evaluation result is unset), so the parameter always
+	/// exposes its current value rather than an empty placeholder.
+	/// </para>
 	/// </summary>
-	public new EvaluationValue<char> CurrentValue => base.CurrentValue.As<char>();
+	public new EvaluationValue<char> CurrentValue
+	{
+		get
+		{
+			if (base.CurrentValue.Type == EvaluationValueType.None)
+			{
+				return EvaluationValue<char>.Of(this.Value);
+			}
+			return base.CurrentValue.As<char>();
+		}
+	}
 
 	/// <summary>
 	/// Evaluates the character parameter: writes the held character (the "Value" port) into the context.

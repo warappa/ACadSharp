@@ -45,8 +45,23 @@ public class BlockUserParameter : BlockParameter, IDxfClassDefined
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
 	/// a computed read of it). For a user parameter this is the user value.
+	/// <para>
+	/// Falls back to the stored <see cref="Value"/> (the user's last input) when the node has not
+	/// been evaluated yet (the evaluation result is unset), so the parameter always exposes its
+	/// current value rather than an empty placeholder.
+	/// </para>
 	/// </summary>
-	public new EvaluationValue<double> CurrentValue => base.CurrentValue.As<double>();
+	public new EvaluationValue<double> CurrentValue
+	{
+		get
+		{
+			if (base.CurrentValue.Type == EvaluationValueType.None)
+			{
+				return EvaluationValue<double>.Of(this.Value);
+			}
+			return base.CurrentValue.As<double>();
+		}
+	}
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()
