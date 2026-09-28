@@ -53,8 +53,23 @@ public abstract class BlockGrip : BlockElement
 	/// <summary>
 	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
 	/// a computed read of it). For a grip this is the full (X, Y) displacement.
+	/// <para>
+	/// Falls back to the <see cref="Displacement"/> (zero when the grip is not activated) when the
+	/// node has not been evaluated yet (the evaluation result is unset), so the grip always exposes
+	/// its current value rather than an empty placeholder.
+	/// </para>
 	/// </summary>
-	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+	public new EvaluationValue<XYZ> CurrentValue
+	{
+		get
+		{
+			if (base.CurrentValue.Type == EvaluationValueType.None)
+			{
+				return EvaluationValue<XYZ>.Of(this.Displacement);
+			}
+			return base.CurrentValue.As<XYZ>();
+		}
+	}
 
 	/// <summary>
 	/// Evaluates the grip: writes its displacement (the "DisplacementX/Y" output ports) and

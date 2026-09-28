@@ -444,4 +444,32 @@ public class EvaluationTests : IOTestsBase
 		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
 		Assert.Equal(12345L, param.CurrentValue.Value);
 	}
+
+	/// <summary>
+	/// Grip (not evaluated, not activated): the <see cref="BlockGrip.CurrentValue"/> falls back to
+	/// the <see cref="BlockGrip.Displacement"/> (zero) rather than an empty placeholder. After the
+	/// grip is activated and evaluated, the CurrentValue is the displacement.
+	/// </summary>
+	[Fact]
+	public void GripCurrentValueFallsBackToZeroDisplacementTest()
+	{
+		BlockLinearGrip grip = new()
+		{
+			Id = 1,
+			Location = new XYZ(1, 2, 0),
+		};
+
+		// Do NOT evaluate: the CurrentValue should fall back to the displacement (zero).
+		Assert.True(grip.CurrentValue.IsSet, "The value should fall back to the displacement.");
+		assertClose(0.0, grip.CurrentValue.Value.X);
+		assertClose(0.0, grip.CurrentValue.Value.Y);
+		assertClose(0.0, grip.CurrentValue.Value.Z);
+
+		// After activation + evaluation, the CurrentValue is the displacement (0, 0, 5).
+		grip.ActivatedLocation = new XYZ(1, 2, 5);
+		Assert.True(grip.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(0.0, grip.CurrentValue.Value.X);
+		assertClose(0.0, grip.CurrentValue.Value.Y);
+		assertClose(5.0, grip.CurrentValue.Value.Z);
+	}
 }
