@@ -29,7 +29,22 @@ But: If a user reported a bug and and a bugfix is being developed, then don't co
 - `src/ACadSharp.Tests` — xUnit tests.
 - `src/ACadSharp.Examples` — runnable examples (`eval` / `evalgraph` subcommands drive the evaluation engine).
 - `docs/` — articles and plans; `reference/` — research material; `samples/` — test DWG/DXF files (incl. `samples/dynamic-blocks/`).
-- `tools/` — preserved debug/research tools, each self-documenting in its own `README.md`: `dwg-rawdump` (bit-level DWG object-section decoder), `eval-probe` (dump a dynamic block's node values after evaluation), `eval-regression` (forward + reverse evaluation sweep over a whole DWG). Throwaway scratch lives in git-ignored `.tmp-*` dirs; a tool that proves reusable gets moved to `tools/`.
+- `tools/` — preserved debug/research tools, each self-documenting in its own `README.md`: `dwg-rawdump` (bit-level DWG object-section decoder), `eval-probe` (dump a dynamic block's node values after evaluation), `eval-regression` (forward + reverse evaluation sweep over a whole DWG), `graph-dump` (dump the viewer's `GraphModel` display model — edges with wire index/kind/label, ports), `ui-check` (layout audit of the graph display + screenshot pixel analysis). Throwaway scratch lives in git-ignored `.tmp-*` dirs; a tool that proves reusable gets moved to `tools/`.
+
+## UI verification (headless)
+
+The viewer can be run **headless** (no display/X11/GPU) to render and capture the real UI — the pipeline lives in the repo:
+
+- **Capture**: the Viewer's built-in `--screenshot <out.png> [file.dwg|file.dxf] [mode]` (`src/ACadSharp.Viewer/Screenshot.cs`, wired in `Program.cs`). Modes: `dialog` (open the node viewer for the first dynamic block), `tip` (first-run teaching tip), `flyout` (settings flyout), `hc`/`accent` (high-contrast theme / red accent), `interact` (simulate wheel zoom, drag pan, click select, hover through the real input pipeline), `zoombug`/`minimap` (mini-map rectangle tracking + navigation), `fingerprint` (deterministic layout fingerprint: node positions, edge labels + multiplicity, scale/pan, visible rect — a cheap regression check without pixels). It writes a `diag.txt` (setup, load, dialog, capture timestamps) next to the output.
+- **Analyze**: `tools/ui-check` (`--analyze` scans a screenshot for the node colors + bounding boxes; default mode audits the `GraphModel` layout for provider-right-of-consumer anomalies; `--diag`/`--graph` dump the parsed connections/raw edges).
+- **Inspect the display model directly (no rendering)**: `tools/graph-dump` (per-parameter `GraphModel` ancestor subgraph: edge lines with wire index + `lookup`/`value` kind + label, input/output ports with wire index).
+
+Gotchas learned while building this:
+
+- **`UseHeadlessDrawing=true` (the default) produces no pixels**: it installs a no-op render-interface stub that never locks the window's framebuffer, so `GetLastRenderedFrame()` is always null. Instead build the app manually with `UseHeadlessDrawing=false` + the real Skia renderer (the `Avalonia.Skia` package): Skia's `FramebufferRenderTarget` locks the headless window's framebuffer (`Lock()`) and draws real pixels that `CaptureRenderedFrame()` can read back.
+- **Everything must run on one dedicated thread**: the `Dispatcher` created during `SetupWithoutStarting()` binds to that thread and becomes the UI thread.
+- **Pump the dispatcher to let work run**: `Dispatcher.UIThread.RunJobs()` + a short sleep (the `Pump(n)` helper in `Screenshot.cs`) so posted continuations and background-priority work (e.g. the dialog auto-fit) complete before capturing.
+- `Avalonia.Headless` 12.1.3 (and `Avalonia.Skia` 12.1.3) restore fine from the normal feed into `.tmp-nuget`; the hand-assembled `headless.nupkg` that used to sit in `.tmp-headless/` was a throwaway workaround.
 
 ## Evaluation engine (dynamic-block graphs)
 
