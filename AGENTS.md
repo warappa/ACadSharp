@@ -50,6 +50,7 @@ Machine-specific or personal preferences that are not for the team go in `AGENTS
 - `src/ACadSharp.Viewer` — the Avalonia viewer (incl. the headless `--screenshot` capture mode, see the deep-dive docs).
 - `docs/` — articles and plans; `reference/` — research material; `samples/` — test DWG/DXF files (incl. `samples/dynamic-blocks/`).
 - `tools/` — preserved debug/research tools, each self-documenting in its own `README.md`: `dwg-rawdump` (bit-level DWG object-section decoder), `eval-probe` (dump a dynamic block's node values after evaluation), `eval-regression` (forward + reverse evaluation sweep over a whole DWG), `graph-dump` (dump the viewer's `GraphModel` display model), `ui-check` (layout audit of the graph display + screenshot pixel analysis). Throwaway scratch lives in git-ignored `.tmp-*` dirs; a tool that proves reusable gets moved to `tools/`.
+- `.agents/skills/` — trigger-driven skills (self-contained procedures; see "Skills" below).
 
 ## Deep-dive docs
 
@@ -57,8 +58,19 @@ Topic docs for the areas that need more than the above (read on demand):
 
 | Topic | File | Open when you |
 | --- | --- | --- |
-| Evaluation engine — **our implementation** (value model, engine semantics, class hierarchy, value-semantics archetypes, per-class `Evaluate` formulas, the 8-touch-point recipe for adding a node type) | [`docs/agents/evaluation-engine.md`](docs/agents/evaluation-engine.md) | add or fix an evaluation node type, or reason about engine behavior |
-| Headless UI verification (screenshot capture pipeline, the `tools/ui-check` + `tools/graph-dump` toolkit, gotchas) | [`docs/agents/ui-verification.md`](docs/agents/ui-verification.md) | render or capture the Viewer UI without a display |
+| Evaluation engine — **our implementation** (value model, engine semantics, class hierarchy, value-semantics archetypes, per-class `Evaluate` formulas, verified sample results) | [`docs/articles/evaluation-engine.md`](docs/articles/evaluation-engine.md) | reason about engine behavior or a node's `Evaluate` formula |
 | Evaluation graph — **the AutoCAD specification** (on-disk format, node/edge records, the connection model, the lookup table, 2008 history) | [`docs/articles/evaluation-graph.md`](docs/articles/evaluation-graph.md) | decode or validate file-format fields |
 
-The two evaluation docs are complementary: the article documents **what AutoCAD writes**; `docs/agents/evaluation-engine.md` documents **what we do with it**.
+The two evaluation docs are complementary: the article documents **what AutoCAD writes**; `docs/articles/evaluation-engine.md` documents **what we do with it**.
+
+## Skills (procedures)
+
+Self-contained, trigger-driven procedures in `.agents/skills/`. Harnesses with a skill system load them on demand; if yours does not, open the file directly:
+
+| Skill | Open when you |
+| --- | --- |
+| [`ui-verification`](.agents/skills/ui-verification/SKILL.md) | render or capture the Viewer UI without a display (headless `--screenshot` pipeline, the `tools/ui-check` + `tools/graph-dump` toolkit, the 4 mandatory gotchas) |
+| [`add-eval-node-type`](.agents/skills/add-eval-node-type/SKILL.md) | add or fix an evaluation node type (the 8-touch-point recipe) |
+| [`dwg-forensics`](.agents/skills/dwg-forensics/SKILL.md) | a DWG/DXF parses wrong, or you must separate "what AutoCAD wrote" from "what we computed" |
+
+**Location policy:** the harness-agnostic files are canonical — `AGENTS.md` + `.agents/`. A harness-specific file (`.claude/CLAUDE.md`, `.github/copilot-instructions.md`, …) is allowed only as a **one-line redirect** to these, never as a content copy. As of 2026 none are needed: Claude Code ≥ 2.1.277, Copilot, Cursor and DeepSeek Harness all read `AGENTS.md` natively, and DSH reads `.agents/skills/` directly.

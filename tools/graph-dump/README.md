@@ -10,7 +10,7 @@ graph *computes*); `ui-check` audits the same model for layout anomalies.
 
 Preserved debug tooling — **do not delete** (moved from `.tmp-verify2/`).
 
-Part of the headless UI-verification toolkit (capture with the Viewer's `--screenshot` mode, analyze with `ui-check`, inspect with this tool) — the pipeline and its gotchas are in [`docs/agents/ui-verification.md`](../../docs/agents/ui-verification.md).
+Part of the headless UI-verification toolkit (capture with the Viewer's `--screenshot` mode, analyze with `ui-check`, inspect with this tool) — the pipeline and its gotchas are in the [`ui-verification` skill](../../.agents/skills/ui-verification/SKILL.md).
 
 ## Contents
 

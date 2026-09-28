@@ -271,7 +271,7 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 1. ~~`Edge.TrackedCount` (94)~~ — **decoded** (wires: port connections / grip-binding fallback / lookup columns); the "max vs. fallback" ambiguity needs a sample with both a `GripIds` slot *and* port connections for the same grip to fully disambiguate.
 2. ~~`NodeFlags`~~ — **resolved**: `0x20` is universal across all 10 samples (both DWG and DXF); the `NodeFlags` enum was reworked to neutral names (`None`/`Bit0`–`Bit4`/`Bit5=0x20`/`All`).
 3. `96` in the lookup column definition (2 for double, 0 for string) — meaning (still open).
-4. ~~Per-class evaluation formulas~~ — **resolved** (see the `Per-class Evaluate formulas` table in [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md)): grip = displacement, linear = signed distance along the axis, XY = (X, Y) offsets, polar = (distance, angle), rotation/alignment = angle, point = (XΔ, YΔ); `140` is the `LabelOffset` (not a value).
+4. ~~Per-class evaluation formulas~~ — **resolved** (see the `Per-class Evaluate formulas` table in [`evaluation-engine.md`](evaluation-engine.md)): grip = displacement, linear = signed distance along the axis, XY = (X, Y) offsets, polar = (distance, angle), rotation/alignment = angle, point = (XΔ, YΔ); `140` is the `LabelOffset` (not a value).
 5. ~~Unevaluated sentinels per class~~ — **partially resolved**: the component's `1.797693134862314E+99` ("not yet evaluated") and the base-component `0` are confirmed; per-class sentinels for the other classes are not yet catalogued.
 6. Whether the `98`/`99` tag values are version-dependent (2007: 27/31/25/8; modern: 33/329) — still open.
 
@@ -303,7 +303,7 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 
 The implementation of the evaluation engine — design, class hierarchy, the value-semantics archetypes, the per-class
 `Evaluate` formulas, and the verified results on all 10 samples — has moved to
-[`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md), which is the single source of truth for the
+[`evaluation-engine.md`](evaluation-engine.md), which is the single source of truth for the
 implementation. This article keeps the AutoCAD specification and on-disk format analysis.
 
 ---
@@ -331,7 +331,7 @@ implementation. This article keeps the AutoCAD specification and on-disk format 
 
 ### Phase 3 — Evaluation engine — ✅ *done (commit `41f66449`)*
 
-See [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md) for the design and the per-class `Evaluate` formulas.
+See [`evaluation-engine.md`](evaluation-engine.md) for the design and the per-class `Evaluate` formulas.
 
 - ✅ `EvaluationContext` (expression-ID → port → value), `Activate(nodes)` + `Evaluate()` topological traversal, per-class `Evaluate(context)` on the `Block*` classes writing into the context and the stored `EvaluatedValue` (code `40`)
 - ✅ Per-class semantics for grips, location components, all parameter types (linear/point/XY/polar/rotation/alignment/flip/visibility/lookup), and all action types (scale/move/rotate/stretch/polar-stretch/array/flip/lookup)
@@ -339,7 +339,7 @@ See [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md) for the
 
 ### Phase 4 — Validation — ✅ *done (commits `ade3cc67`, `4014ff4e`)*
 
-See the `Verified results` section of [`docs/agents/evaluation-engine.md`](../agents/evaluation-engine.md).
+See the `Verified results` section of [`evaluation-engine.md`](evaluation-engine.md).
 
 - ✅ `DynamicBlockTests.ValidateEvaluationGraphTest`: assert the invariants (linked-list consistency + valid topological order) on all 10 samples (DWG + DXF)
 - ✅ `EvaluationTests`: for each sample, activate the known "user-moved" node(s) with a known `ActivatedLocation`, evaluate, and compare results against the geometry and the stored `EvaluatedValue`s

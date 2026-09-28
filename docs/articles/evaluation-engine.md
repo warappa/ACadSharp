@@ -2,8 +2,8 @@
 
 The evaluation engine is implemented in `src/ACadSharp/Objects/Evaluations/`, mirroring the ObjectARX `AcDbEval*` model.
 
-**When to read this:** adding or fixing an evaluation node type, or reasoning about engine behavior (values, evaluation order, the class hierarchy).
-**The AutoCAD specification side** — the on-disk format, node/edge records, the connection model, the lookup table, 2008 history — is analyzed in [`docs/articles/evaluation-graph.md`](../articles/evaluation-graph.md). This doc is about *what we do* with the parsed data; the article is about *what AutoCAD writes*.
+**When to read this:** reasoning about engine behavior (values, evaluation order, the class hierarchy) or a node's `Evaluate` formula. *Adding or fixing a node type* is a self-triggered skill: [`.agents/skills/add-eval-node-type/SKILL.md`](../../.agents/skills/add-eval-node-type/SKILL.md).
+**The AutoCAD specification side** — the on-disk format, node/edge records, the connection model, the lookup table, 2008 history — is analyzed in [`evaluation-graph.md`](evaluation-graph.md) (this directory). This doc is about *what we do* with the parsed data; the article is about *what AutoCAD writes*.
 
 ## Value model
 
@@ -122,17 +122,6 @@ Running the evaluator on all 10 samples (`dotnet run --project src/ACadSharp.Exa
 
 End-to-end `EvaluationTests` (activate a grip with a known `ActivatedLocation`, evaluate, compare against the geometry) confirm: linear 5→8 (move end grip by (3,0,0)), polar 9.08→10.59 (move by (2,0,0)), rotation 90°→135° (rotate by 45°), point (0,0,0)→(2,3,0) (move by (2,3,0) — the **whole** (X, Y) displacement, not just X), and that a component's stored `EvaluatedValue` (code `40`) is updated from the `1.797693134862314E+99` sentinel to the computed value.
 
-## Adding a new evaluation node type (8 touch points)
+## Adding a new evaluation node type
 
-1. `DxfFileToken.cs` — `ObjectXxx = "XXX"` (the DXF object name).
-2. `DxfSubclassMarker.cs` — `Xxx = "AcDbXxx"` (the subclass marker).
-3. `Objects/Evaluations/Xxx.cs` — the class. For a parameter, inherit `BlockParameter`; add `[DxfName]`/`[DxfSubClass]` attrs, a `Value` with a `[DxfCodeValue]`, an `Evaluate` that writes the `"Value"` port (`context.SetValue(this.Id, "Value", EvaluationValue.FromX(...)` + set `base.CurrentValue`), a typed `CurrentValue` override, a `GetDefaultValue()` override (**required** — the method is abstract: a stateful node returns its initial value, e.g. a grip's zero `Displacement`; a stateless node returns `EvaluationValue.None`), and `GetDxfClass()` (ItemClassId=499, MaintenanceVersion=55, ProxyFlags=EraseAllowed|CloningAllowed|DisablesProxyWarningDialog).
-4. `IO/Templates/CadXxxTemplate.cs` — the template (`: CadBlockParameterTemplate`, typed property + parameterless and object-taking ctors).
-5. `IO/DXF/DxfStreamReader/DxfObjectsSectionReader.cs` — `readXxx` (specific codes; `default` falls through to `readBlockParameter`) + a dispatch case.
-6. `IO/DXF/DxfStreamWriter/DxfObjectsSectionWriter.cs` — `writeXxx` (`writeBlockParameter` + `Write(100, marker)` + per-code `Write`) + a dispatch case.
-7. `IO/DWG/DwgStreamReaders/DwgObjectReader.Objects.cs` — `readXxx` + a dispatch case in `DwgObjectReader.cs`.
-8. `IO/DWG/DwgStreamWriters/DwgObjectWriter.Objects.cs` — `writeXxx` + a dispatch case.
-
-Then: build all 6 TFMs, add tests (evaluate → assert `CurrentValue.Type` + payload; a DXF round-trip), run the suite, commit.
-
-**DWG-primitive gotcha:** `WriteBitLong`/`ReadBitLong` are the DWG 64-bit primitives, but `WriteBitLong` takes an `int` — cast a `long` value.
+The 8-touch-point recipe (all touch points, the `GetDefaultValue()`/`WriteBitLong` gotchas, the test + sanity-check checklist) now lives in the **`add-eval-node-type` skill**: [`.agents/skills/add-eval-node-type/SKILL.md`](../../.agents/skills/add-eval-node-type/SKILL.md) — open it directly.

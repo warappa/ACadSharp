@@ -30,7 +30,7 @@ NUGET_PACKAGES=$PWD/.tmp-nuget DOTNET_ROLL_FORWARD=Major dotnet run --project ui
 
 ## Capturing the screenshots to analyze
 
-Produce the PNGs with the Viewer's built-in headless mode (no display needed — the pipeline and its gotchas, e.g. the `UseHeadlessDrawing=false` + real Skia renderer requirement, are in [`docs/agents/ui-verification.md`](../../docs/agents/ui-verification.md)):
+Produce the PNGs with the Viewer's built-in headless mode (no display needed — the pipeline and its gotchas, e.g. the `UseHeadlessDrawing=false` + real Skia renderer requirement, are in the [`ui-verification` skill](../../.agents/skills/ui-verification/SKILL.md)):
 
 ```bash
 NUGET_PACKAGES=$PWD/.tmp-nuget DOTNET_ROLL_FORWARD=Major dotnet run --project src/ACadSharp.Viewer/ACadSharp.Viewer.csproj -- --screenshot out.png samples/dynamic-blocks/BLOCKLOOKUPPARAMETER.dwg dialog
