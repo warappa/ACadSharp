@@ -73,5 +73,6 @@ Self-contained, trigger-driven procedures in `.agents/skills/`. Harnesses with a
 | [`ui-verification`](.agents/skills/ui-verification/SKILL.md) | render or capture the Viewer UI without a display (headless `--screenshot` pipeline, the `tools/ui-check` + `tools/graph-dump` toolkit, the 4 mandatory gotchas) |
 | [`add-eval-node-type`](.agents/skills/add-eval-node-type/SKILL.md) | add or fix an evaluation node type (the 8-touch-point recipe) |
 | [`dwg-forensics`](.agents/skills/dwg-forensics/SKILL.md) | a DWG/DXF parses wrong, or you must separate "what AutoCAD wrote" from "what we computed" |
+| [`verify-derived-property`](.agents/skills/verify-derived-property/SKILL.md) | inferring a property (value type, shape, default) of one item by analogy to a sibling, or locking in a "systematic" uniform value across many similar items — derive it from the data's type codes, not the class |
 
 **Location policy:** the harness-agnostic files are canonical — `AGENTS.md` + `.agents/`. A harness-specific file (`.claude/CLAUDE.md`, `.github/copilot-instructions.md`, …) is allowed only as a **one-line redirect** to these, never as a content copy. As of 2026 none are needed: Claude Code ≥ 2.1.277, Copilot, Cursor and DeepSeek Harness all read `AGENTS.md` natively, and DSH reads `.agents/skills/` directly.
