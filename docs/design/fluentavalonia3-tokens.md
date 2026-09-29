@@ -264,6 +264,25 @@ confirming the shadows actually render. This is the pattern the Viewer should fo
 | `AvaloniaXamlLoader` | **`Avalonia.Markup.Xaml.AvaloniaXamlLoader`** |
 | `visual.GetVisualChildren()` (instance method) | **extension** `Avalonia.VisualTree.VisualExtensions.GetVisualChildren(visual)` — `using Avalonia.VisualTree;` |
 | `Avalonia.Media.BoxShadows` | unchanged (in `Avalonia.Base.dll`) |
+| `Control.ToolTip` (a property) | **removed** — use the `ToolTip.Tip` attached property (`AttachedProperty<object?>`); the `ToolTipService` is created in the `Application` ctor, so a XAML-set `ToolTip.Tip` is picked up |
+
+### App token values (current, in `ACadSharp.Viewer/DesignTokens.axaml` + `DesignTokenShadows.cs`)
+
+The app's own keys, normalized onto the NuGet's scales (the design language's
+"8/4/0 corners, 12–72 type ramp, 4–48 spacing"). Keep in sync with the source:
+
+| Token | Value | Scale it sits on |
+| --- | --- | --- |
+| `CaptionFontSize` | **12** | type ramp (12 14 16 18 20 …) |
+| `BodyFontSize` | **14** | type ramp |
+| `SubtitleFontSize` | **16** | type ramp |
+| `CodeFontSize` | **12** | type ramp |
+| `CardCornerRadius` | **4** | corner scale (8 4 0), in-page |
+| `OverlayCornerRadius` | **8** | corner scale, top-level surfaces |
+| `SwatchCornerRadius` | **4** | corner scale, in-page |
+| `Space2/4/6/8/12` | **4 8 12 16 24** | spacing scale |
+| `DesignTokenShadows.CardShadow` | two-part (cast `0 10 20 #26000000` + contact `0 3 6 #1A000000`) | elevation: Card |
+| `DesignTokenShadows.TooltipShadow` | two-part, scaled up (cast `0 16 32 #2E000000` + contact `0 5 10 #1F000000`) | elevation: Tooltip |
 
 ### Headless runtime notes
 
