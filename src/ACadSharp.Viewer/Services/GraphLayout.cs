@@ -5,7 +5,6 @@ using ACadSharp.Objects.Evaluations;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using MediaColor = Avalonia.Media.Color;
 
 namespace ACadSharp.Viewer.Services;
 
@@ -97,16 +96,11 @@ public static class GraphLayout
     }
 
     /// <summary>
-    /// The fill color for a node box, by its color category.
+    /// The fill brush for a node box, by its color category — resolved from
+    /// the active theme (the XAML legend and the code-drawn graph share the
+    /// same keys, so they agree across theme switches).
     /// </summary>
-    public static MediaColor GetKindColor(string kind) => kind switch
-    {
-        "Parameter" => MediaColor.Parse("#3D7EBF"),
-        "Grip" => MediaColor.Parse("#3D9E5F"),
-        "Action" => MediaColor.Parse("#C77B3D"),
-        "Component" => MediaColor.Parse("#7A7A7A"),
-        _ => MediaColor.Parse("#8E6FBF"),
-    };
+    public static IBrush GetKindBrush(string kind) => ThemeResources.NodeKind(kind);
 
     /// <summary>
     /// The accent brush the user picked in the settings flyout (cached in

@@ -10,6 +10,7 @@ using FluentAvalonia.Styling;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,14 +19,17 @@ namespace ACadSharp.Viewer;
 /// <summary>
 /// Headless screenshot mode: renders the main window on the Avalonia.Headless
 /// platform (CPU-only; no display, X11, or GPU required) and saves a PNG.
-/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [dialog|tip|flyout|interact|minimap]
-/// The optional "dialog" argument opens the node viewer for the first
-/// dynamic block after the file loads and captures that dialog instead.
-/// The optional "tip" argument force-shows the first-run teaching tip
-/// (regardless of the first-run flag) and captures the main window.
-/// The optional "flyout" argument opens the settings flyout and captures
-/// the main window. The "hc" and "accent" arguments apply the high-contrast
-/// theme / a red accent (the settings-flyout operations) and capture the
+/// Usage: --screenshot &lt;out.png&gt; [file.dwg|file.dxf] [mode[,mode...]]
+/// The modes are combinable (comma-separated); the theme modes ("hc",
+/// "accent", "light") are applied BEFORE the dialog opens, so "dialog,light"
+/// captures the node viewer in the light theme.
+/// The "dialog" mode opens the node viewer for the first dynamic block after
+/// the file loads and captures that dialog instead.
+/// The "tip" mode force-shows the first-run teaching tip (regardless of the
+/// first-run flag) and captures the main window.
+/// The "flyout" mode opens the settings flyout and captures the main window.
+/// The "hc", "accent" and "light" modes apply the high-contrast theme / a red
+/// accent / the light theme (the settings-flyout operations) and capture the
 /// main window. The "interact" argument opens the node viewer and simulates
 /// a user (wheel zoom, drag pan, click select, hover) through the real
 /// input pipeline before capturing the dialog. The "minimap" argument opens
@@ -38,15 +42,20 @@ static class Screenshot
 {
     public static int Run(string outputPath, string? filePath, string? mode = null)
     {
-        bool openDialog = mode == "dialog";
-        bool showTip = mode == "tip";
-        bool showFlyout = mode == "flyout";
-        bool applyHc = mode == "hc";
-        bool applyAccent = mode == "accent";
-        bool interact = mode == "interact";
-        bool zoombug = mode == "zoombug";
-        bool minimap = mode == "minimap";
-        bool fingerprint = mode == "fingerprint";
+        // Modes can be combined with commas (e.g. "dialog,light": open the
+        // node viewer in the light theme — the theme is applied before the
+        // dialog opens, so the dialog renders in the new theme).
+        var modes = (mode ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        bool openDialog = modes.Contains("dialog");
+        bool showTip = modes.Contains("tip");
+        bool showFlyout = modes.Contains("flyout");
+        bool applyHc = modes.Contains("hc");
+        bool applyAccent = modes.Contains("accent");
+        bool applyLight = modes.Contains("light");
+        bool interact = modes.Contains("interact");
+        bool zoombug = modes.Contains("zoombug");
+        bool minimap = modes.Contains("minimap");
+        bool fingerprint = modes.Contains("fingerprint");
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -157,8 +166,9 @@ static class Screenshot
                     Log("settings flyout forced open");
                 }
 
-                // Optionally apply the high-contrast theme or a red accent
-                // (the settings-flyout operations, for verification).
+                // Optionally apply the high-contrast theme, a red accent, or
+                // the light theme (the settings-flyout operations, for
+                // verification).
                 if (applyHc)
                 {
                     window.ApplyThemeAndAccentForVerification(FluentAvaloniaTheme.HighContrastTheme, null);
@@ -178,6 +188,16 @@ static class Screenshot
                         Thread.Sleep(10);
                     }
                     Log("red accent applied");
+                }
+                else if (applyLight)
+                {
+                    window.ApplyThemeAndAccentForVerification(ThemeVariant.Light, null);
+                    for (int i = 0; i < 20; i++)
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                        Thread.Sleep(10);
+                    }
+                    Log("light theme applied");
                 }
 
                 // Optionally open the node viewer dialog and capture it instead.

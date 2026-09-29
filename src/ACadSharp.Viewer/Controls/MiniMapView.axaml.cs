@@ -5,7 +5,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Media;
-using MediaColor = Avalonia.Media.Color;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,14 +21,6 @@ namespace ACadSharp.Viewer.Controls;
 /// </summary>
 public partial class MiniMapView : UserControl
 {
-    // Layout metrics (box / column / row sizes and the content margin) and the
-    // kind-color / box-height / accent rules live in the shared GraphLayout
-    // (also used by NodeGraphView) so the mini-map's content bounds stay
-    // identical to the main view's.
-    private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
-    private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush ViewRectFill = new SolidColorBrush(MediaColor.FromArgb(0x30, 0xFF, 0xFF, 0xFF));
-
     // Content -> mini-map mapping: point = offset + content * scale.
     private double _scale;
     private double _offsetX;
@@ -165,13 +156,13 @@ public partial class MiniMapView : UserControl
             {
                 StartPoint = Map(new Point(from.pos.X + GraphLayout.BoxWidth, from.pos.Y + from.height / 2)),
                 EndPoint = Map(new Point(to.pos.X, to.pos.Y + to.height / 2)),
-                Stroke = EdgeLineBrush,
+                Stroke = ThemeResources.EdgeLine,
                 StrokeThickness = 1,
             };
             MiniCanvas.Children.Add(line);
         }
 
-        // Node boxes (kind-colored; the target gets a white ring).
+        // Node boxes (kind-colored; the target gets the target ring).
         foreach ((int index, (Point pos, double height, string kind, bool isTarget)) in positions)
         {
             Point at = Map(pos);
@@ -179,11 +170,11 @@ public partial class MiniMapView : UserControl
             {
                 Width = GraphLayout.BoxWidth * _scale,
                 Height = height * _scale,
-                Fill = new SolidColorBrush(GraphLayout.GetKindColor(kind)),
+                Fill = GraphLayout.GetKindBrush(kind),
             };
             if (isTarget)
             {
-                box.Stroke = WhiteBrush;
+                box.Stroke = ThemeResources.NodeTargetStroke;
                 box.StrokeThickness = 1.5;
             }
             Canvas.SetLeft(box, at.X);
@@ -215,7 +206,7 @@ public partial class MiniMapView : UserControl
             {
                 Stroke = GraphLayout.GetAccentBrush(),
                 StrokeThickness = 1.5,
-                Fill = ViewRectFill,
+                Fill = ThemeResources.ViewRect,
                 IsHitTestVisible = false,
             };
             MiniCanvas.Children.Add(_viewRect);

@@ -44,7 +44,7 @@
                 <!-- Semi-transparent panel: the graph shows through (no blur).
                      Only the background is transparent; the text stays opaque. -->
                 <Border.Background>
-                    <SolidColorBrush Color="#000" Opacity="0.5" />
+                    <SolidColorBrush Color="{StaticResource ScrimColor}" Opacity="0.5" />
                 </Border.Background>
                 <StackPanel Orientation="Vertical" Spacing="4">
                     <!-- Node color legend -->
@@ -63,11 +63,11 @@
                     <!-- Line-type legend: solid = value, dashed = lookup,
                          dashed orange = feedback arc. -->
                     <StackPanel Orientation="Horizontal" Spacing="4">
-                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="#B09A9A9A" StrokeThickness="2" Stretch="None" VerticalAlignment="Center" />
+                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="{DynamicResource EdgeLineColor}" StrokeThickness="2" Stretch="None" VerticalAlignment="Center" />
                         <TextBlock Text="value" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="#B09A9A9A" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="{DynamicResource EdgeLineColor}" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />
                         <TextBlock Text="lookup" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="#E8A33D" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />
+                        <Line StartPoint="0,0" EndPoint="24,0" Stroke="{StaticResource FeedbackColor}" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />
                         <TextBlock Text="feedback" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
                     </StackPanel>
                 </StackPanel>

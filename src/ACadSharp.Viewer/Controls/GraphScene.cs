@@ -6,7 +6,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
-using MediaColor = Avalonia.Media.Color;
 
 namespace ACadSharp.Viewer.Controls;
 
@@ -36,11 +35,6 @@ public sealed class GraphScene
     // positions / box heights / edge records / port-circle mappings and the
     // pending label + edge lists).
     private readonly GraphElementState _state;
-
-    // The brushes the scene applies (the cross-highlight brush and the white
-    // reset).
-    private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush EdgeHoverBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
 
     public GraphScene(
         Canvas canvas,
@@ -214,7 +208,7 @@ public sealed class GraphScene
             return;
         }
 
-        IBrush brush = highlight ? EdgeHoverBrush : WhiteBrush;
+        IBrush brush = highlight ? ThemeResources.Feedback : ThemeResources.NodeText;
         if (circles.src is not null) circles.src.Fill = brush;
         if (circles.dst is not null) circles.dst.Fill = brush;
     }
@@ -232,20 +226,20 @@ public sealed class GraphScene
 
         var border = new Border
         {
-            CornerRadius = new CornerRadius(8),
-            Background = new SolidColorBrush(GraphLayout.GetKindColor(node.Kind)),
+            CornerRadius = DesignTokens.CardCornerRadius,
+            Background = GraphLayout.GetKindBrush(node.Kind),
             Padding = new Thickness(isTarget ? 13 : 10, isTarget ? 7 : 4),
             MinWidth = GraphLayout.BoxWidth,
             Height = hasName ? GraphLayout.NamedBoxHeight : GraphLayout.BoxHeight,
             // Constant thickness (3 for the target, 2 otherwise) so hover
             // never shifts the text; the brush is set by SetBoxBorder.
-            BorderBrush = isTarget ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)) : Brushes.Transparent,
+            BorderBrush = isTarget ? ThemeResources.NodeTargetStroke : Brushes.Transparent,
             BorderThickness = isTarget ? new Thickness(3) : new Thickness(2),
         };
 
         var text = new TextBlock
         {
-            Foreground = Brushes.White,
+            Foreground = ThemeResources.NodeText,
             FontWeight = FontWeight.SemiBold,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Text = hasName ? name! : $"{node.Expression.GetType().Name}  (#{node.Index})",
@@ -257,8 +251,8 @@ public sealed class GraphScene
             // The type is secondary when the name is primary.
             lines.Add(new TextBlock
             {
-                Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
-                FontSize = 11,
+                Foreground = ThemeResources.NodeTextSecondary,
+                FontSize = DesignTokens.CaptionFontSize,
                 TextTrimming = TextTrimming.CharacterEllipsis,
                 Text = $"{node.Expression.GetType().Name}  #{node.Index}",
             });
@@ -266,9 +260,9 @@ public sealed class GraphScene
 
         lines.Add(new TextBlock
         {
-            Foreground = new SolidColorBrush(MediaColor.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
-            FontSize = 11,
-            FontFamily = new FontFamily("Cascadia Code, Consolas, monospace"),
+            Foreground = ThemeResources.NodeTextSecondary,
+            FontSize = DesignTokens.CaptionFontSize,
+            FontFamily = DesignTokens.FontFamilyCode,
             TextTrimming = TextTrimming.CharacterEllipsis,
             Text = ValueFormatter.Format(node.Expression),
         });
@@ -336,8 +330,8 @@ public sealed class GraphScene
             {
                 Width = radius * 2,
                 Height = radius * 2,
-                Fill = Brushes.White,
-                Stroke = new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF)),
+                Fill = ThemeResources.NodeText,
+                Stroke = ThemeResources.NodeTargetStroke,
                 StrokeThickness = 1,
             };
             Canvas.SetLeft(circle, edgeX - radius);
@@ -353,14 +347,15 @@ public sealed class GraphScene
             circle.PointerMoved += (_, e) => _interaction.OnPortMoved(circle, e);
 
             // Permanent label: to the left of input ports, to the right of
-            // output ports. Fully opaque white, 11px, with a background
-            // mask. Added to the node container so it moves with the node.
+            // output ports. Opaque (token) white, caption size, with a
+            // background mask. Added to the node container so it moves with
+            // the node.
             if (port.Name.Length > 0)
             {
                 var label = new TextBlock
                 {
-                    FontSize = 11,
-                    Foreground = Brushes.White,
+                    FontSize = DesignTokens.CaptionFontSize,
+                    Foreground = ThemeResources.NodeText,
                     Text = port.Name,
                     IsHitTestVisible = false,
                 };

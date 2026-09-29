@@ -1,11 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 if (args.Length > 0 && args[0] == "--analyze")
 {
-    foreach (string f in args.Skip(1))
+    // --light switches the expected palette to the Light-theme node colors
+    // (for the "dialog,light" screenshot mode); default is the Dark palette.
+    bool light = false;
+    var files = new List<string>();
+    foreach (string a in args.Skip(1))
     {
-        AnalyzePng.Analyze(f);
+        if (a == "--light") { light = true; continue; }
+        files.Add(a);
+    }
+    foreach (string f in files)
+    {
+        AnalyzePng.Analyze(f, light ? "light" : "dark");
     }
 }
 else if (args.Length > 0 && args[0] == "--diag")
@@ -31,6 +41,6 @@ else if (args.Length > 0)
 }
 else
 {
-    Console.WriteLine("usage: ui-check [--analyze <png>...] [--diag <file>...] [--graph <file>...] [<file.dwg|file.dxf>...]");
+    Console.WriteLine("usage: ui-check [--analyze <png>... [--light]] [--diag <file>...] [--graph <file>...] [<file.dwg|file.dxf>...]");
     Console.WriteLine("  (default: audit edge layout — provider-to-the-right-of-consumer anomalies)");
 }

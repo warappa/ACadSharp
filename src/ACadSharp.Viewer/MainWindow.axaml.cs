@@ -26,16 +26,6 @@ public partial class MainWindow : Window
 {
     private enum StatusKind { Neutral, Success, Error }
 
-    private static readonly MediaColor ErrorColor = MediaColor.Parse("#D13438");
-    private static readonly MediaColor SuccessColor = MediaColor.Parse("#2E9E5B");
-
-    // FluentAvalonia 3.x accent presets — applied to the theme instance's
-    // CustomAccentColor (3.x has no ApplicationAccentColorManager).
-    private static readonly MediaColor AccentBlue = MediaColor.Parse("#0078D4");
-    private static readonly MediaColor AccentRed = MediaColor.Parse("#D13438");
-    private static readonly MediaColor AccentGreen = MediaColor.Parse("#2E9E5B");
-    private static readonly MediaColor AccentPurple = MediaColor.Parse("#8764B8");
-
     // First-run flag for the teaching tip (user profile, not the repo).
     private static string FirstRunFlagPath =>
         Path.Combine(
@@ -547,10 +537,10 @@ public partial class MainWindow : Window
         MediaColor? accent = (sender as FAMenuFlyoutItem)?.CommandParameter switch
         {
             "AccentDefault" => null,
-            "AccentBlue" => AccentBlue,
-            "AccentRed" => AccentRed,
-            "AccentGreen" => AccentGreen,
-            "AccentPurple" => AccentPurple,
+            "AccentBlue" => ThemeResources.AccentBlue,
+            "AccentRed" => ThemeResources.AccentRed,
+            "AccentGreen" => ThemeResources.AccentGreen,
+            "AccentPurple" => ThemeResources.AccentPurple,
             _ => null,
         };
 
@@ -641,8 +631,8 @@ public partial class MainWindow : Window
         StatusText.Text = text;
         StatusText.Foreground = kind switch
         {
-            StatusKind.Error => new SolidColorBrush(ErrorColor),
-            StatusKind.Success => new SolidColorBrush(SuccessColor),
+            StatusKind.Error => ThemeResources.StatusError,
+            StatusKind.Success => ThemeResources.StatusSuccess,
             _ => null, // revert to the styled (tertiary) default
         };
     }

@@ -11,12 +11,24 @@ class TestApp : Avalonia.Application { }
 // Scans a screenshot for the node-box colors and reports their bounding boxes.
 static class AnalyzePng
 {
-    static readonly (string name, byte r, byte g, byte b)[] Colors =
+    // The expected node-box colors, per theme (the design tokens in
+    // DesignTokens.axaml): the Dark values are the canonical palette, the
+    // Light values are the same hues moved to darker neutrals.
+    static readonly (string name, byte r, byte g, byte b)[] DarkColors =
     {
         ("Parameter", 0x3D, 0x7E, 0xBF),
         ("Grip", 0x3D, 0x9E, 0x5F),
         ("Action", 0xC7, 0x7B, 0x3D),
         ("Component", 0x7A, 0x7A, 0x7A),
+        ("FeedbackOrange", 0xE8, 0xA3, 0x3D),
+    };
+
+    static readonly (string name, byte r, byte g, byte b)[] LightColors =
+    {
+        ("Parameter", 0x0F, 0x6C, 0xBD),
+        ("Grip", 0x0F, 0x7B, 0x0F),
+        ("Action", 0x9D, 0x5D, 0x00),
+        ("Component", 0x6E, 0x6E, 0x6E),
         ("FeedbackOrange", 0xE8, 0xA3, 0x3D),
     };
 
@@ -39,8 +51,11 @@ static class AnalyzePng
         public void Dispose() { Handle.Free(); }
     }
 
-    public static void Analyze(string path)
+    public static void Analyze(string path, string palette = "dark")
     {
+        (string name, byte r, byte g, byte b)[] colors =
+            string.Equals(palette, "light", StringComparison.OrdinalIgnoreCase) ? LightColors : DarkColors;
+        Console.WriteLine($"palette: {(colors == LightColors ? "light" : "dark")}");
         Avalonia.AppBuilder.Configure<TestApp>()
             .UseHeadless(new Avalonia.Headless.AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
             .UseSkia()
@@ -56,15 +71,15 @@ static class AnalyzePng
             return (data[i + 2], data[i + 1], data[i]); // BGRA -> RGB
         }
         var hits = new Dictionary<string, List<(int x, int y)>>();
-        foreach (var c in Colors) { hits[c.name] = new List<(int, int)>(); }
+        foreach (var c in colors) { hits[c.name] = new List<(int, int)>(); }
         for (int y = 0; y < h; y++)
         {
             for (int x = 0; x < w; x++)
             {
                 var (r, g, b) = Pixel(x, y);
-                for (int i = 0; i < Colors.Length; i++)
+                for (int i = 0; i < colors.Length; i++)
                 {
-                    var c = Colors[i];
+                    var c = colors[i];
                     if (Math.Abs(r - c.r) <= 6 && Math.Abs(g - c.g) <= 6 && Math.Abs(b - c.b) <= 6)
                     {
                         hits[c.name].Add((x, y));

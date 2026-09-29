@@ -6,7 +6,6 @@ using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Media;
-using MediaColor = Avalonia.Media.Color;
 
 namespace ACadSharp.Viewer.Controls;
 
@@ -53,15 +52,6 @@ public sealed class GraphInteraction
     // current handler, even if the host reassigns it after construction).
     private readonly Func<Action<int, Vector>?> _getNodeMoved;
     private readonly Func<Action<string>?> _getOnNodeClicked;
-
-    // The brushes the interaction applies to element visuals (hardcoded,
-    // theme-independent; the accent selection ring is resolved from the
-    // active theme via GraphLayout.GetAccentBrush).
-    private static readonly IBrush WhiteBrush = new SolidColorBrush(MediaColor.FromArgb(0xFF, 0xFF, 0xFF, 0xFF));
-    private static readonly IBrush HoverBrush = new SolidColorBrush(MediaColor.Parse("#FFD0D0D0"));
-    private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
-    private static readonly IBrush EdgeLabelBrush = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80));
-    private static readonly IBrush EdgeHoverBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
 
     // Interaction state: a box press first parks in _pendingSelectBox and
     // becomes a drag once the pointer moves past the drag threshold.
@@ -276,22 +266,22 @@ public sealed class GraphInteraction
 
     public void OnPortEntered(Ellipse circle, PortInfo port, bool isInput, PointerEventArgs e)
     {
-        circle.Fill = EdgeHoverBrush;
+        circle.Fill = ThemeResources.Feedback;
         if (_state.CircleToEdge.TryGetValue(circle, out var edgeLine))
         {
             edgeLine.StrokeThickness = 3;
-            edgeLine.Stroke = EdgeHoverBrush;
+            edgeLine.Stroke = ThemeResources.Feedback;
         }
         _tooltip.ShowPort(port, isInput, e.GetPosition(_overlay));
     }
 
     public void OnPortExited(Ellipse circle, PortInfo port, bool isInput)
     {
-        circle.Fill = Brushes.White;
+        circle.Fill = ThemeResources.NodeText;
         if (_state.CircleToEdge.TryGetValue(circle, out var edgeLine))
         {
             edgeLine.StrokeThickness = 1.5;
-            edgeLine.Stroke = EdgeLineBrush;
+            edgeLine.Stroke = ThemeResources.EdgeLine;
         }
         _tooltip.Hide();
     }
@@ -304,9 +294,9 @@ public sealed class GraphInteraction
     public void OnEdgeLabelEntered(Border labelMask, Path line, Path? arrowhead, TextBlock label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, PointerEventArgs e)
     {
         line.StrokeThickness = 3;
-        line.Stroke = EdgeHoverBrush;
-        if (arrowhead is not null) arrowhead.Fill = EdgeHoverBrush;
-        label.Foreground = EdgeHoverBrush;
+        line.Stroke = ThemeResources.Feedback;
+        if (arrowhead is not null) arrowhead.Fill = ThemeResources.Feedback;
+        label.Foreground = ThemeResources.Feedback;
         label.FontWeight = FontWeight.SemiBold;
         _setPortHighlight(line, true);
         _tooltip.ShowEdge(edge, fromNode, toNode, e.GetPosition(_overlay));
@@ -315,9 +305,9 @@ public sealed class GraphInteraction
     public void OnEdgeLabelExited(Border labelMask, Path line, Path? arrowhead, TextBlock label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode)
     {
         line.StrokeThickness = 1.5;
-        line.Stroke = EdgeLineBrush;
-        if (arrowhead is not null) arrowhead.Fill = EdgeLineBrush;
-        label.Foreground = EdgeLabelBrush;
+        line.Stroke = ThemeResources.EdgeLine;
+        if (arrowhead is not null) arrowhead.Fill = ThemeResources.EdgeLine;
+        label.Foreground = ThemeResources.EdgeLabel;
         label.FontWeight = FontWeight.Normal;
         _setPortHighlight(line, false);
         _tooltip.Hide();
@@ -331,14 +321,14 @@ public sealed class GraphInteraction
     public void OnEdgeEntered(Path line, Path? arrowhead, TextBlock? label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, PointerEventArgs e)
     {
         line.StrokeThickness = 3;
-        line.Stroke = EdgeHoverBrush;
+        line.Stroke = ThemeResources.Feedback;
         if (arrowhead is not null)
         {
-            arrowhead.Fill = EdgeHoverBrush;
+            arrowhead.Fill = ThemeResources.Feedback;
         }
         if (label is not null)
         {
-            label.Foreground = EdgeHoverBrush;
+            label.Foreground = ThemeResources.Feedback;
             label.FontWeight = FontWeight.SemiBold;
         }
         _setPortHighlight(line, true);
@@ -348,14 +338,14 @@ public sealed class GraphInteraction
     public void OnEdgeExited(Path line, Path? arrowhead, TextBlock? label, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode)
     {
         line.StrokeThickness = 1.5;
-        line.Stroke = EdgeLineBrush;
+        line.Stroke = ThemeResources.EdgeLine;
         if (arrowhead is not null)
         {
-            arrowhead.Fill = EdgeLineBrush;
+            arrowhead.Fill = ThemeResources.EdgeLine;
         }
         if (label is not null)
         {
-            label.Foreground = EdgeLabelBrush;
+            label.Foreground = ThemeResources.EdgeLabel;
             label.FontWeight = FontWeight.Normal;
         }
         _setPortHighlight(line, false);
@@ -368,7 +358,7 @@ public sealed class GraphInteraction
     }
 
     // The feedback arc: on hover it only thickens (the arc keeps its
-    // FeedbackBrush stroke — no color change), cross-highlights the
+    // Feedback token stroke — no color change), cross-highlights the
     // connected port circles, and shows the tooltip.
     public void OnFeedbackEdgeEntered(Path line, GraphEdgeInfo edge, GraphNodeInfo? fromNode, GraphNodeInfo? toNode, PointerEventArgs e)
     {
@@ -404,10 +394,10 @@ public sealed class GraphInteraction
 
     /// <summary>
     /// Applies the border for a box's current state: the accent selection
-    /// ring wins, then the hover highlight, then the default (a dim white
-    /// ring for the target, invisible otherwise). The thickness is constant
-    /// per box (3 for the target, 2 otherwise) so the inner text never
-    /// shifts when the hover state changes — only the brush changes
+    /// ring wins, then the hover highlight (the token white / gray ring),
+    /// then the default (the target ring, invisible otherwise). The thickness
+    /// is constant per box (3 for the target, 2 otherwise) so the inner text
+    /// never shifts when the hover state changes — only the brush changes
     /// (transparent = invisible but still reserves the border slot).
     /// </summary>
     public void SetBoxBorder(Border border, bool isTarget, bool hovered)
@@ -422,12 +412,12 @@ public sealed class GraphInteraction
 
         if (hovered)
         {
-            border.BorderBrush = isTarget ? WhiteBrush : HoverBrush;
+            border.BorderBrush = isTarget ? ThemeResources.NodeText : ThemeResources.NodeHover;
             return;
         }
 
         border.BorderBrush = isTarget
-            ? new SolidColorBrush(MediaColor.FromArgb(0x80, 0xFF, 0xFF, 0xFF))
+            ? ThemeResources.NodeTargetStroke
             : Brushes.Transparent;
     }
 

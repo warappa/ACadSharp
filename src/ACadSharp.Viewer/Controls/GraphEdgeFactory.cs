@@ -7,7 +7,6 @@ using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Media;
-using MediaColor = Avalonia.Media.Color;
 
 namespace ACadSharp.Viewer.Controls;
 
@@ -31,13 +30,6 @@ public sealed class GraphEdgeFactory
     // The shared element state (the node offsets / base positions / box
     // heights / edge records / pending edges + labels / first labeled edge).
     private readonly GraphElementState _state;
-
-    // The edge brushes (hardcoded, theme-independent; the label masks use
-    // ThemeResources.CanvasBackground).
-    private static readonly IBrush EdgeLineBrush = new SolidColorBrush(MediaColor.FromArgb(0xB0, 0x9A, 0x9A, 0x9A));
-    private static readonly IBrush EdgeLabelBrush = new SolidColorBrush(MediaColor.FromArgb(0xE0, 0x80, 0x80, 0x80));
-    private static readonly IBrush FeedbackBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
-    private static readonly IBrush FeedbackLabelBrush = new SolidColorBrush(MediaColor.Parse("#E8A33D"));
 
     public GraphEdgeFactory(Canvas canvas, GraphInteraction interaction, GraphElementState state)
     {
@@ -92,7 +84,7 @@ public sealed class GraphEdgeFactory
         var line = new Path
         {
             Data = geometry,
-            Stroke = EdgeLineBrush,
+            Stroke = ThemeResources.EdgeLine,
             StrokeThickness = 1.5,
         };
         if (edge.IsDashed)
@@ -136,8 +128,8 @@ public sealed class GraphEdgeFactory
             Point mid = new Point((start.X + end.X) / 2, (start.Y + end.Y) / 2 - 8);
             label = new TextBlock
             {
-                FontSize = 11,
-                Foreground = EdgeLabelBrush,
+                FontSize = DesignTokens.CaptionFontSize,
+                Foreground = ThemeResources.EdgeLabel,
                 Text = edge.Label,
             };
             labelMask = new Border
@@ -208,7 +200,7 @@ public sealed class GraphEdgeFactory
         var line = new Path
         {
             Data = geometry,
-            Stroke = FeedbackBrush,
+            Stroke = ThemeResources.Feedback,
             StrokeThickness = 1.5,
             StrokeDashArray = new AvaloniaList<double> { 6, 4 },
         };
@@ -229,7 +221,7 @@ public sealed class GraphEdgeFactory
         if (dir.SquaredLength > 0.01)
         {
             dir = dir.Normalize();
-            fbArrowhead = AddArrowhead(end, dir, FeedbackBrush);
+            fbArrowhead = AddArrowhead(end, dir, ThemeResources.Feedback);
         }
 
         // Label at the arc apex (bezier midpoint, t = 0.5).
@@ -243,8 +235,8 @@ public sealed class GraphEdgeFactory
 
             var label = new TextBlock
             {
-                FontSize = 11,
-                Foreground = FeedbackLabelBrush,
+                FontSize = DesignTokens.CaptionFontSize,
+                Foreground = ThemeResources.Feedback,
                 Text = edge.Label,
             };
             fbLabelMask = new Border
@@ -269,7 +261,7 @@ public sealed class GraphEdgeFactory
         line.PointerMoved += (_, e) => _interaction.OnEdgeMoved(line, e);
     }
 
-    private Path AddArrowhead(Point at, Vector direction) => AddArrowhead(at, direction, EdgeLineBrush);
+    private Path AddArrowhead(Point at, Vector direction) => AddArrowhead(at, direction, ThemeResources.EdgeLine);
 
     private Path AddArrowhead(Point at, Vector direction, IBrush brush)
     {

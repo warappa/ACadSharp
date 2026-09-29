@@ -15,8 +15,32 @@
     <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="SwatchCornerRadius">3</CornerRadius>
 
+    <!-- Fixed (brand) colors: used identically in both themes. The dialog
+         scrim (a semi-transparent black — mode-agnostic, per the design
+         language), the status-bar colors, and the accent presets the
+         settings flyout applies to the theme's CustomAccentColor. -->
+    <Color x:Key="ScrimColor">#000000</Color>
+    <Color x:Key="StatusErrorColor">#D13438</Color>
+    <Color x:Key="StatusSuccessColor">#2E9E5B</Color>
+    <Color x:Key="AccentChoiceBlue">#0078D4</Color>
+    <Color x:Key="AccentChoiceRed">#D13438</Color>
+    <Color x:Key="AccentChoiceGreen">#2E9E5B</Color>
+    <Color x:Key="AccentChoicePurple">#8764B8</Color>
+
+    <!-- Fixed node-graph colors (theme-invariant): the node fills stay dark
+         enough in both themes for white text (worst case #6E6E6E, 5.1:1),
+         so the node text is white in both; the hover ring and the
+         feedback (hover/selection) orange are fixed hues. -->
+    <Color x:Key="NodeTextColor">#FFFFFF</Color>
+    <Color x:Key="NodeTextSecondaryColor">#CCFFFFFF</Color>
+    <Color x:Key="NodeHoverColor">#D0D0D0</Color>
+    <Color x:Key="FeedbackColor">#E8A33D</Color>
+
     <!-- Theme-dependent (mirrors the FA 3.0.2 pattern: plain keys in Default/Dark
-         sub-dictionaries; Default = Light) -->
+         sub-dictionaries; Default = Light). The node colors share the legend's
+         keys (NodeViewerDialog) so code-drawn nodes and the legend agree
+         across theme switches; the Light values are the Dark values moved to
+         darker neutrals (hierarchy by lightness, not hue). -->
     <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Default">
             <Color x:Key="NodeParameterColor">#0F6CBD</Color>
@@ -24,6 +48,10 @@
             <Color x:Key="NodeActionColor">#9D5D00</Color>
             <Color x:Key="NodeComponentColor">#6E6E6E</Color>
             <Color x:Key="NodeTargetStrokeColor">#4D4D4D</Color>
+            <Color x:Key="NodeOtherColor">#6F529B</Color>
+            <Color x:Key="EdgeLineColor">#B0707070</Color>
+            <Color x:Key="EdgeLabelColor">#E0616161</Color>
+            <Color x:Key="ViewRectColor">#30000000</Color>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
             <Color x:Key="NodeParameterColor">#3D7EBF</Color>
@@ -31,6 +59,10 @@
             <Color x:Key="NodeActionColor">#C77B3D</Color>
             <Color x:Key="NodeComponentColor">#7A7A7A</Color>
             <Color x:Key="NodeTargetStrokeColor">#FFFFFF</Color>
+            <Color x:Key="NodeOtherColor">#8E6FBF</Color>
+            <Color x:Key="EdgeLineColor">#B09A9A9A</Color>
+            <Color x:Key="EdgeLabelColor">#E0808080</Color>
+            <Color x:Key="ViewRectColor">#30FFFFFF</Color>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 </ResourceDictionary>
