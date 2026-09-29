@@ -266,11 +266,18 @@ internal partial class DwgObjectReader : DwgSectionIO
 		CadBlockHorizontalConstraintParameterTemplate template = new CadBlockHorizontalConstraintParameterTemplate(parameter);
 
 		// The 2pt base (the first/second point, the point displacements, the grip ids and
-		// the base location). The evaluation only needs this; the trailing region (label,
-		// description, label offset, value set and more) is a large, variable region that is
-		// not decoded. The readers are re-positioned per object, so the unconsumed tail is
-		// safely discarded.
+		// the base location).
 		this.readBlock2PtParameter(template);
+
+		//305
+		parameter.Label = this._mergedReaders.ReadVariableText();
+		//306
+		parameter.Description = this._mergedReaders.ReadVariableText();
+		//140
+		parameter.LabelOffset = this._mergedReaders.ReadBitDouble();
+
+		//307
+		parameter.ValueSet = this.readParameterValueSet();
 
 		return template;
 	}
@@ -280,8 +287,18 @@ internal partial class DwgObjectReader : DwgSectionIO
 		BlockVerticalConstraintParameter parameter = new();
 		CadBlockVerticalConstraintParameterTemplate template = new CadBlockVerticalConstraintParameterTemplate(parameter);
 
-		// See readBlockHorizontalConstraintParameter: only the 2pt base is decoded.
+		// The 2pt base (see readBlockHorizontalConstraintParameter).
 		this.readBlock2PtParameter(template);
+
+		//305
+		parameter.Label = this._mergedReaders.ReadVariableText();
+		//306
+		parameter.Description = this._mergedReaders.ReadVariableText();
+		//140
+		parameter.LabelOffset = this._mergedReaders.ReadBitDouble();
+
+		//307
+		parameter.ValueSet = this.readParameterValueSet();
 
 		return template;
 	}
@@ -294,9 +311,11 @@ internal partial class DwgObjectReader : DwgSectionIO
 		// The element + parameter prefix (the common header is read by readEvaluationExpression).
 		this.readBlockParameter(template);
 
-		// The value (a double). The trailing region (value set and more) is a variable region
-		// that is not decoded; the readers are re-positioned per object, so it is discarded.
+		// The value (a double).
 		parameter.Value = this._mergedReaders.ReadBitDouble();
+
+		// The value set (307).
+		parameter.ValueSet = this.readParameterValueSet();
 
 		return template;
 	}

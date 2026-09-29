@@ -270,25 +270,35 @@ internal partial class DwgObjectWriter : DwgSectionIO
 	private void writeBlockHorizontalConstraintParameter(BlockHorizontalConstraintParameter parameter)
 	{
 		// The 2pt base (the first/second point, the point displacements, the grip ids and
-		// the base location). The trailing region (label, description, label offset, value
-		// set, and more) is a large, variable region that is not written; the readers are
-		// re-positioned per object, so the object is complete with the 2pt prefix.
+		// the base location), then the label, description, label offset and value set.
 		this.writeBlock2PtParameter(parameter);
+
+		this._writer.WriteVariableText(parameter.Label);
+		this._writer.WriteVariableText(parameter.Description);
+		this._writer.WriteBitDouble(parameter.LabelOffset);
+
+		this.writeParameterValueSet(parameter.ValueSet);
 	}
 
 	private void writeBlockVerticalConstraintParameter(BlockVerticalConstraintParameter parameter)
 	{
-		// See writeBlockHorizontalConstraintParameter: only the 2pt base is written.
+		// See writeBlockHorizontalConstraintParameter.
 		this.writeBlock2PtParameter(parameter);
+
+		this._writer.WriteVariableText(parameter.Label);
+		this._writer.WriteVariableText(parameter.Description);
+		this._writer.WriteBitDouble(parameter.LabelOffset);
+
+		this.writeParameterValueSet(parameter.ValueSet);
 	}
 
 	private void writeBlockUserParameter(BlockUserParameter parameter)
 	{
-		// The element + parameter prefix, then the value (a double). The trailing region
-		// (value set and more) is not written; the readers are re-positioned per object.
+		// The element + parameter prefix, then the value (a double) and the value set.
 		this.writeBlockParameter(parameter);
 
 		this._writer.WriteBitDouble(parameter.Value);
+		this.writeParameterValueSet(parameter.ValueSet);
 	}
 
 	private void writeBlockDynamicBlockProxyNode(BlockDynamicBlockProxyNode node)

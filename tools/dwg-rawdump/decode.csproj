@@ -7,4 +7,8 @@
     <AssemblyName>decode</AssemblyName>
     <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
   </PropertyGroup>
+  <ItemGroup>
+    <!--Reference copy only: it depends on library-internal members and does not compile standalone.-->
+    <Compile Remove="RawObjectDumpTests.cs" />
+  </ItemGroup>
 </Project>
