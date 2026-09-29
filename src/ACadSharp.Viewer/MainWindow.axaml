@@ -16,20 +16,20 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="{StaticResource Space4}">
                     <TextBlock Text="ACadSharp Viewer" FontWeight="SemiBold" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center" />
-                    <Button x:Name="OpenButton" Click="OnOpenClick" Padding="8,4">
+                    <Button x:Name="OpenButton" Click="OnOpenClick" Padding="10,0" MinHeight="32">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                             <ui:FASymbolIcon Symbol="OpenFile" />
                             <TextBlock Text="Open…" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="ReloadButton" Click="OnReloadClick" IsEnabled="False" Padding="8,4">
+                    <Button x:Name="ReloadButton" Click="OnReloadClick" IsEnabled="False" Padding="10,0" MinHeight="32">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                             <ui:FASymbolIcon Symbol="Refresh" />
                             <TextBlock Text="Reload" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
-                <Button x:Name="SettingsButton" DockPanel.Dock="Right" Padding="8,4" Focusable="False"
+                <Button x:Name="SettingsButton" DockPanel.Dock="Right" Padding="10,0" MinHeight="32" Focusable="False"
                        ToolTip.Tip="Appearance — theme and accent">
                     <ui:FASymbolIcon Symbol="Settings" />
                     <Button.Flyout>
@@ -57,7 +57,7 @@
                         </ui:FAMenuFlyout>
                     </Button.Flyout>
                 </Button>
-                <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" IsChecked="True" Click="OnThemeToggleClick" Padding="8,4">
+                <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" IsChecked="True" Click="OnThemeToggleClick" Padding="10,0" MinHeight="32">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                         <ui:FASymbolIcon x:Name="ThemeIcon" Symbol="DarkTheme" />
                         <TextBlock x:Name="ThemeLabel" Text="Dark" />
@@ -76,13 +76,13 @@
                 <Border Grid.Column="0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,1,0">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="8,8,8,4">
-                            <TextBox x:Name="TreeSearchBox" Grid.Column="0" Margin="0,0,8,0"
+                            <TextBox x:Name="TreeSearchBox" Grid.Column="0" Margin="0,0,8,0" MinHeight="32"
                                      PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged" />
-                            <Button Grid.Column="1" Click="OnExpandAllClick" Padding="8,2" Focusable="False"
+                            <Button Grid.Column="1" Click="OnExpandAllClick" Padding="10,0" MinHeight="32" Focusable="False"
                                    ToolTip.Tip="Expand all blocks">
                                 <ui:FASymbolIcon Symbol="ChevronDown" />
                             </Button>
-                            <Button Grid.Column="2" Click="OnCollapseAllClick" Padding="8,2" Focusable="False"
+                            <Button Grid.Column="2" Click="OnCollapseAllClick" Padding="10,0" MinHeight="32" Focusable="False"
                                    ToolTip.Tip="Collapse all blocks">
                                 <ui:FASymbolIcon Symbol="ChevronUp" />
                             </Button>
