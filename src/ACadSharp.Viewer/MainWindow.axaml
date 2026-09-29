@@ -81,8 +81,23 @@
                 <Border Grid.Column="0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,1,0">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="8,8,8,4">
-                            <TextBox x:Name="TreeSearchBox" Grid.Column="0" Margin="0,0,8,0" MinHeight="32"
-                                     PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged" />
+                            <!-- Real search affordance: a Find (magnifier) icon inside a rounded
+                                 field. 3.0.2 has no SearchBox control, so this is the idiomatic
+                                 composition; the TextBox is borderless/transparent and the Border
+                                 is the visual frame. -->
+                            <Border Grid.Column="0" Margin="0,0,8,0" MinHeight="32" CornerRadius="6"
+                                    Background="{DynamicResource ControlFillColorSecondary}"
+                                    BorderBrush="{DynamicResource ControlStrokeColorDefault}"
+                                    BorderThickness="1">
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <ui:FASymbolIcon Grid.Column="0" Symbol="Find" FontSize="16"
+                                                      Foreground="{DynamicResource TextFillColorSecondary}"
+                                                      VerticalAlignment="Center" Margin="10,0,6,0" />
+                                    <TextBox Grid.Column="1" x:Name="TreeSearchBox" Background="Transparent"
+                                             BorderThickness="0" Padding="0"
+                                             PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged" />
+                                </Grid>
+                            </Border>
                             <Button Grid.Column="1" Click="OnExpandAllClick" Padding="10,0" MinHeight="32" Focusable="False"
                                    ToolTip.Tip="Expand all blocks">
                                 <ui:FASymbolIcon Symbol="ChevronDown" />
