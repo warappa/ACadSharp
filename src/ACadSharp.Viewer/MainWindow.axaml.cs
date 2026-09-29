@@ -191,6 +191,38 @@ public partial class MainWindow : Window
         await ReloadAsync();
     }
 
+    // --- Custom titlebar (ExtendClientAreaToDecorationsHint) -------------------
+    // The OS window frame is extended into the client area, so we draw our own
+    // title strip + caption buttons. The whole strip is draggable; the caption
+    // buttons swallow the press (so the drag doesn't start) and perform the action.
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        BeginMoveDrag(e);
+    }
+
+    private void OnCaptionPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        e.Handled = true; // stop the titlebar drag from starting
+    }
+
+    private void OnMinimizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void OnMaximizeClick(object? sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        UpdateMaximizeGlyph();
+    }
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
+
+    private void UpdateMaximizeGlyph()
+    {
+        if (MaximizeIcon is FASymbolIcon icon)
+        {
+            icon.Symbol = WindowState == WindowState.Maximized ? FASymbol.Restore : FASymbol.FullScreenMaximize;
+        }
+    }
+
     private async Task OpenFileAsync()
     {
         if (_isBusy)

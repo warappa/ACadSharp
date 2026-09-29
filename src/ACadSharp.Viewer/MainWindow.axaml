@@ -7,15 +7,46 @@
         Title="ACadSharp Viewer"
         Width="1100" Height="700"
         MinWidth="700" MinHeight="400"
-        KeyDown="OnKeyDown">
+        KeyDown="OnKeyDown"
+        ExtendClientAreaToDecorationsHint="True">
     <Window.Resources>
         <conv:ValueForegroundConverter x:Key="ValueForeground" />
     </Window.Resources>
     <DockPanel>
+        <!-- App-drawn titlebar. With ExtendClientAreaToDecorationsHint the OS window
+             frame is extended into the client area, so we draw our own title strip +
+             caption buttons. The whole strip is draggable (OnTitleBarPointerPressed);
+             the caption buttons swallow the press (OnCaptionPointerPressed) and perform
+             the window action. The file name lives here (moved off the command bar). -->
+        <Border DockPanel.Dock="Top" Height="36" Background="{DynamicResource SolidBackgroundFillColorBase}"
+                PointerPressed="OnTitleBarPointerPressed">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0"
+                           VerticalAlignment="Center">
+                    <TextBlock Text="ACadSharp Viewer" FontWeight="SemiBold" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorSecondary}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="FileNameText" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                    <Button x:Name="MinimizeButton" Click="OnMinimizeClick" PointerPressed="OnCaptionPointerPressed"
+                            Width="46" Padding="0" Background="Transparent" BorderThickness="0" ToolTip.Tip="Minimize">
+                        <ui:FASymbolIcon Symbol="FullScreenMinimize" FontSize="12" Foreground="{DynamicResource TextFillColorSecondary}" />
+                    </Button>
+                    <Button x:Name="MaximizeButton" Click="OnMaximizeClick" PointerPressed="OnCaptionPointerPressed"
+                            Width="46" Padding="0" Background="Transparent" BorderThickness="0" ToolTip.Tip="Maximize / Restore">
+                        <ui:FASymbolIcon x:Name="MaximizeIcon" Symbol="FullScreenMaximize" FontSize="12" Foreground="{DynamicResource TextFillColorSecondary}" />
+                    </Button>
+                    <Button x:Name="CloseButton" Click="OnCloseClick" PointerPressed="OnCaptionPointerPressed"
+                            Width="46" Padding="0" Background="Transparent" BorderThickness="0" ToolTip.Tip="Close">
+                        <ui:FASymbolIcon Symbol="Dismiss" FontSize="12" Foreground="{DynamicResource TextFillColorSecondary}" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
         <Border DockPanel.Dock="Top" Padding="8,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="{StaticResource Space4}">
-                    <TextBlock Text="ACadSharp Viewer" FontWeight="SemiBold" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center" />
                     <Button x:Name="OpenButton" Click="OnOpenClick" Padding="10,0" MinHeight="32">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                             <ui:FASymbolIcon Symbol="OpenFile" />
@@ -68,7 +99,6 @@
                         <TextBlock x:Name="ThemeLabel" Text="Dark" />
                     </StackPanel>
                 </Button>
-                <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorTertiary}" />
             </DockPanel>
         </Border>
         <!-- Fixed status slot: a persistent bar (top separator) whose text changes
