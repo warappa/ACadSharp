@@ -92,9 +92,20 @@
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            <TextBlock x:Name="TreeEmptyText" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource TextFillColorTertiary}"
-                                       Text="No file loaded — open a .dwg or .dxf (Ctrl+O)" />
+                            <!-- Empty state: icon + title + description, centered over
+                                 the (empty) tree. The C# (ApplyTreeFilter) swaps the
+                                 title/description/icon per state and toggles visibility. -->
+                            <StackPanel x:Name="TreeEmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Spacing="{StaticResource Space2}">
+                                <ui:FASymbolIcon x:Name="TreeEmptyIcon" Symbol="OpenFile" FontSize="24"
+                                                 Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="TreeEmptyTitle" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource TextFillColorSecondary}" HorizontalAlignment="Center" Text="No file loaded" />
+                                <TextBlock x:Name="TreeEmptyDesc" FontSize="{StaticResource BodyFontSize}"
+                                           Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center"
+                                           TextWrapping="Wrap" MaxWidth="240"
+                                           Text="Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs." />
+                            </StackPanel>
                         </Grid>
                         <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="{StaticResource Space6}" Margin="8,4,8,8">
                             <TextBlock Text="⚡ dynamic" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
@@ -143,7 +154,20 @@
                                 </DataGridTemplateColumn>
                             </DataGrid.Columns>
                         </DataGrid>
-                        <TextBlock x:Name="PlaceholderText" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiary}" Text="No file loaded" />
+                        <!-- Empty state: icon + title + description, centered over the
+                             (empty) property grid. The C# swaps the title/description/
+                             icon per state and toggles visibility. -->
+                        <StackPanel x:Name="PlaceholderPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Spacing="{StaticResource Space2}">
+                            <ui:FASymbolIcon x:Name="PlaceholderIcon" Symbol="OpenFile" FontSize="24"
+                                             Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center" />
+                            <TextBlock x:Name="PlaceholderTitle" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
+                                       Foreground="{DynamicResource TextFillColorSecondary}" HorizontalAlignment="Center" Text="No file loaded" />
+                            <TextBlock x:Name="PlaceholderDesc" FontSize="{StaticResource BodyFontSize}"
+                                       Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center"
+                                       TextWrapping="Wrap" MaxWidth="320"
+                                       Text="Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs." />
+                        </StackPanel>
                     </Grid>
                 </Grid>
                 <ui:FAProgressRing x:Name="LoadingRing" Grid.Column="2" IsVisible="False" Width="48" Height="48"

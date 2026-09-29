@@ -104,10 +104,37 @@ public partial class MainWindow : Window
                 .ToList();
 
         BlockTree.ItemsSource = visible;
-        TreeEmptyText.Text = visible.Count == 0
-            ? (query.Length == 0 ? "No file loaded — open a .dwg or .dxf (Ctrl+O)" : "No blocks match")
-            : string.Empty;
-        TreeEmptyText.IsVisible = visible.Count == 0;
+        if (visible.Count == 0)
+        {
+            bool noFile = query.Length == 0;
+            SetEmptyState(
+                TreeEmptyIcon, TreeEmptyTitle, TreeEmptyDesc, TreeEmptyPanel,
+                noFile ? FASymbol.OpenFile : FASymbol.Document,
+                noFile ? "No file loaded" : "No blocks match",
+                noFile
+                    ? "Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs."
+                    : $"No blocks match \"{query}\".",
+                visible: true);
+        }
+        else
+        {
+            TreeEmptyPanel.IsVisible = false;
+        }
+    }
+
+    /// <summary>
+    /// Shows a standard empty state (icon + title + description) for the tree or
+    /// property grid: sets the icon glyph, the title and description text, and
+    /// toggles the container's visibility.
+    /// </summary>
+    private static void SetEmptyState(
+        FASymbolIcon icon, TextBlock title, TextBlock desc, Control panel,
+        FASymbol symbol, string titleText, string descText, bool visible)
+    {
+        icon.Symbol = symbol;
+        title.Text = titleText;
+        desc.Text = descText;
+        panel.IsVisible = visible;
     }
 
     /// <summary>
@@ -272,8 +299,12 @@ public partial class MainWindow : Window
             EvalStatus.Text = string.Empty;
             _properties = null;
             PropertyGrid.ItemsSource = null;
-            PlaceholderText.Text = "Select a block in the tree to see its properties.";
-            PlaceholderText.IsVisible = true;
+            SetEmptyState(
+                PlaceholderIcon, PlaceholderTitle, PlaceholderDesc, PlaceholderPanel,
+                FASymbol.OpenFolder,
+                "No block selected",
+                "Select a block in the tree to see its properties and evaluation values.",
+                visible: true);
 
             SetStatus($"Loaded {Path.GetFileName(path)}: {total} block(s), {_fullTree.Count} root(s).", StatusKind.Success);
             ShowInfoBar(
@@ -355,8 +386,12 @@ public partial class MainWindow : Window
             EvalStatus.Text = "Not a dynamic block (no evaluation graph).";
             _properties = null;
             PropertyGrid.ItemsSource = null;
-            PlaceholderText.Text = "This block has no parameters.";
-            PlaceholderText.IsVisible = true;
+            SetEmptyState(
+                PlaceholderIcon, PlaceholderTitle, PlaceholderDesc, PlaceholderPanel,
+                FASymbol.ContactInfo,
+                "Not a dynamic block",
+                "This block has no evaluation graph, so it has no parameters.",
+                visible: true);
             return;
         }
 
@@ -366,8 +401,12 @@ public partial class MainWindow : Window
 
         _properties = model.Properties;
         PropertyGrid.ItemsSource = model.Properties;
-        PlaceholderText.Text = "No parameters in this block.";
-        PlaceholderText.IsVisible = model.Properties.Count == 0;
+        SetEmptyState(
+            PlaceholderIcon, PlaceholderTitle, PlaceholderDesc, PlaceholderPanel,
+            FASymbol.ContactInfo,
+            "No parameters",
+            "This dynamic block has no parameters.",
+            visible: model.Properties.Count == 0);
     }
 
     private void OnInfoClick(object? sender, RoutedEventArgs e)
