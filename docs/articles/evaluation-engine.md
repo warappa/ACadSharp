@@ -79,7 +79,7 @@ The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not 
 
 ## Per-class `Evaluate` formulas
 
-`CurrentValue` is an `EvaluationValue` (the "object"); the **shape** column is the `T` of the leaf's typed `CurrentValue` view (`EvaluationValue<T>`). **Point** = the whole (X, Y) value; **Scalar** = a single `double`.
+`CurrentValue` is an `EvaluationValue` (the "object"); the **shape** column is the `T` of the leaf's typed `CurrentValue` view (`EvaluationValue<T>`). **Point** = the whole (X, Y) value; **Scalar** = a single `double`. (The `BlockLookupParameter` is the one exception: its shape is **table-driven and type-variable** — a string for a text column, a scalar for a numeric column — so it has no fixed typed view and is read through the type-agnostic base `CurrentValue`.)
 
 | Class | `CurrentValue` (shape) | Writes to the context |
 |-------|------------------------|----------------------|
@@ -93,7 +93,7 @@ The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not 
 | `BlockPointParameter` | the full (X, Y) **displacement** (Point) | `XDelta`/`YDelta`; `UpdatedX/Y` |
 | `BlockFlipParameter` | the **flip state** (0/1, Scalar) | `UpdatedFlip` = 0 (default); updated points |
 | `BlockVisibilityParameter` | the **state index** (0, Scalar) | `Value` = 0 (default); updated location |
-| `BlockLookupParameter` | the full (X, Y) **displacement** (Point) | `UpdatedX/Y` (the table is not decoded, so table-driven selection is not implemented) |
+| `BlockLookupParameter` | **type-variable** — the table-driven value of its column: **String** for a text column (DXF `95` = 1), **Scalar** for a numeric column (`95` = 40) — so it has *no fixed typed view* | reads the bound column's matched cell (or its `UnmatchedName` default, type-shaped); `UpdatedX/Y` for the 1-pt location |
 | `BlockScaleAction` | the **scale** factor (Scalar) | reads the `Scale` port |
 | `BlockMoveAction` | the (X, Y) **displacement** (Point) | reads `XDelta`/`YDelta` |
 | `BlockRotationAction` | the **angle** (Scalar) | reads `AngleDelta` |

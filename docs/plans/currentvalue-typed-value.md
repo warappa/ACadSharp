@@ -135,10 +135,18 @@ Each `Evaluate` stores the **whole** value it already computes; the context port
 | `BlockPointParameter` | `FromPoint(displacement)` | `EvaluationValue<XYZ>` |
 | `BlockFlipParameter` | `FromDouble(flip)` | `EvaluationValue<double>` |
 | `BlockVisibilityParameter` | `FromDouble(stateIndex)` | `EvaluationValue<double>` |
-| `BlockLookupParameter` | `FromPoint(displacement)` | `EvaluationValue<XYZ>` |
+| `BlockLookupParameter` | the table-driven column value, type-shaped (string or scalar) | **none — type-variable** (read via the base `EvaluationValue`) |
 
 Bold/changed rows (the actual fix): `BlockGrip`, `BlockXYParameter`, `BlockPolarParameter`,
-`BlockPointParameter`, `BlockLookupParameter` move from "X only" to "the whole value".
+`BlockPointParameter` move from "X only" to "the whole value".
+
+> **`BlockLookupParameter` is the exception to the typed-view design.** Its value is
+> table-driven and type-variable: a lookup parameter is the *lookup property* (output) column of
+> a `BlockLookupAction`, and the column's value type (DXF `95`: `40` = double, `1` = string)
+> determines whether its value is a scalar or a string. It is therefore **not** a point, so it
+> deliberately carries no `EvaluationValue<XYZ>` view; its `Evaluate` reads the bound column's
+> matched cell (or the column's `UnmatchedName` default, type-shaped) via the owning graph's
+> `GetNodeExpression`, and the value is stored through the type-agnostic base `CurrentValue`.
 
 ## Implementation steps
 
@@ -160,7 +168,7 @@ Bold/changed rows (the actual fix): `BlockGrip`, `BlockXYParameter`, `BlockPolar
 
 ## Implementation status — ✅ done
 
-- All **19** `Evaluate` overrides updated (11 parameters/grips + 8 actions) to write `base.CurrentValue = EvaluationValue.From…(…)`; each leaf carries a `new EvaluationValue<T> CurrentValue` view.
+- All **19** `Evaluate` overrides updated (11 parameters/grips + 8 actions) to write `base.CurrentValue = EvaluationValue.From…(…)`; each leaf carries a `new EvaluationValue<T> CurrentValue` view — **except** `BlockLookupParameter`, whose value is table-driven and type-variable (string or scalar, never a point) and is therefore read through the type-agnostic base `CurrentValue` (see the note in the per-class table above).
 - `As<T>()` is **strict** (returns `None` when unset, throws on a shape mismatch) and uses a double-cast (`(EvaluationValue<T>)(object)EvaluationValue<…>.Of(…)`) to bridge a closed construct to the open generic (C# invariance).
 - `EvaluationValue<T>.IsSet` is a dedicated flag (not `Equals(value, default)`) so a legitimate `0.0` reads as set.
 - **`#`-format quirk:** the .NET 11 / C# 13 RC compiler rejects a `#` inside an interpolated-string format specifier (`$"({x:0.###}")` → `CS8076`). `EvaluationValue.ToString()` therefore formats with `F2` (no `#`).

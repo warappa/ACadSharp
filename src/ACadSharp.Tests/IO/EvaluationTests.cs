@@ -6,6 +6,7 @@ using ACadSharp.Tests.TestModels;
 using CSMath;
 using CSMath.Extensions;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Xunit;
@@ -709,12 +710,12 @@ public class EvaluationTests : IOTestsBase
 	}
 
 	/// <summary>
-	/// Lookup parameter (not evaluated, not activated): the
-	/// <see cref="BlockLookupParameter.CurrentValue"/> falls back to the zero displacement rather
-	/// than an empty placeholder.
+	/// Lookup parameter (standalone, no bound lookup table): the value is table-driven and
+	/// type-variable (a string or a scalar — never a point), so with no table to resolve there
+	/// is simply no value (the value is <see cref="EvaluationValueType.None"/>).
 	/// </summary>
 	[Fact]
-	public void LookupParameterCurrentValueFallsBackToZeroDisplacementTest()
+	public void LookupParameterWithoutBoundTableHasUnsetValueTest()
 	{
 		BlockLookupParameter param = new()
 		{
@@ -722,19 +723,107 @@ public class EvaluationTests : IOTestsBase
 			Location = new XYZ(1, 2, 0),
 		};
 
-		// Do NOT evaluate: the CurrentValue should fall back to the zero displacement.
-		Assert.True(param.CurrentValue.IsSet, "The value should fall back to the zero displacement.");
-		XYZ v = param.CurrentValue.Value;
-		assertClose(0.0, v.X);
-		assertClose(0.0, v.Y);
-		assertClose(0.0, v.Z);
+		// Do NOT evaluate: with no bound table, the value is unset (not a point).
+		Assert.True(param.CurrentValue.Type == EvaluationValueType.None, "A standalone lookup parameter has no value.");
 
-		// After evaluation (no activated grips), the CurrentValue is the zero displacement.
+		// Evaluation (with no table to resolve) likewise leaves the value unset.
 		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
-		v = param.CurrentValue.Value;
-		assertClose(0.0, v.X);
-		assertClose(0.0, v.Y);
-		assertClose(0.0, v.Z);
+		Assert.Equal(EvaluationValueType.None, param.CurrentValue.Type);
+	}
+
+	/// <summary>
+	/// Lookup parameter bound to a <b>text</b> column (<c>95</c> = 1): the value is a
+	/// <b>string</b> — the matched cell the table wrote to the parameter's port, or the
+	/// column's <c>UnmatchedName</c> default when no row matched.
+	/// </summary>
+	[Fact]
+	public void LookupParameterTextColumnValueIsStringTest()
+	{
+		// A lookup parameter is the output ("lookup property") column of its action's table.
+		BlockLookupAction.ColumnData column = new()
+		{
+			NodeId = 20,
+			ValueType = 1,            // string
+			Type = 0,
+			IsLookupProperty = true,
+			ConnectionName = "lookupString",
+			UnmatchedName = "Custom",
+		};
+		column.Rows.Add("Size 5");
+
+		BlockLookupAction action = new() { Id = 24, Columns = new List<BlockLookupAction.ColumnData> { column } };
+		BlockLookupParameter param = new() { Id = 20, ActionId = 24, Location = new XYZ(1, 2, 0) };
+
+		EvaluationGraph graph = new EvaluationGraph();
+		EvaluationGraph.Node paramNode = graph.CreateNode();
+		paramNode.Id = 20;
+		paramNode.Expression = param;
+		EvaluationGraph.Node actionNode = graph.CreateNode();
+		actionNode.Id = 24;
+		actionNode.Expression = action;
+
+		// Before evaluation: the value is the column's default (the UnmatchedName) as a string.
+		Assert.Equal(EvaluationValueType.String, param.CurrentValue.Type);
+		Assert.Equal("Custom", param.CurrentValue.StringValue);
+
+		// Evaluation with no matching input row: the value stays the default (the UnmatchedName).
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		Assert.Equal(EvaluationValueType.String, param.CurrentValue.Type);
+		Assert.Equal("Custom", param.CurrentValue.StringValue);
+
+		// When the table writes a matched cell to the parameter's port, the value is that cell (a string).
+		EvaluationContext context = new EvaluationContext();
+		context.SetValue(20, "lookupString", "Size 5");
+		Assert.True(param.Evaluate(context), "The evaluation failed.");
+		Assert.Equal(EvaluationValueType.String, param.CurrentValue.Type);
+		Assert.Equal("Size 5", param.CurrentValue.StringValue);
+	}
+
+	/// <summary>
+	/// Lookup parameter bound to a <b>numeric</b> column (<c>95</c> = 40): the value is a
+	/// <b>scalar</b> — the matched cell the table wrote to the parameter's port, or the
+	/// column's <c>UnmatchedName</c> default (parsed) when no row matched.
+	/// </summary>
+	[Fact]
+	public void LookupParameterNumericColumnValueIsScalarTest()
+	{
+		BlockLookupAction.ColumnData column = new()
+		{
+			NodeId = 20,
+			ValueType = 40,           // double
+			Type = 2,
+			IsLookupProperty = true,
+			ConnectionName = "UpdatedDistance",
+			UnmatchedName = "-1",
+		};
+		column.Rows.Add("5");
+
+		BlockLookupAction action = new() { Id = 24, Columns = new List<BlockLookupAction.ColumnData> { column } };
+		BlockLookupParameter param = new() { Id = 20, ActionId = 24, Location = new XYZ(1, 2, 0) };
+
+		EvaluationGraph graph = new EvaluationGraph();
+		EvaluationGraph.Node paramNode = graph.CreateNode();
+		paramNode.Id = 20;
+		paramNode.Expression = param;
+		EvaluationGraph.Node actionNode = graph.CreateNode();
+		actionNode.Id = 24;
+		actionNode.Expression = action;
+
+		// Before evaluation: the value is the column's default (the UnmatchedName) parsed as a scalar.
+		Assert.Equal(EvaluationValueType.Double, param.CurrentValue.Type);
+		double? defaultVal = param.CurrentValue.DoubleValue;
+		Assert.NotNull(defaultVal);
+		assertClose(-1.0, defaultVal.Value);
+
+		// Evaluation with no matching input row: the value stays the default scalar.
+		Assert.True(param.Evaluate(new EvaluationContext()), "The evaluation failed.");
+		assertClose(-1.0, param.CurrentValue.DoubleValue.Value);
+
+		// When the table writes a matched cell, the value is that cell as a scalar.
+		EvaluationContext context = new EvaluationContext();
+		context.SetValue(20, "UpdatedDistance", 5.0);
+		Assert.True(param.Evaluate(context), "The evaluation failed.");
+		assertClose(5.0, param.CurrentValue.DoubleValue.Value);
 	}
 
 	/// <summary>

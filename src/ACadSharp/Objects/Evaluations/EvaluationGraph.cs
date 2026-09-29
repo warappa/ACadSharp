@@ -119,6 +119,30 @@ public partial class EvaluationGraph : NonGraphicalObject, IDxfClassDefined
 	}
 
 	/// <summary>
+	/// Gets the <see cref="EvaluationExpression"/> of the node whose <see cref="Node.Id"/>
+	/// (code 95) equals the given id, or <c>null</c> when no node has that id.
+	/// <para>
+	/// This lets a node resolve another node by id (for example a lookup parameter resolving
+	/// the lookup action it is bound to via its <c>94</c> action id) without walking the whole
+	/// node list by hand.
+	/// </para>
+	/// </summary>
+	/// <param name="id">The node id (code 95) to look up.</param>
+	/// <returns>The node's expression, or <c>null</c> when not found.</returns>
+	public EvaluationExpression GetNodeExpression(int id)
+	{
+		for (int i = 0; i < this._nodes.Count; i++)
+		{
+			if (this._nodes[i].Id == id)
+			{
+				return this._nodes[i].Expression;
+			}
+		}
+
+		return null;
+	}
+
+	/// <summary>
 	/// Removes a <see cref="Node"/> object from the list of nodes by its ID.
 	/// </summary>
 	/// <param name="id">The ID of the <see cref="Node"/> to remove.</param>

@@ -235,7 +235,7 @@ The 5 columns of the sample: input = linear param (double, out `UpdatedDistance`
 
 The bidirectional graph edges (flags = 4, paired via the 5th edge field) reflect this: the parameter's value flows *into* the table (row selection) and the table's output flows *back* (updating the parameter's value).
 
----
+**The lookup parameter's value is table-driven and type-variable — it is *not* inherently a point.** A lookup parameter is the *lookup-property* (output) column of the table: its value is that column's cell, and the column's `95` code is the value type (`40` = double, `1` = string). The parameter record itself stores **no** value type (its `AcDbBlockLookUpParameter` subclass carries only `303` label, `304` description, `94` action id) — so the type is determined entirely by the bound column, and a text column yields a **string** value (e.g. `my_custom` / `Size 5`), a numeric column a **scalar**. (The parameter is a `Block1PtParameter` and has a *location*, but the location is not the *value*.)
 
 ## Visibility parameter (decoded)
 
