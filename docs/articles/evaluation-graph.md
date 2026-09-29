@@ -251,6 +251,56 @@ The bidirectional graph edges (flags = 4, paired via the 5th edge field) reflect
 
 ---
 
+## The evaluation object's DWG layout (R2010+ / AC1032, decoded)
+
+The DXF record above is the *text* representation; on disk (AC1032) every evaluation object is a
+bit-packed record. The layout below was reverse-engineered with [`tools/evalgraph-rawdump`](../../tools/evalgraph-rawdump/README.md)
+against a real dynamic-blocks file and matches the library's reader/writer exactly.
+
+**Object framing** (all six classes share it):
+
+```
+size (ReadModularShort) → handleSize (ReadModularChar) → class type (object type)
+→ OBJECT DATA (dataStart …) → HANDLE STREAM (last handleSize bits)
+```
+
+`dataStart` is the bit right after the class type; `handleStart = headerEnd + size*8 − handleSize`.
+The common header reads (routing matters — this was the crux of the reverse-engineering):
+
+- **Object reader** (at `dataStart`): own handle (`HandleReference`), the extended-data list
+  (`ReadBitShort` size loop, each entry a `HandleReference` + `size` skipped bytes), the
+  reactor count (`ReadBitLong`), the missing flag, and `hasDsBinaryData` (R2013+).
+- **Handle reader**: the owner handle, the reactor handles, and the `xdic` handle.
+- `updateHandleReader` is AC1015–AC1023 only (not AC1032).
+
+**The expression** (`AcDbEvalExpr`, every class has one): `Unknown` / `Value98` / `Value99` / `Id`
+are `ReadBitLong`; the `code` is `ReadBitShort`. A `code` of `−9999` (unsigned `55537`) is ≤ 0,
+so **no typed value** follows. (Observed: `Unknown = −1`, `98 = 33`, `99 = 175`.)
+
+**The string stream is separate.** Element names, display names, labels, and descriptions are read
+**in sequence** from the text reader; a `0` in the main data is a pointer into that region, not
+"empty". A `ValueSet` (the parameter's allowed-value list) is: `Type` (`ReadBitLong`),
+`Minimum`/`Maximum`/`Increment` (`ReadBitDouble`), count (`ReadBitShort`), then count × `ReadBitDouble`.
+
+Per-class tails (after the common header + expression):
+
+| Class | Tail (object reader unless noted) |
+|---|---|
+| `BLOCKUSERPARAMETER` | element name (text) + v98/v99/v1071 · show/chain bits · **value (`ReadBitDouble`) · value set** |
+| `BLOCKHORIZONTALCONSTRAINTPARAMETER` | 2-pt param fields (name, 2 × 3 doubles, 4 displacement lists, 4 grip ids, base location) · **label (text) · description (text) · labelOffset (`ReadBitDouble`) · value set** |
+| `BLOCKVERTICALCONSTRAINTPARAMETER` | same as horizontal |
+| `ACDB_DYNAMICBLOCKPROXYNODE` | essentially just the expression — no extra tail in the samples (its `300`/`309` live in the DXF record) |
+| `BLOCKPROPERTIESTABLE` | `RowCount` (`ReadBitLong`) + an **opaque, bit-packed tail** (the rows) — *not yet decoded* |
+| `BLOCKPROPERTIESTABLEGRIP` | `GripId` (`ReadBitLong`) + an **opaque, bit-packed tail** — *not yet decoded* |
+
+**The opaque table/grip tail:** the field after `RowCount`/`GripId` is **bit-packed and not
+byte-aligned** (it does not land on a byte boundary) and does not decode as a run of handle
+references, bit-longs, or bit-doubles. These two are data-only objects (their Id is *not* part of
+the evaluation graph), so the library reads their `RowCount`/`GripId` and stops; the row/cell
+structure remains an open question. `evalgraph-rawdump` dumps the raw tail bytes for a future pass.
+
+---
+
 ## 2008 "family tree" interpretation (historical context)
 
 Supermax's master explanation (forum.dwg.ru thread 24597, post #7, 13.09.2008) describes the records as a **dependency lineage** ("родословная"):
@@ -274,6 +324,8 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 4. ~~Per-class evaluation formulas~~ — **resolved** (see the `Per-class Evaluate formulas` table in [`evaluation-engine.md`](evaluation-engine.md)): grip = displacement, linear = signed distance along the axis, XY = (X, Y) offsets, polar = (distance, angle), rotation/alignment = angle, point = (XΔ, YΔ); `140` is the `LabelOffset` (not a value).
 5. ~~Unevaluated sentinels per class~~ — **partially resolved**: the component's `1.797693134862314E+99` ("not yet evaluated") and the base-component `0` are confirmed; per-class sentinels for the other classes are not yet catalogued.
 6. Whether the `98`/`99` tag values are version-dependent (2007: 27/31/25/8; modern: 33/329) — still open.
+7. ~~The DWG layout of the user / horizontal / vertical constraint parameter tails~~ — **decoded** (see "The evaluation object's DWG layout" above); the full tails (value set, label/description/labelOffset) are now read and written.
+8. The `BLOCKPROPERTIESTABLE` row and `BLOCKPROPERTIESTABLEGRIP` payloads — **still open**: bit-packed, not byte-aligned, and they don't decode as a run of handles/longs/doubles. Data-only objects (not part of the evaluation graph); `evalgraph-rawdump` dumps the raw tail bytes for a future pass.
 
 **New finding (this session):** the parameter `140` group code is the **`LabelOffset`** (the property is literally named `LabelOffset` in the ObjectARX model), **not** a stored value. Parameter values are **computed on the fly** from the connected grips' displacements during `evaluate()`; they are not persisted in the parameter record. The only persisted "value" is the component's `EvaluatedValue` (code `40`), which is the updated grip coordinate (or the `1.797693134862314E+99` sentinel when not yet evaluated).
 

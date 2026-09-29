@@ -58,10 +58,12 @@ EvaluationExpression  (≡ AcDbEvalExpr)  — abstract; holds CurrentValue + abs
             └── 8 concrete leaves (Move, Scale, Rotation, Stretch, Flip, Array, PolarStretch, Lookup)
 + EvaluationExpression's direct children (single concrete classes, NOT under BlockElement):
     ├── BlockGripLocationComponent  (≡ AcDbBlockGripExpr)
-    ├── BlockPropertiesTable        (≡ AcDbBlockPropertiesTable)      — data-only stub
-    ├── BlockPropertiesTableGrip    (≡ AcDbBlockPropertiesTableGrip)  — data-only stub
-    └── BlockDynamicBlockProxyNode  (≡ AcDbDynamicBlockProxyNode)     — placeholder
+    ├── BlockPropertiesTable        (≡ AcDbBlockPropertiesTable)      — data-only; reads/writes RowCount only (opaque tail)
+    ├── BlockPropertiesTableGrip    (≡ AcDbBlockPropertiesTableGrip)  — data-only; reads/writes GripId only (opaque tail)
+    └── BlockDynamicBlockProxyNode  (≡ AcDbDynamicBlockProxyNode)     — full DWG + DXF (ProxyName 300, ProxyData 309)
 ```
+
+**IO completeness:** the **User / HorizontalConstraint / VerticalConstraint** parameters now read and write their **full DWG + DXF** records (value, value set, and — for the constraints — label, description, label offset). The on-disk layout is decoded in [evaluation-graph.md](evaluation-graph.md) ("The evaluation object's DWG layout"). The `BLOCKPROPERTIESTABLE` row and `BLOCKPROPERTIESTABLEGRIP` payloads remain an opaque, undecoded tail (data-only objects, not part of the evaluation graph).
 
 ## The three value-semantics archetypes
 
