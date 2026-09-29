@@ -15,13 +15,13 @@
                 <!-- Zoom controls (the legends moved into the graph area as a
                      non-interactive overlay, see the Grid below). -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="{StaticResource Space4}" VerticalAlignment="Center">
-                    <Button Click="OnFitClick" Focusable="False">
+                    <Button Click="OnFitClick" Focusable="False" ToolTip.Tip="Fit graph to view">
                         <ui:FASymbolIcon Symbol="FullScreen" />
                     </Button>
-                    <Button Click="OnZoomInClick" Focusable="False">
+                    <Button Click="OnZoomInClick" Focusable="False" ToolTip.Tip="Zoom in">
                         <ui:FASymbolIcon Symbol="ZoomIn" />
                     </Button>
-                    <Button Click="OnZoomOutClick" Focusable="False">
+                    <Button Click="OnZoomOutClick" Focusable="False" ToolTip.Tip="Zoom out">
                         <ui:FASymbolIcon Symbol="ZoomOut" />
                     </Button>
                 </StackPanel>
