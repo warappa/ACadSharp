@@ -123,26 +123,64 @@
                     <TextBlock x:Name="BlockHeader" Grid.Row="0" Margin="12,8,12,0" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}" />
                     <TextBlock x:Name="EvalStatus" Grid.Row="1" Margin="12,4,12,0" Foreground="{DynamicResource TextFillColorSecondary}" />
                     <Grid Grid.Row="2">
-                        <DataGrid x:Name="PropertyGrid" x:DataType="svc:PropertyItem" AutoGenerateColumns="False" IsReadOnly="True" Margin="12,8">
+                        <!-- DataGrid: mouse-resizable columns (CanUserResizeColumns) and
+                             CharacterEllipsis on every text cell (DataGridTextColumn has no
+                             trimming property, so the cells are templates). Long values
+                             truncate with "…" instead of wrapping or overflowing. -->
+                        <DataGrid x:Name="PropertyGrid" x:DataType="svc:PropertyItem" AutoGenerateColumns="False" IsReadOnly="True"
+                                  CanUserResizeColumns="True" Margin="12,8">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="160" />
-                                <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*" />
-                                <DataGridTextColumn Header="Type" Binding="{Binding TypeText}" Width="90" />
-                                <DataGridTextColumn Header="Inputs" Binding="{Binding InputsText}" Width="140" />
-                                <DataGridTextColumn Header="Outputs" Binding="{Binding OutputsText}" Width="140" />
-                                <DataGridTemplateColumn Header="Value" Width="140">
+                                <!-- Column widths are tuned so the fixed columns sum to well
+                                     under the pane width, leaving the flexible Description
+                                     column real room (it collapses to 0 if the fixed sum
+                                     exceeds the pane). The user can still drag any edge. -->
+                                <DataGridTemplateColumn Header="Name" Width="140">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate x:DataType="svc:PropertyItem">
-                                            <!-- Centered both ways: without explicit alignment the
-                                                 TextBlock stretches to fill the cell and the
-                                                 text renders top-aligned, reaching the right
-                                                 edge for long values. -->
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Description" Width="*">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="svc:PropertyItem">
+                                            <TextBlock Text="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Type" Width="70">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="svc:PropertyItem">
+                                            <TextBlock Text="{Binding TypeText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Inputs" Width="110">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="svc:PropertyItem">
+                                            <TextBlock Text="{Binding InputsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Outputs" Width="110">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="svc:PropertyItem">
+                                            <TextBlock Text="{Binding OutputsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="Value" Width="100">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate x:DataType="svc:PropertyItem">
+                                            <!-- Centered both ways; trims with an ellipsis when the
+                                                 value is wider than the (resizable) column. -->
                                             <TextBlock Text="{Binding ValueOnlyText}"
                                                        Foreground="{Binding HasValue, Converter={StaticResource ValueForeground}}"
                                                        FontFamily="{StaticResource FontFamilyCode}"
                                                        FontSize="{StaticResource CodeFontSize}"
+                                                       TextTrimming="CharacterEllipsis"
                                                        HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" />
+                                                       VerticalAlignment="Center" Margin="6,0" />
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
