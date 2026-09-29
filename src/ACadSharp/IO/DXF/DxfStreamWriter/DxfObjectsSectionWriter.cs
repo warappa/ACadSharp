@@ -1228,6 +1228,10 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 
 		this._writer.Write(100, DxfSubclassMarker.BlockDynamicBlockProxyNode);
 		this._writer.Write(300, node.ProxyName, map);
+		if (node.ProxyData is { Length: > 0 })
+		{
+			this._writer.Write(309, node.ProxyData, map);
+		}
 	}
 
 	private void writeBlockPropertiesTable(BlockPropertiesTable table)
