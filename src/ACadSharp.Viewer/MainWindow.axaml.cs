@@ -512,8 +512,11 @@ public partial class MainWindow : Window
 
     private void OnThemeToggleClick(object? sender, RoutedEventArgs e)
     {
-        bool isDark = DarkThemeToggle.IsChecked == true;
-        ApplyTheme(isDark ? ThemeVariant.Dark : ThemeVariant.Light);
+        // The header toggle is a plain button (no IsChecked), so read the current
+        // variant and flip dark<->light. High-contrast (chosen from the flyout)
+        // flips to dark.
+        ThemeVariant current = Application.Current?.RequestedThemeVariant ?? ThemeVariant.Dark;
+        ApplyTheme(current == ThemeVariant.Dark ? ThemeVariant.Light : ThemeVariant.Dark);
     }
 
     private void ApplyTheme(ThemeVariant variant)
@@ -528,7 +531,6 @@ public partial class MainWindow : Window
         bool isHc = variant == FluentAvaloniaTheme.HighContrastTheme;
         ThemeIcon.Symbol = isDark ? FASymbol.DarkTheme : isHc ? FASymbol.Highlight : FASymbol.WeatherSunny;
         ThemeLabel.Text = isDark ? "Dark" : isHc ? "High contrast" : "Light";
-        DarkThemeToggle.IsChecked = isDark;
         ThemeLightItem.IsChecked = !isDark && !isHc;
         ThemeDarkItem.IsChecked = isDark;
         ThemeHcItem.IsChecked = isHc;

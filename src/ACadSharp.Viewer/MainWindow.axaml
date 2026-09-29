@@ -57,12 +57,17 @@
                         </ui:FAMenuFlyout>
                     </Button.Flyout>
                 </Button>
-                <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" IsChecked="True" Click="OnThemeToggleClick" Padding="10,0" MinHeight="32">
+                <!-- De-accented theme toggle: a plain Button (the ToggleButton's
+                     checked state paints the accent, which made the top row shouty).
+                     It shows the current theme (icon + label) and switches
+                     dark<->light on click; high-contrast lives in the settings
+                     flyout. -->
+                <Button x:Name="DarkThemeToggle" DockPanel.Dock="Right" Click="OnThemeToggleClick" Padding="10,0" MinHeight="32">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                         <ui:FASymbolIcon x:Name="ThemeIcon" Symbol="DarkTheme" />
                         <TextBlock x:Name="ThemeLabel" Text="Dark" />
                     </StackPanel>
-                </ToggleButton>
+                </Button>
                 <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorTertiary}" />
             </DockPanel>
         </Border>
