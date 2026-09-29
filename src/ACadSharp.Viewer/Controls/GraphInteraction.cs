@@ -277,7 +277,7 @@ public sealed class GraphInteraction
 
     public void OnPortExited(Ellipse circle, PortInfo port, bool isInput)
     {
-        circle.Fill = ThemeResources.NodeText;
+        circle.Fill = ThemeResources.Port;
         if (_state.CircleToEdge.TryGetValue(circle, out var edgeLine))
         {
             edgeLine.StrokeThickness = 1.5;
@@ -412,7 +412,10 @@ public sealed class GraphInteraction
 
         if (hovered)
         {
-            border.BorderBrush = isTarget ? ThemeResources.NodeText : ThemeResources.NodeHover;
+            // The target's hover ring takes the strong canvas color (Port);
+            // the other nodes take the softer hover gray. Both are readable
+            // against the canvas in their theme.
+            border.BorderBrush = isTarget ? ThemeResources.Port : ThemeResources.NodeHover;
             return;
         }
 

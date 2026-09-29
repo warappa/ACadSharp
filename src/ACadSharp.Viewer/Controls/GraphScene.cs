@@ -208,7 +208,7 @@ public sealed class GraphScene
             return;
         }
 
-        IBrush brush = highlight ? ThemeResources.Feedback : ThemeResources.NodeText;
+        IBrush brush = highlight ? ThemeResources.Feedback : ThemeResources.Port;
         if (circles.src is not null) circles.src.Fill = brush;
         if (circles.dst is not null) circles.dst.Fill = brush;
     }
@@ -330,7 +330,7 @@ public sealed class GraphScene
             {
                 Width = radius * 2,
                 Height = radius * 2,
-                Fill = ThemeResources.NodeText,
+                Fill = ThemeResources.Port,
                 Stroke = ThemeResources.NodeTargetStroke,
                 StrokeThickness = 1,
             };
@@ -355,7 +355,7 @@ public sealed class GraphScene
                 var label = new TextBlock
                 {
                     FontSize = DesignTokens.CaptionFontSize,
-                    Foreground = ThemeResources.NodeText,
+                    Foreground = ThemeResources.Port,
                     Text = port.Name,
                     IsHitTestVisible = false,
                 };

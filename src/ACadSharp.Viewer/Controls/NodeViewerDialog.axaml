@@ -24,7 +24,7 @@
                         <ui:FASymbolIcon Symbol="ZoomOut" />
                     </Button>
                 </StackPanel>
-                <TextBlock x:Name="Header" FontWeight="Bold" FontSize="{StaticResource SubtitleFontSize}" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="Header" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}" TextTrimming="CharacterEllipsis" />
             </DockPanel>
         </Border>
         <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,1,0,0">

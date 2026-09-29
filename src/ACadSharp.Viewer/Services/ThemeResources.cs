@@ -65,11 +65,25 @@ public static class ThemeResources
     public static IBrush NodeTargetStroke => Token("NodeTargetStrokeColor", "#FFFFFF");
 
     /// <summary>
-    /// The fixed (theme-invariant) node-graph colors.
+    /// The node box text, on the fill: white on the Light theme's dark fills
+    /// and black on the Dark theme's light fills (each passes 4.5:1 against
+    /// every fill in its theme — see DesignTokens for the table).
     /// </summary>
-    public static IBrush NodeText => Token("NodeTextColor", "#FFFFFF");
-    public static IBrush NodeTextSecondary => Token("NodeTextSecondaryColor", "#CCFFFFFF");
-    public static IBrush NodeHover => Token("NodeHoverColor", "#D0D0D0");
+    public static IBrush NodeText => Token("NodeTextColor", "#000000");
+    public static IBrush NodeTextSecondary => Token("NodeTextSecondaryColor", "#CC000000");
+
+    /// <summary>
+    /// The hover ring, on the canvas: dark on the Light theme, light on the
+    /// Dark theme (always readable against the canvas).
+    /// </summary>
+    public static IBrush NodeHover => Token("NodeHoverColor", "#F0F0F0");
+
+    /// <summary>
+    /// The port chrome (the label text on its canvas mask, the circle's
+    /// fill): the canvas's own polarity — dark on Light, light on Dark.
+    /// </summary>
+    public static IBrush Port => Token("PortColor", "#FFFFFF");
+
     public static IBrush Feedback => Token("FeedbackColor", "#E8A33D");
 
     /// <summary>
