@@ -253,6 +253,7 @@ confirming the shadows actually render. This is the pattern the Viewer should fo
 | `<BoxShadows x:Key="…">` as a XAML resource | **ICE** — `BoxShadows` has **no TypeConverter** in Avalonia 12.1.3 (reflection-verified), so there is no string attribute form either. Use a C# static + `{x:Static}` |
 | `<x:CornerRadius x:Key="…">` | **AVLN2000** — the `x:` prefix resolves to a `System.*` type; `CornerRadius` is an Avalonia type. Use the plain `<CornerRadius>` element |
 | `Avalonia.Styling.ResourceDictionary` (in C#) | **CS0234** — the type moved in v12 |
+| `Padding="{StaticResource D},{StaticResource D2}"` / `Margin="{StaticResource D}"` where `D` is an `x:Double` token | **InvalidCastException at app construction** — the generated `XamlDynamicSetter` does a direct `(Thickness)` cast of the resolved value (a boxed `double`); a reference in a *mid-list* position additionally fails at compile time (**AVLN2005**). An `x:Double` token feeds only Double-typed properties (`Spacing`, `FontSize`, …); for `Margin`/`Padding` use literals normalized to the spacing scale |
 
 ### Avalonia 12 API moves (reflection-verified)
 

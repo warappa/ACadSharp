@@ -13,7 +13,7 @@
             <DockPanel>
                 <!-- Zoom controls (the legends moved into the graph area as a
                      non-interactive overlay, see the Grid below). -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="{StaticResource Space4}" VerticalAlignment="Center">
                     <Button Click="OnFitClick" Focusable="False">
                         <ui:FASymbolIcon Symbol="FullScreen" />
                     </Button>
@@ -38,7 +38,7 @@
                  IsHitTestVisible="False" so pointer events pass through to the
                  graph (pan/zoom/select still work under the legend). -->
             <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"
-                    CornerRadius="{StaticResource CardCornerRadius}" Padding="8,6"
+                    CornerRadius="{StaticResource CardCornerRadius}" Padding="8,8"
                     IsHitTestVisible="False"
                     BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1">
                 <!-- Semi-transparent panel: the graph shows through (no blur).
@@ -46,9 +46,9 @@
                 <Border.Background>
                     <SolidColorBrush Color="{StaticResource ScrimColor}" Opacity="0.5" />
                 </Border.Background>
-                <StackPanel Orientation="Vertical" Spacing="4">
+                <StackPanel Orientation="Vertical" Spacing="{StaticResource Space2}">
                     <!-- Node color legend -->
-                    <StackPanel Orientation="Horizontal" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space2}">
                         <Border Width="10" Height="10" CornerRadius="{StaticResource SwatchCornerRadius}" Background="{DynamicResource NodeParameterColor}" />
                         <TextBlock Text="parameter" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
                         <Border Width="10" Height="10" CornerRadius="{StaticResource SwatchCornerRadius}" Background="{DynamicResource NodeGripColor}" Margin="8,0,0,0" />
@@ -62,7 +62,7 @@
                     </StackPanel>
                     <!-- Line-type legend: solid = value, dashed = lookup,
                          dashed orange = feedback arc. -->
-                    <StackPanel Orientation="Horizontal" Spacing="4">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space2}">
                         <Line StartPoint="0,0" EndPoint="24,0" Stroke="{DynamicResource EdgeLineColor}" StrokeThickness="2" Stretch="None" VerticalAlignment="Center" />
                         <TextBlock Text="value" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
                         <Line StartPoint="0,0" EndPoint="24,0" Stroke="{DynamicResource EdgeLineColor}" StrokeThickness="2" StrokeDashArray="6,4" Stretch="None" VerticalAlignment="Center" Margin="8,0,0,0" />

@@ -15,6 +15,24 @@
     <CornerRadius x:Key="OverlayCornerRadius">8</CornerRadius>
     <CornerRadius x:Key="SwatchCornerRadius">3</CornerRadius>
 
+    <!-- Spacing scale (px): 4 8 12 16 24 32 48 ... (the design language's
+         "use the scale, not ad-hoc values"). Only the steps the app actually
+         uses are named. Sub-scale micro-paddings (1/2) and stroke widths
+         (2/3) stay literal — the scale governs layout spacing, not the
+         breathing room of a glyph.
+         These x:Double tokens are consumed by DOUBLE-typed properties only
+         (Spacing, FontSize, ...): the Avalonia 12.1.3 XAML runtime setter
+         cast-fails on a Double for a Thickness property (Margin/Padding),
+         with or without a TypeConverter — so Margin/Padding stay literal
+         (normalized to this scale). Verified: a {StaticResource} inside a
+         Thickness list compiles but the generated XamlDynamicSetter does a
+         direct (Thickness) cast and the app dies at construction. -->
+    <x:Double x:Key="Space2">4</x:Double>
+    <x:Double x:Key="Space4">8</x:Double>
+    <x:Double x:Key="Space6">12</x:Double>
+    <x:Double x:Key="Space8">16</x:Double>
+    <x:Double x:Key="Space12">24</x:Double>
+
     <!-- Fixed (brand) colors: used identically in both themes. The dialog
          scrim (a semi-transparent black — mode-agnostic, per the design
          language), the status-bar colors, and the accent presets the

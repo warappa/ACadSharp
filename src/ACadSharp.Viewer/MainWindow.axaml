@@ -12,18 +12,18 @@
         <conv:ValueForegroundConverter x:Key="ValueForeground" />
     </Window.Resources>
     <DockPanel>
-        <Border DockPanel.Dock="Top" Padding="8,6" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
+        <Border DockPanel.Dock="Top" Padding="8,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="8">
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="{StaticResource Space4}">
                     <TextBlock Text="ACadSharp Viewer" FontWeight="Bold" FontSize="{StaticResource BodyFontSize}" VerticalAlignment="Center" />
-                    <Button x:Name="OpenButton" Click="OnOpenClick" Padding="10,4">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button x:Name="OpenButton" Click="OnOpenClick" Padding="8,4">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                             <ui:FASymbolIcon Symbol="OpenFile" />
                             <TextBlock Text="Open…" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="ReloadButton" Click="OnReloadClick" IsEnabled="False" Padding="10,4">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button x:Name="ReloadButton" Click="OnReloadClick" IsEnabled="False" Padding="8,4">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                             <ui:FASymbolIcon Symbol="Refresh" />
                             <TextBlock Text="Reload" />
                         </StackPanel>
@@ -56,8 +56,8 @@
                         </ui:FAMenuFlyout>
                     </Button.Flyout>
                 </Button>
-                <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" IsChecked="True" Click="OnThemeToggleClick" Padding="10,4">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
+                <ToggleButton x:Name="DarkThemeToggle" DockPanel.Dock="Right" IsChecked="True" Click="OnThemeToggleClick" Padding="8,4">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
                         <ui:FASymbolIcon x:Name="ThemeIcon" Symbol="DarkTheme" />
                         <TextBlock x:Name="ThemeLabel" Text="Dark" />
                     </StackPanel>
@@ -65,7 +65,7 @@
                 <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="12,0,0,0" Foreground="{DynamicResource TextFillColorTertiary}" />
             </DockPanel>
         </Border>
-        <Border DockPanel.Dock="Bottom" Padding="10,5">
+        <Border DockPanel.Dock="Bottom" Padding="8,4">
             <TextBlock x:Name="StatusText" Foreground="{DynamicResource TextFillColorTertiary}" Text="Open a .dwg or .dxf file (Ctrl+O) or drag &amp; drop one onto the window." />
         </Border>
         <Grid RowDefinitions="Auto,*">
@@ -75,12 +75,12 @@
                 <Border Grid.Column="0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,1,0">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="8,8,8,4">
-                            <TextBox x:Name="TreeSearchBox" Grid.Column="0" Margin="0,0,6,0"
+                            <TextBox x:Name="TreeSearchBox" Grid.Column="0" Margin="0,0,8,0"
                                      PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged" />
-                            <Button Grid.Column="1" Click="OnExpandAllClick" Padding="6,2" Focusable="False">
+                            <Button Grid.Column="1" Click="OnExpandAllClick" Padding="8,2" Focusable="False">
                                 <ui:FASymbolIcon Symbol="ChevronDown" />
                             </Button>
-                            <Button Grid.Column="2" Click="OnCollapseAllClick" Padding="6,2" Focusable="False">
+                            <Button Grid.Column="2" Click="OnCollapseAllClick" Padding="8,2" Focusable="False">
                                 <ui:FASymbolIcon Symbol="ChevronUp" />
                             </Button>
                         </Grid>
@@ -96,7 +96,7 @@
                                        Foreground="{DynamicResource TextFillColorTertiary}"
                                        Text="No file loaded — open a .dwg or .dxf (Ctrl+O)" />
                         </Grid>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="12" Margin="10,4,10,8">
+                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="{StaticResource Space6}" Margin="8,4,8,8">
                             <TextBlock Text="⚡ dynamic" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
                             <TextBlock Text="×N referenced N times" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
                             <TextBlock Text="⟳ cycle root" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
@@ -106,7 +106,7 @@
                 </Border>
                 <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource ControlStrokeColorDefault}" />
                 <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
-                    <TextBlock x:Name="BlockHeader" Grid.Row="0" Margin="12,10,12,0" FontWeight="Bold" FontSize="{StaticResource SubtitleFontSize}" />
+                    <TextBlock x:Name="BlockHeader" Grid.Row="0" Margin="12,8,12,0" FontWeight="Bold" FontSize="{StaticResource SubtitleFontSize}" />
                     <TextBlock x:Name="EvalStatus" Grid.Row="1" Margin="12,4,12,0" Foreground="{DynamicResource TextFillColorSecondary}" />
                     <Grid Grid.Row="2">
                         <DataGrid x:Name="PropertyGrid" x:DataType="svc:PropertyItem" AutoGenerateColumns="False" IsReadOnly="True" Margin="12,8">
@@ -135,7 +135,7 @@
                                 <DataGridTemplateColumn Header="Info" Width="70">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate x:DataType="svc:PropertyItem">
-                                            <Button Click="OnInfoClick" Tag="{Binding}" Padding="6,2">
+                                            <Button Click="OnInfoClick" Tag="{Binding}" Padding="8,2">
                                                 <ui:FASymbolIcon Symbol="ContactInfo" />
                                             </Button>
                                         </DataTemplate>
