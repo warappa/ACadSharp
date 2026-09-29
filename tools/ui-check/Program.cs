@@ -18,6 +18,18 @@ if (args.Length > 0 && args[0] == "--analyze")
         AnalyzePng.Analyze(f, light ? "light" : "dark");
     }
 }
+else if (args.Length > 0 && args[0] == "--crop")
+{
+    // --crop <in.png> <x> <y> <w> <h> <out.png>
+    if (args.Length < 7)
+    {
+        Console.WriteLine("usage: ui-check --crop <in.png> <x> <y> <w> <h> <out.png>");
+    }
+    else
+    {
+        AnalyzePng.Crop(args[1], int.Parse(args[2]), int.Parse(args[3]), int.Parse(args[4]), int.Parse(args[5]), args[6]);
+    }
+}
 else if (args.Length > 0 && args[0] == "--diag")
 {
     foreach (string f in args.Skip(1))
@@ -41,6 +53,6 @@ else if (args.Length > 0)
 }
 else
 {
-    Console.WriteLine("usage: ui-check [--analyze <png>... [--light]] [--diag <file>...] [--graph <file>...] [<file.dwg|file.dxf>...]");
+    Console.WriteLine("usage: ui-check [--analyze <png>... [--light]] [--crop <in.png> <x> <y> <w> <h> <out.png>] [--diag <file>...] [--graph <file>...] [<file.dwg|file.dxf>...]");
     Console.WriteLine("  (default: audit edge layout — provider-to-the-right-of-consumer anomalies)");
 }

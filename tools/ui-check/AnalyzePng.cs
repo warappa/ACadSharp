@@ -141,4 +141,121 @@ static class AnalyzePng
             }
         }
     }
+
+    /// <summary>
+    /// Crops a region of a screenshot to a new PNG (for visual inspection of a
+    /// small area: a port-label row, a node box, a legend).
+    /// </summary>
+    public static void Crop(string path, int x, int y, int w, int h, string outPath)
+    {
+        Avalonia.AppBuilder.Configure<TestApp>()
+            .UseHeadless(new Avalonia.Headless.AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
+            .UseSkia()
+            .SetupWithoutStarting();
+        var bmp = new Bitmap(path);
+        int W = bmp.PixelSize.Width, H = bmp.PixelSize.Height;
+        if (x < 0) { x = 0; }
+        if (y < 0) { y = 0; }
+        if (x + w > W) { w = W - x; }
+        if (y + h > H) { h = H - y; }
+        if (w <= 0 || h <= 0)
+        {
+            Console.WriteLine($"crop: bad region ({x},{y},{w}x{h}) in {W}x{H}");
+            return;
+        }
+
+        // CopyPixels reads the whole bitmap into a full buffer; keep only the
+        // crop rows (Bgra8888, 4 bytes/px, row stride w*4) as RGB.
+        var full = new Buf(W * H * 4) { RowBytes = W * 4, Size = new PixelSize(W, H) };
+        bmp.CopyPixels(full);
+        var rgb = new byte[w * h * 3];
+        for (int j = 0; j < h; j++)
+        {
+            for (int i = 0; i < w; i++)
+            {
+                int si = (y + j) * W * 4 + i * 4;
+                int di = (j * w + i) * 3;
+                rgb[di] = full.Data[si + 2]; // B -> R
+                rgb[di + 1] = full.Data[si + 1]; // G -> G
+                rgb[di + 2] = full.Data[si]; // R -> B
+            }
+        }
+
+        // Avalonia 12 has no Bitmap-from-pixels ctor / PNG encoder, so encode
+        // the crop by hand: signature + IHDR + IDAT (zlib) + IEND.
+        using var fs = System.IO.File.Create(outPath);
+        PngEncode(fs, w, h, rgb);
+        Console.WriteLine($"saved {outPath} ({w}x{h}) from {path}");
+    }
+
+    static void PngEncode(System.IO.Stream s, int w, int h, byte[] rgb)
+    {
+        s.Write(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 });
+        var ihdr = new byte[13]
+        {
+            (byte)(w >> 24), (byte)(w >> 16), (byte)(w >> 8), (byte)w,
+            (byte)(h >> 24), (byte)(h >> 16), (byte)(h >> 8), (byte)h,
+            8, 2, 0, 0, 0, // 8-bit truecolor (RGB), no interlace
+        };
+        WriteChunk(s, "IHDR", ihdr);
+
+        // zlib = 0x78 0x9C + raw deflate + adler32 (big-endian).
+        var raw = new byte[h * (1 + w * 3)];
+        for (int j = 0; j < h; j++)
+        {
+            raw[j * (1 + w * 3)] = 0; // filter: none
+            System.Buffer.BlockCopy(rgb, j * w * 3, raw, j * (1 + w * 3) + 1, w * 3);
+        }
+        var deflated = new System.IO.MemoryStream();
+        using (var d = new System.IO.Compression.DeflateStream(deflated, System.IO.Compression.CompressionMode.Compress, leaveOpen: true))
+        {
+            d.Write(raw);
+        }
+        var zlib = new byte[2 + (int)deflated.Length + 4];
+        zlib[0] = 0x78;
+        zlib[1] = 0x9C;
+        System.Buffer.BlockCopy(deflated.ToArray(), 0, zlib, 2, (int)deflated.Length);
+        // adler32 = (b << 16) | a, big-endian: a = (1 + sum) mod 65521,
+        // b = (sum of a) mod 65521 (both 16-bit).
+        uint a = 1, b = 0;
+        foreach (byte x in raw)
+        {
+            a = (a + x) % 65521;
+            b = (b + a) % 65521;
+        }
+        zlib[zlib.Length - 4] = (byte)((b >> 8) & 0xFF);
+        zlib[zlib.Length - 3] = (byte)(b & 0xFF);
+        zlib[zlib.Length - 2] = (byte)((a >> 8) & 0xFF);
+        zlib[zlib.Length - 1] = (byte)(a & 0xFF);
+        WriteChunk(s, "IDAT", zlib);
+        WriteChunk(s, "IEND", Array.Empty<byte>());
+    }
+
+    static void WriteChunk(System.IO.Stream s, string type, byte[] data)
+    {
+        var len = new byte[4];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(len, (uint)data.Length);
+        s.Write(len);
+        var body = new byte[4 + data.Length];
+        System.Text.Encoding.ASCII.GetBytes(type, 0, 4, body, 0);
+        System.Buffer.BlockCopy(data, 0, body, 4, data.Length);
+        s.Write(body);
+        var crc = new byte[4];
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32BigEndian(crc, Crc32(body));
+        s.Write(crc);
+    }
+
+    static uint Crc32(byte[] data)
+    {
+        uint crc = 0xFFFFFFFF;
+        foreach (byte b in data)
+        {
+            crc ^= b;
+            for (int i = 0; i < 8; i++)
+            {
+                crc = (crc >> 1) ^ ((crc & 1) * 0xEDB88320U);
+            }
+        }
+        return crc ^ 0xFFFFFFFF;
+    }
 }
