@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Headless;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
+using Avalonia.VisualTree;
 using FluentAvalonia.Styling;
 using System;
 using System.Collections.Generic;
@@ -56,6 +57,7 @@ static class Screenshot
         bool zoombug = modes.Contains("zoombug");
         bool minimap = modes.Contains("minimap");
         bool fingerprint = modes.Contains("fingerprint");
+        bool wheeltest = modes.Contains("wheeltest");
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -198,6 +200,29 @@ static class Screenshot
                         Thread.Sleep(10);
                     }
                     Log("light theme applied");
+                }
+
+                // Optionally simulate a user wheeling over the block tree (diagnosis
+                // for "scrolling does not work on treeview"): inject a real wheel
+                // event through the input pipeline and report whether the tree's
+                // ScrollViewer actually moves.
+                if (wheeltest)
+                {
+                    var tree = window.BlockTree;
+                    var sv = tree.FindDescendantOfType<Avalonia.Controls.ScrollViewer>();
+                    Log($"wheeltest: tree bounds={tree.Bounds} scrollviewer={sv is not null}");
+                    if (sv is not null)
+                    {
+                        Log($"wheeltest: before: offset={sv.Offset} extent={sv.Extent} viewport={sv.Viewport}");
+                        Point? at = tree.TranslatePoint(new Point(50, 100), window);
+                        Log($"wheeltest: wheel point in window coords={at}");
+                        for (int i = 0; i < 3; i++)
+                        {
+                            window.MouseWheel(at ?? new Point(50, 100), new Vector(0, -1));
+                            Pump(10);
+                        }
+                        Log($"wheeltest: after 3 notches up: offset={sv.Offset} extent={sv.Extent} viewport={sv.Viewport}");
+                    }
                 }
 
                 // Optionally open the node viewer dialog and capture it instead.

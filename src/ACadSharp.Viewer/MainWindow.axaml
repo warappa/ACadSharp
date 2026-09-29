@@ -115,7 +115,7 @@
             <!-- Panes are cards (a subtle fill + border + rounded corner) inset from the
                  window edge and the command/status bars, so the layout reads as distinct
                  grouped regions. -->
-            <Grid ColumnDefinitions="360,Auto,*" Margin="12,10,12,10">
+            <Grid Grid.Row="1" ColumnDefinitions="360,Auto,*" Margin="12,10,12,10">
                 <Border Grid.Column="0" BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1"
                         CornerRadius="8" Background="{DynamicResource CardBackgroundFillColorDefault}">
                     <Grid RowDefinitions="Auto,*,Auto">
