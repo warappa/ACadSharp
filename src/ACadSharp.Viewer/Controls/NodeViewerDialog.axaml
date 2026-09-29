@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
         xmlns:local="using:ACadSharp.Viewer.Controls"
+        xmlns:tk="using:ACadSharp.Viewer"
         x:Class="ACadSharp.Viewer.Controls.NodeViewerDialog"
         Title="Node viewer"
         Width="900" Height="600"
@@ -40,6 +41,7 @@
             <Border HorizontalAlignment="Left" VerticalAlignment="Top" Margin="12"
                     CornerRadius="{StaticResource CardCornerRadius}" Padding="8,8"
                     IsHitTestVisible="False"
+                    BoxShadow="{x:Static tk:DesignTokenShadows.CardShadow}"
                     BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1">
                 <!-- Semi-transparent panel: the graph shows through (no blur).
                      Only the background is transparent; the text stays opaque. -->
