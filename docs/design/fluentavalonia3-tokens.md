@@ -163,11 +163,47 @@ design against it.
 - The catalog has **exactly 442 values** (442 rows in `FASymbol-values.txt`; 450 lines incl.
   the header).
 - First value: `Previous` (`57600`); last: `CodeHTML` (`1016116`).
-- It is derived from the **FluentUI Icons** font and is **compatible with the WinUI /
-  Segoe Fluent Icons code points** — so an icon chosen in the WinUI gallery works here.
+
+**The enum values are logical IDs, NOT the font's code points (verified 2026-09-29).**
+Empirically rendering the bundled font (`avares://FluentAvalana/Fonts/FluentAvalana.ttf`,
+the *bare* key — `#SymbolIconManager`/`#Symbols`/`#FluentAvalana` suffixes all fail with
+`Could not create glyphTypeface`) shows the raw code points map to *different* glyphs than
+the enum values imply:
+
+| Raw code point | Renders as | 2023/2026 upstream name at that point |
+| --- | --- | --- |
+| `0xE18A` (57626) | chevron `>` | (upstream `search_24` is elsewhere) |
+| `0xF4A2` (62626) | smiley face | upstream `info_16` |
+| `0xF4A4` (62628) | check-in-circle | upstream `info_24` |
+| `0xEA7C` (60028) | `⋯` three dots | upstream `search_16` |
+| `0xF690` (63120) | `.notdef` | upstream `search_24` |
+
+So `FASymbolIcon` **remaps** the enum value to an internal code point (e.g. `Find`=57626
+renders the magnifier even though raw `0xE18A` is a chevron). The bundled font is a
+**custom-built** FontForge font ("SymbolIconManager", 2023-03-29) with its **own** code
+point assignments — it is **not** the upstream `FluentSystemIcons-Regular` at upstream
+code points. The font is also **larger than the enum**: a full sweep of `0xE000–0xF8FF`
+finds thousands of glyphs (brand logos, weather, clocks, moon phases, badges) far beyond
+the 442-value catalog.
+
+**Practical consequences:**
+- To use an icon that is **in the enum** → use `FASymbolIcon Symbol="..."` (the official
+  API). Do not try to reproduce it with a raw `FontIcon` code point.
+- To use an icon that is **not in the enum** (e.g. the **info i-in-circle**) → reference
+  the bundled font directly with a `FontIcon`/`TextBlock` at the font's actual code point.
+  The info i-in-circle is at **`0xF05A`** (verified by rendering). Its circled-badge
+  neighbors: `0xF055` plus, `0xF056` minus, `0xF057` ×, `0xF058` check, `0xF059` ?,
+  `0xF06A` !.
+- The 2023 font does **not** contain the tree icons (`cube_tree`, `list_bar_tree`,
+  `text_bullet_list_tree`) or `question` — so for expand/collapse, `ChevronDown`/
+  `ChevronUp` are the correct (only tree-ish) enum choices.
 
 Related icon controls: `FASymbol`, `FASymbolIcon`, `FAFontIcon`, `FAPathIcon`, `FABitmapIcon`,
 `FAImageIcon`.
+
+**`SearchBox`:** the 3.0.2 control inventory (§7) has **no `SearchBox`** (it existed in the
+1.x/2.x era and was dropped in the 3.0 rewrite). The idiomatic search composition is a
+standard `TextBox` + `FASymbolIcon Symbol="Find"` (a real magnifier).
 
 ---
 
