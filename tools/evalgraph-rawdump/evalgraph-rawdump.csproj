@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>evalgraph-rawdump</AssemblyName>
+    <!-- Signed with the library key so it can reach ACadSharp internals (DwgFileHeader,
+         DwgLocalSectionMap, ...) exactly like the test project. See AssemblyInfo.cs. -->
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>../../src/ACadSharp.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/ACadSharp/ACadSharp.csproj" />
+  </ItemGroup>
+</Project>
