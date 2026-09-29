@@ -18,7 +18,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 
 namespace ACadSharp.Viewer;
 
@@ -37,7 +36,6 @@ public partial class MainWindow : Window
     private BlockTreeNode? _selectedNode;
     private List<PropertyItem>? _properties;
     private bool _isBusy;
-    private DispatcherTimer? _infoBarAutoClose;
     private string? _lastPath;
     private List<BlockTreeNode> _fullTree = new();
     private FAMenuFlyout? _settingsFlyout;
@@ -307,10 +305,6 @@ public partial class MainWindow : Window
                 visible: true);
 
             SetStatus($"Loaded {Path.GetFileName(path)}: {total} block(s), {_fullTree.Count} root(s).", StatusKind.Success);
-            ShowInfoBar(
-                FAInfoBarSeverity.Success,
-                "File loaded",
-                $"{Path.GetFileName(path)} — {total} block(s).");
         }
         catch (Exception ex)
         {
@@ -319,10 +313,6 @@ public partial class MainWindow : Window
             TreeSummary.Text = string.Empty;
             ApplyTreeFilter();
             SetStatus($"Failed to load {Path.GetFileName(path)}: {ex.Message}", StatusKind.Error);
-            ShowInfoBar(
-                FAInfoBarSeverity.Error,
-                "Load failed",
-                ex.Message);
         }
         finally
         {
@@ -678,25 +668,4 @@ public partial class MainWindow : Window
         };
     }
 
-    private void ShowInfoBar(FAInfoBarSeverity severity, string title, string message)
-    {
-        _infoBarAutoClose?.Stop();
-        _infoBarAutoClose = null;
-
-        InfoBar.Severity = severity;
-        InfoBar.Title = title;
-        InfoBar.Message = message;
-        InfoBar.IsOpen = true;
-
-        // Success/info bars auto-dismiss; errors stay until dismissed.
-        if (severity == FAInfoBarSeverity.Success
-            || severity == FAInfoBarSeverity.Informational)
-        {
-            // A DispatcherTimer runs on the UI thread, so no marshaling (and no
-            // shutdown try/catch) is needed to close the bar.
-            _infoBarAutoClose = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(4000) };
-            _infoBarAutoClose.Tick += (_, _) => InfoBar.IsOpen = false;
-            _infoBarAutoClose.Start();
-        }
-    }
 }
