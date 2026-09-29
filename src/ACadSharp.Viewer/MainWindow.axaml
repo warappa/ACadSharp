@@ -189,11 +189,17 @@
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
                                 </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Info" Width="70">
+                                <DataGridTemplateColumn Header="Info" Width="60">
                                     <DataGridTemplateColumn.CellTemplate>
                                         <DataTemplate x:DataType="svc:PropertyItem">
                                             <Button Click="OnInfoClick" Tag="{Binding}" Padding="8,2" ToolTip.Tip="About this property">
-                                                <ui:FASymbolIcon Symbol="ContactInfo" />
+                                                <!-- Real Microsoft "info" i-in-circle. It is NOT in the 442-value
+                                                     FASymbol enum, so it is rendered straight from the bundled
+                                                     FluentAvalana font (code point 0xF05A) instead of the old
+                                                     ContactInfo (user) icon. (Avalonia 12 dropped the FontIcon
+                                                     control, so a TextBlock on the font is used.) -->
+                                                <TextBlock Text="&#xF05A;" FontFamily="avares://FluentAvalana/Fonts/FluentAvalana.ttf"
+                                                           FontSize="16" />
                                             </Button>
                                         </DataTemplate>
                                     </DataGridTemplateColumn.CellTemplate>
