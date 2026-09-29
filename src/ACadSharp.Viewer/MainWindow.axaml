@@ -111,7 +111,21 @@
                             <TreeView x:Name="BlockTree" Margin="4,0,4,4" SelectionChanged="OnTreeSelectionChanged">
                                 <TreeView.ItemTemplate>
                                     <TreeDataTemplate DataType="svc:BlockTreeNode" ItemsSource="{Binding Children}">
-                                        <TextBlock Text="{Binding DisplayName}" />
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                            <!-- dynamic block: real FASymbol (lightning), not an invented glyph -->
+                                            <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="12" VerticalAlignment="Center"
+                                                             Foreground="{DynamicResource SystemFillColorCaution}"
+                                                             IsVisible="{Binding IsDynamic}" />
+                                            <!-- reference-count badge (a number, not an icon) -->
+                                            <TextBlock Text="{Binding ReferenceBadge}" FontSize="{StaticResource CaptionFontSize}"
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondary}"
+                                                       IsVisible="{Binding ShowReferenceBadge}" />
+                                            <!-- pure reference cycle root: real FASymbol (refresh) -->
+                                            <ui:FASymbolIcon Symbol="Refresh" FontSize="12" VerticalAlignment="Center"
+                                                             Foreground="{DynamicResource SystemFillColorCaution}"
+                                                             IsVisible="{Binding IsCycleRoot}" />
+                                        </StackPanel>
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
@@ -130,12 +144,36 @@
                                            Text="Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs." />
                             </StackPanel>
                         </Grid>
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="{StaticResource Space6}" Margin="8,4,8,8">
-                            <TextBlock Text="⚡ dynamic" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
-                            <TextBlock Text="×N referenced N times" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
-                            <TextBlock Text="⟳ cycle root" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
-                            <TextBlock x:Name="TreeSummary" Margin="8,0,0,0" FontSize="{StaticResource CaptionFontSize}" Foreground="{DynamicResource TextFillColorTertiary}" />
-                        </StackPanel>
+                        <!-- Footer legend: a contained card (hard edge), not floating labels.
+                             The markers mirror the tree rows exactly (same FASymbols + ×N
+                             badge), so the legend explains what the rows actually show. -->
+                        <Border Grid.Row="2" Margin="8,4,8,8" Padding="8,6" CornerRadius="6"
+                                Background="{DynamicResource ControlFillColorSecondary}"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefault}"
+                                BorderThickness="1">
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space6}">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="12"
+                                                     Foreground="{DynamicResource SystemFillColorCaution}" VerticalAlignment="Center" />
+                                    <TextBlock Text="dynamic" FontSize="{StaticResource CaptionFontSize}"
+                                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="×N" FontSize="{StaticResource CaptionFontSize}"
+                                               Foreground="{DynamicResource TextFillColorSecondary}" VerticalAlignment="Center" />
+                                    <TextBlock Text="referenced N times" FontSize="{StaticResource CaptionFontSize}"
+                                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <ui:FASymbolIcon Symbol="Refresh" FontSize="12"
+                                                     Foreground="{DynamicResource SystemFillColorCaution}" VerticalAlignment="Center" />
+                                    <TextBlock Text="cycle root" FontSize="{StaticResource CaptionFontSize}"
+                                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock x:Name="TreeSummary" Margin="8,0,0,0" FontSize="{StaticResource CaptionFontSize}"
+                                           Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Border>
                     </Grid>
                 </Border>
                 <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource ControlStrokeColorDefault}" />
@@ -245,7 +283,7 @@
                  input over the visible card, not the content behind it. -->
             <ui:FATeachingTip x:Name="IntroTip"
                               Title="Explore dynamic blocks"
-                              Subtitle="Open a file, select a ⚡ dynamic block, and press ⓘ next to a value to see its evaluation graph."
+                              Subtitle="Open a file, select a dynamic block, and press the info icon next to a value to see its evaluation graph."
                               PreferredPlacement="Bottom"
                               IsLightDismissEnabled="True"
                               ActionButtonContent="Got it"

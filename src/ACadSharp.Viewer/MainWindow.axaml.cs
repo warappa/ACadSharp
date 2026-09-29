@@ -157,7 +157,7 @@ public partial class MainWindow : Window
             return null;
         }
 
-        return new BlockTreeNode(node.Block, node.DisplayName, selfMatches ? node.Children : matchingChildren);
+        return new BlockTreeNode(node.Block, node.ReferenceCount, node.IsCycleRoot, selfMatches ? node.Children : matchingChildren);
     }
 
     private void OnExpandAllClick(object? sender, RoutedEventArgs e)

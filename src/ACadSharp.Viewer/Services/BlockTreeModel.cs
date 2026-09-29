@@ -15,36 +15,47 @@ public class BlockTreeNode
     public BlockRecord Block { get; }
 
     /// <summary>
-    /// Display name: block name, plus " ⚡" when the block is dynamic and
-    /// " ×N" when the parent references it N times.
+    /// The block name (no markers; markers are shown as icons/badges in the
+    /// tree template, so the name stays clean for search and the header).
     /// </summary>
     public string DisplayName { get; }
 
     public bool IsDynamic => Block.IsDynamic;
 
+    /// <summary>
+    /// How many times the parent block inserts this block (1 = single reference).
+    /// </summary>
+    public int ReferenceCount { get; }
+
+    /// <summary>
+    /// True when this node is a pure reference cycle root (appended as an extra root).
+    /// </summary>
+    public bool IsCycleRoot { get; }
+
+    public bool ShowReferenceBadge => ReferenceCount > 1;
+
+    public string ReferenceBadge => ReferenceCount > 1 ? $"×{ReferenceCount}" : string.Empty;
+
     public List<BlockTreeNode> Children { get; } = new();
 
-    public BlockTreeNode(BlockRecord block, string? suffix = null)
+    public BlockTreeNode(BlockRecord block, int referenceCount = 1, bool isCycleRoot = false)
     {
         Block = block;
-
-        string name = block.Name ?? "<unnamed>";
-        if (block.IsDynamic)
-        {
-            name += " ⚡";
-        }
-
-        DisplayName = name + (suffix ?? string.Empty);
+        DisplayName = block.Name ?? "<unnamed>";
+        ReferenceCount = referenceCount;
+        IsCycleRoot = isCycleRoot;
     }
 
     /// <summary>
     /// Copy for the filtered view: same block and display name, possibly
     /// pruned children (search filter).
     /// </summary>
-    public BlockTreeNode(BlockRecord block, string displayName, List<BlockTreeNode> children)
+    public BlockTreeNode(BlockRecord block, int referenceCount, bool isCycleRoot, List<BlockTreeNode> children)
     {
         Block = block;
-        DisplayName = displayName;
+        DisplayName = block.Name ?? "<unnamed>";
+        ReferenceCount = referenceCount;
+        IsCycleRoot = isCycleRoot;
         Children = children;
     }
 }
@@ -98,14 +109,14 @@ public static class BlockTreeModel
         List<BlockTreeNode> tree = new();
         foreach (BlockRecord root in roots)
         {
-            tree.Add(BuildNode(root, null, new List<BlockRecord> { root }, visited));
+            tree.Add(BuildNode(root, 1, false, new List<BlockRecord> { root }, visited));
         }
 
         // Orphan/cycle fix: any block that is not reachable from a root (e.g. a
-        // pure reference cycle) is appended as an extra root, marked with ⟳.
+        // pure reference cycle) is appended as an extra root, flagged IsCycleRoot.
         foreach (BlockRecord block in blocks.Where(b => !visited.Contains(b)))
         {
-            tree.Add(BuildNode(block, " ⟳", new List<BlockRecord> { block }, visited));
+            tree.Add(BuildNode(block, 1, true, new List<BlockRecord> { block }, visited));
         }
 
         return tree;
@@ -113,12 +124,13 @@ public static class BlockTreeModel
 
     private static BlockTreeNode BuildNode(
         BlockRecord block,
-        string? suffix,
+        int referenceCount,
+        bool isCycleRoot,
         List<BlockRecord> path,
         HashSet<BlockRecord> visited)
     {
         visited.Add(block);
-        BlockTreeNode node = new(block, suffix);
+        BlockTreeNode node = new(block, referenceCount, isCycleRoot);
 
         // Distinct blocks this block inserts, with their reference counts.
         Dictionary<BlockRecord, int> childCounts = new();
@@ -139,9 +151,8 @@ public static class BlockTreeModel
                 continue;
             }
 
-            string? childSuffix = count > 1 ? $" ×{count}" : null;
             List<BlockRecord> childPath = new(path) { child };
-            node.Children.Add(BuildNode(child, childSuffix, childPath, visited));
+            node.Children.Add(BuildNode(child, count, false, childPath, visited));
         }
 
         return node;
