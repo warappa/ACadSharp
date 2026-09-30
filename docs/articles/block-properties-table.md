@@ -373,11 +373,31 @@ mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
  distinct data, so the records agree less). This confirms the body is a fixed-layout
  record array: a constant "shape" per record with a small per-record payload.
 
- **Open:** the per-record field layout (which 96 bits are the cell values, the type
- codes, the variant payload) and the exact header fields (column count, row count,
- `DefaultActiveRowIndex`, `MustMatch`, `ContainsRuntimeParametersOnly`). The record
- *period* and *shape* are established; the *fields within a record* are the next thing
- to pin down.
+   **Header vs. records separated** (`.tmp-decode` `recs0` mode, dumping the full 96-bit
+  window sequence from offset 0). The body splits cleanly into a **variable-size header**
+  (the first window(s)) and **N records of 96 bits**:
+
+  | object | body | 96-bit windows | rem (bits) | header ≡ (mod 96) |
+  |---|---|---|---|---|
+  | TABLE #1 | 1665 | 17 | 33 | 33 |
+  | TABLE #3 | 5396 | 56 | 20 | 20 |
+  | TABLE #6 | 1151 | 11 | 95 | 95 |
+
+  The **header size varies** table-to-table (≡ 33 / 20 / 95 mod 96) because it holds the
+  **column definitions** — variable-size fields (a `Parameter` handle + a `Format` string
+  + `DefaultValue` / `UnmatchedValue` variants) — while the **records are a fixed 96 bits**.
+  The records (windows 2+) are near-identical across the three tables (a 56-bit constant
+  prefix + a small variable suffix); the header (windows 0–1) differs table-to-table
+  (TABLE #1 and #6 share a 16-bit prefix; TABLE #3 is distinct). This is consistent with
+  the semantic model: the **header holds the columns**, and the **records are the rows**
+  (each row = 96 bits of cell data).
+
+  **Open:** the per-record field layout (which 96 bits are the cell values, the type
+  codes, the variant payload) and the header fields (the column count, the per-column
+  `Constant` / `Editable` / `Removable` / `DefaultValue` / `UnmatchedValue` /
+  `CustomProperties` / `Parameter` / `Format`, then `DefaultActiveRowIndex`, `MustMatch`,
+  `ContainsRuntimeParametersOnly`). The record *period* and *shape* are established; the
+  *fields within a record* and the *header fields* are the next thing to pin down.
 
 ## Status & next steps
 
@@ -418,8 +438,12 @@ See the [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object
    string→field mapping must be derived from the data + the semantic model.)
 3. **Pin down the ~74-bit part of the grip gap that precedes the 17-bit metadata**
    (its field type is still not confirmed).
- 4. **Decode the table body's records.** The body is isolated and its **96-bit record
-    period** is established (see the [body section](#the-table-body-isolated-sized-and-structured));
-    the next step is the **per-record field layout** (cell values, type codes, variant
-    payload) and the **header fields** (column count, row count, `DefaultActiveRowIndex`,
-    `MustMatch`, `ContainsRuntimeParametersOnly`).
+ 4. **Decode the table body's records + header.** The body is isolated, its **96-bit
+    record period** is established, and the body is now split into a **variable-size
+    header** (the column definitions — ≡ 33 / 20 / 95 mod 96) + **N fixed 96-bit records**
+    (the rows) (see the [body section](#the-table-body-isolated-sized-and-structured)).
+    The next step is the **per-record field layout** (cell values, type codes, variant
+    payload) and the **header fields** (column count, the per-column
+    `Constant` / `Editable` / `Removable` / `DefaultValue` / `UnmatchedValue` /
+    `CustomProperties` / `Parameter` / `Format`, then `DefaultActiveRowIndex`, `MustMatch`,
+    `ContainsRuntimeParametersOnly`).
