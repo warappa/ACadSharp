@@ -715,9 +715,9 @@ R2010+ files that have a dynamic block *with a lookup / visible property table* 
 
 **3rd independent schema confirmed on R2025 (AC1032) — the region layout holds.**
 A user-supplied R2025 file (`1kVKeetKOPIE.dwg`, AC1032) contains a
-`BlockPropertiesTable` object with a **3800-bit body** and **50 strings** in the
-string region (a distinct schema from the 773-bit pair and the three L3-02 schemas).
-The decoder (which reads the R2010+ object layout) confirms the region layout on
+`BlockPropertiesTable` object with a **3800-bit body** and a string region of
+**S = 27386 bits** (a distinct schema from the 773-bit pair and the three L3-02
+schemas). The decoder (which reads the R2010+ object layout) confirms the region layout on
 this third schema: `prefixBits = 134` ✓, `flag = 1` ✓ (a string region is present),
 and `sizeField = 16b` ✓. The body's density profile is `[19,46,50,62,54, 18,18,15,14,13,16,21,16,12,14,14,17,11,12,13,16,18,12,10,15,17,18,11,11,15,18,17,13,11,17,17,14,14]`
 (ones per 100-bit chunk) — a **dense leading region** (chunks 0–4) followed by a
@@ -730,13 +730,38 @@ is a genuinely independent schema, not a re-use of the 773-bit pattern. This is 
 **third independent confirmation** of the R2010+ object region layout
 (134-bit prefix + 16-bit LE size field + 1-bit flag + body + string region).
 
-**The 50 strings (R2025 schema).** The string region holds: 2 leading named refs
-(`"Block Table"`, `"Block Table1"`), 3 `"UserVariable"` + 3 `"Custom"` pairs, 2 named
-(`"UpdatedDistance"`, `"VisibilityState"`), 11 empty, and 29 data strings (cell values
-like `"1kV Keet"`, `"Klassiek"`, `"Dubbelzijdig"`, `"Rechts"`, `"Links"`,
-`"1kV Keet - VPR"`, `"1kV Keet - VPL"`, `"Uitbreiding - …"`, `"Aanduiding
-omvormers"`, …). The 29 data strings suggest a larger table than the 773-bit pair's
-8×4 grid (e.g. ~5×6), consistent with the larger 3800-bit body.
+**The string region is consumed *exactly* — it holds 125 strings, not 50 (anomaly resolved).**
+An earlier pass read the R2025 string region with a 50-string cap and concluded it
+"only" consumed 7452 / 27386 bits (a ~19934-bit gap), which looked like a size-field
+mis-read. Re-reading the region with **no cap** (`.tmp-decode/guided/StringsAll.cs`,
+assembly name `decode` for `InternalsVisibleTo`) shows the region is consumed
+**exactly**: **125 strings, 27386 / 27386 bits = 100.0 %, 0 bits remaining**. So
+`S = 27386` is correct (the 16-bit LE size field is not a mis-read) and the earlier
+"anomaly" was simply the 50-string stop condition. The R2025 schema therefore holds
+**125 strings** — far more than the 47 of the 773-bit pair.
+
+The 125 strings break down as (index = position in the string region):
+- `[0..1]` — 2 leading named refs: `"Block Table"`, `"Block Table1"`.
+- `[2..3]` — 2 empty strings.
+- `[4..15]` — 3 × (`"UserVariable"`, `"Custom"`, `""`, `""`) = 12 strings
+  (3 groups of 4; the `UserVariable` / `Custom` names look like column /
+  property descriptors).
+- `[16]` — `"UpdatedDistance"`.
+- `[17..18]` — 2 empty strings.
+- `[19]` — `"VisibilityState"`.
+- `[20]` — 1 empty string.
+- `[21..124]` — **104 data strings** (the cell values).
+
+The 104 data strings are the cell values of the table (e.g. `"1kV Keet"`,
+`"Klassiek"`, `"Dubbelzijdig"`, `"Rechts"`, `"Links"`, `"1kV Keet - VPR"`,
+`"1kV Keet - VPL"`, `"Uitbreiding - 1kV keet"`, `"Aanduiding omvormers"`,
+`"Smeltveiligheden"`, `"BIC/LIC/SEC - Gemotoriseerd"`, `"IL Shelter - VPR"`,
+`"IL Shelter - Double Wide - VPL"`, …). `104 = 8 × 13 = 4 × 26`, so the R2025 table
+is a larger grid than the 773-bit pair's 8×4 (32 cells) — consistent with the
+3800-bit body being ~5× the 773-bit body. The exact row / column split is still
+open (see the body-width search below), but the **string count (125) and the exact
+region consumption (27386/27386) are now hard constraints** on the body decode:
+the 3800-bit body must reference exactly these 125 strings.
 
 **Body-width hypothesis H1 (773 bits consumed, values implausible — preliminary).**
 The hypothesis `3 B (3) + DefaultActiveRowIndex (22) + ColumnCount (16) +
@@ -948,3 +973,15 @@ See the [complete-region-layout section](#the-complete-r2010-region-layout-write
     before or between the columns and rows); the int encoding (BL vs BS vs raw-32);
     and the int64 variant width (assumed 3 × BL). The two identical 773-bit
     `Block Properties Table.dwg` tables are the planned constant-vs-varying cross-check.
+
+     **New hard constraint (R2025, this pass):** the 3rd schema's string region is
+     consumed **exactly** by **125 strings** (27386/27386 bits, 0 remaining — the earlier
+     "50-string / 7452-bit gap" anomaly was a 50-string stop condition, see the
+     [3rd-schema section](#3rd-independent-schema-confirmed-on-r2025-ac1032--the-region-layout-holds)).
+     So the 3800-bit body must reference **exactly 125 strings**: the string-typed-field
+     count in the body = 125 = 21 (table- + column-level) + 104 (cell values). The 104
+     cell values = `rowCount × colCount` (e.g. 8×13 or 4×26), which — together with the
+     773-bit pair (4×8 = 32 cells) — is the key constraint set for the body-width search
+     (`.tmp-decode/guided/Crack773.cs` / a two-body solver). The body's dense leading
+     region (chunks 0–4) is the table- + column-level fields; the sparser tail
+     (chunks 5–37) is the row / cell data.
