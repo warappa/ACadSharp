@@ -1241,7 +1241,9 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 		this.writeEvaluationExpression(table);
 
 		this._writer.Write(100, DxfSubclassMarker.BlockPropertiesTable);
-		this._writer.Write(90, table.RowCount, map);
+		this._writer.Write(90, table.BeMajor, map);
+		this._writer.Write(91, table.BeMinor, map);
+		this._writer.Write(92, table.Eed1071, map);
 	}
 
 	private void writeBlockPropertiesTableGrip(BlockPropertiesTableGrip grip)
@@ -1251,7 +1253,14 @@ internal class DxfObjectsSectionWriter : DxfSectionWriterBase
 		this.writeEvaluationExpression(grip);
 
 		this._writer.Write(100, DxfSubclassMarker.BlockPropertiesTableGrip);
-		this._writer.Write(91, (int)grip.GripId, map);
+		this._writer.Write(90, grip.BeMajor, map);
+		this._writer.Write(91, grip.BeMinor, map);
+		this._writer.Write(92, grip.Eed1071, map);
+		this._writer.Write(93, grip.Bl91, map);
+		this._writer.Write(94, grip.Bl92, map);
+		this._writer.Write(10, grip.Location, map);
+		this._writer.Write(95, grip.InsertCycling, map);
+		this._writer.Write(96, grip.InsertCyclingWeight, map);
 	}
 
 	private void writeBlockPolarParameter(BlockPolarParameter parameter)

@@ -312,19 +312,54 @@ internal partial class DwgObjectWriter : DwgSectionIO
 
 	private void writeBlockPropertiesTable(BlockPropertiesTable table)
 	{
-		// A properties table is a data object with a variable-size row array. The common
-		// header + the expression are written; the remaining rows are not. The readers are
-		// re-positioned per object.
-		this.writeCommonNonEntityData(table);
+		// The common header is already written by writeObject.
 		this.writeEvaluationExpression(table);
+
+		// The decoded block-element prefix.
+		this._writer.WriteBitLong(table.BeMajor);
+		this._writer.WriteBitLong(table.BeMinor);
+		this._writer.WriteBitLong(table.Eed1071);
+
+		// The opaque row data is re-emitted verbatim (a round-trip must not lose it).
+		this.writeRawTail(table.RawTail, table.RawTailBitCount);
 	}
 
 	private void writeBlockPropertiesTableGrip(BlockPropertiesTableGrip grip)
 	{
-		// A properties table grip is a data object. The common header + the expression are
-		// written; the remaining payload is not. The readers are re-positioned per object.
-		this.writeCommonNonEntityData(grip);
+		// The common header is already written by writeObject.
 		this.writeEvaluationExpression(grip);
+
+		// The decoded grip fields.
+		this._writer.WriteBitLong(grip.BeMajor);
+		this._writer.WriteBitLong(grip.BeMinor);
+		this._writer.WriteBitLong(grip.Eed1071);
+		this._writer.WriteBitLong(grip.Bl91);
+		this._writer.WriteBitLong(grip.Bl92);
+		this._writer.Write3BitDouble(grip.Location);
+		this._writer.WriteBit(grip.InsertCycling);
+		this._writer.WriteBitLong((int)grip.InsertCyclingWeight);
+
+		// The opaque payload is re-emitted verbatim (a round-trip must not lose it).
+		this.writeRawTail(grip.RawTail, grip.RawTailBitCount);
+	}
+
+	/// <summary>
+	/// Re-emits the opaque tail of an object. The tail is not necessarily byte aligned,
+	/// so the significant bits are written one at a time (the padding bits of the last
+	/// byte are zero).
+	/// </summary>
+	private void writeRawTail(byte[] tail, int bitCount)
+	{
+		if (tail == null || bitCount <= 0)
+		{
+			return;
+		}
+
+		int count = Math.Min(bitCount, tail.Length * 8);
+		for (int i = 0; i < count; ++i)
+		{
+			this._writer.WriteBit((tail[i >> 3] & (0x80 >> (i & 7))) != 0);
+		}
 	}
 
 	private void writeBlockLookupAction(BlockLookupAction lookupAction)

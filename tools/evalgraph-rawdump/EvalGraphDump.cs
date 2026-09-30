@@ -149,6 +149,7 @@ class EvalGraphDump
 			obj.ReadBit(); //R2013+ hasDsBinaryData flag
 
 			//AcDbEvalExpr: Unknown, Value98, Value99, code (+ value), Id
+			long exprStart = obj.Bit;
 			Log($"  expr Unknown={obj.ReadBitLong()}");
 			Log($"  expr Value98={obj.ReadBitLong()}");
 			Log($"  expr Value99={obj.ReadBitLong()}");
@@ -181,9 +182,24 @@ class EvalGraphDump
 				}
 			}
 			Log($"  expr Id={obj.ReadBitLong()}");
+			Log($"  (expr end bit={obj.Bit}, {obj.Bit - exprStart} bits)");
+
+			//Hypothesis check: the code may be a raw 16-bit (signed) value, not a BitShort.
+			{
+				long p = exprStart;
+				var probe = new BitReader(objects) { Bit = p };
+				probe.ReadBitLong(); //Unknown
+				probe.ReadBitLong(); //98
+				probe.ReadBitLong(); //99
+				int raw16 = probe.NBits16();
+				Log($"  expr code-as-raw16: unsigned={raw16} signed={(short)raw16} (bits consumed=16, next bit={probe.Bit})");
+			}
+
+			//Full bit-stream dump of the expression + class-specific region (for manual analysis).
+			this.DumpBits(objects, exprStart, handleStart, "BITS");
 
 			Log($"  --- class-specific ---");
-			this.DecodeClassSpecific(name, obj, handle, text, handleStart, F);
+			this.DecodeClassSpecific(name, obj, handle, text, handleStart, F, objects);
 		}
 		catch (Exception ex)
 		{
@@ -191,7 +207,7 @@ class EvalGraphDump
 		}
 	}
 
-	void DecodeClassSpecific(string name, BitReader obj, BitReader handle, BitReader text, long handleStart, Func<double, string> F)
+	void DecodeClassSpecific(string name, BitReader obj, BitReader handle, BitReader text, long handleStart, Func<double, string> F, byte[] objects)
 	{
 		switch (name)
 		{
@@ -199,20 +215,14 @@ class EvalGraphDump
 			{
 				int rowCount = obj.ReadBitLong();
 				Log($"  RowCount={rowCount}  (bit after = {obj.Bit}, byte-aligned={obj.Bit % 8 == 0}, remaining={handleStart - obj.Bit} bits)");
-				this.ProbeTail("  row", obj, handleStart, F);
-				this.DumpRemaining(obj, handleStart);
-				if (text != null)
-					this.DumpTextStream(text);
+				this.DecodeTableTail(obj, handle, text, rowCount, handleStart, F, objects);
 				break;
 			}
 			case "GRIP":
 			{
 				int gripId = obj.ReadBitLong();
 				Log($"  GripId={gripId}  (bit after = {obj.Bit}, byte-aligned={obj.Bit % 8 == 0}, remaining={handleStart - obj.Bit} bits)");
-				this.ProbeTail("  grip", obj, handleStart, F);
-				this.DumpRemaining(obj, handleStart);
-				if (text != null)
-					this.DumpTextStream(text);
+				this.DecodeGripTail(obj, handle, text, handleStart, F, objects);
 				break;
 			}
 			case "USERPARAM":
@@ -285,6 +295,238 @@ class EvalGraphDump
 		Log($"{label} type={vsType} min={F(vMin)} max={F(vMax)} inc={F(vInc)} count={vCount}");
 		for (int i = 0; i < vCount; i++)
 			Log($"  allowed[{i}]={F(obj.ReadBitDouble())}");
+	}
+
+	//Dumps the given bit region as 64-bit lines (the definitive record for manual analysis).
+	void DumpBits(byte[] data, long from, long to, string tag)
+	{
+		if (to <= from)
+		{
+			Log($"  {tag}: (empty)");
+			return;
+		}
+		string line = "";
+		for (long b = from; b < to; b++)
+		{
+			long byteIdx = b / 8;
+			if (byteIdx >= data.Length)
+				break;
+			int bi = (int)(b % 8);
+			line += (data[byteIdx] >> (7 - bi)) & 1;
+			if (line.Length == 64)
+			{
+				Log($"  {tag} @{b - 63}: {line}");
+				line = "";
+			}
+		}
+		if (line.Length > 0)
+			Log($"  {tag} @{to - line.Length}: {line}");
+	}
+
+	//A variant (AcDbEvalVariant-style cell) hypothesis: 2-bit code + a typed value.
+	//code 00 = int16 (BitShort), 01 = char (byte), 10 = 0, 11 = double (BitDouble).
+	string ReadVariantHyp(BitReader obj, out bool ok)
+	{
+		ok = true;
+		int code = obj.Read2Bits();
+		switch (code)
+		{
+			case 0: return $"i16:{obj.ReadBitShort()}";
+			case 1: return $"ch:0x{obj.ReadByte():X2}";
+			case 2: return "0";
+			default: return $"dbl:{obj.ReadBitDouble():R}";
+		}
+	}
+
+	//Structured decode of the TABLE tail (after RowCount), based on the .NET API:
+	//MustMatch, ContainsRuntimeParametersOnly, DefaultActiveRowIndex, ColumnCount,
+	//column definitions (handle + name + type), and the row cells. Tries several field
+	//orders and logs each so the real layout can be identified.
+	void DecodeTableTail(BitReader obj, BitReader handle, BitReader text, int rowCount, long handleStart, Func<double, string> F, byte[] objects)
+	{
+		long start = obj.Bit;
+
+		this.TryTableLayout(obj, handle, text, rowCount, handleStart, F, "A: MM,RT,defRow,cols[col:handle,name,type],cells[variant]");
+		obj.Bit = start;
+		this.TryTableLayout(obj, handle, text, rowCount, handleStart, F, "B: defRow,cols[col:handle,name,type],cells[variant]");
+		obj.Bit = start;
+		this.TryTableLayout(obj, handle, text, rowCount, handleStart, F, "C: MM,RT,defRow,cols[col:handle,name,type],cells[double]");
+		obj.Bit = start;
+		this.TryTableLayout(obj, handle, text, rowCount, handleStart, F, "D: cols[col:handle,name,type],defRow,cells[variant]");
+		obj.Bit = start;
+		this.TryTableLayout(obj, handle, text, rowCount, handleStart, F, "E: MM,RT,defRow");
+
+		//Raw bit dump (the definitive record of the tail — full stream, not just 512 bits).
+		obj.Bit = start;
+		this.DumpBits(objects, start, handleStart, "TABLE-TAIL");
+		if (text != null)
+			this.DumpTextStream(text);
+	}
+
+	void TryTableLayout(BitReader obj, BitReader handle, BitReader text, int rowCount, long handleStart, Func<double, string> F, string tag)
+	{
+		try
+		{
+			bool readMM = tag.StartsWith("A") || tag.StartsWith("C") || tag.StartsWith("E");
+			bool mustMatch = false, rtOnly = false;
+			if (readMM)
+			{
+				mustMatch = obj.ReadBit();
+				rtOnly = obj.ReadBit();
+			}
+			bool colsFirst = tag.StartsWith("D");
+			int defRow = colsFirst ? 0 : obj.ReadBitLong();
+			int colCount = obj.ReadBitLong();
+			if (colsFirst)
+			{
+				colCount = defRow;
+				defRow = obj.ReadBitLong();
+			}
+			Log($"  [{tag}] mustMatch={mustMatch} rtOnly={rtOnly} defRow={defRow} colCount={colCount}");
+			if (colCount < 0 || colCount > 32)
+			{
+				Log($"  [{tag}] colCount implausible; aborting");
+				return;
+			}
+			var cols = new List<string>();
+			for (int i = 0; i < colCount; i++)
+			{
+				ulong h = obj.HandleReference();
+				string name = text == null ? "<none>" : text.ReadVariableText();
+				int type = obj.ReadBitLong();
+				cols.Add($"{i}:h={h} {name}(type={type})");
+			}
+			Log($"  [{tag}] cols=[{string.Join(" | ", cols)}]");
+			//Read up to 12 cells and sanity-check the values.
+			bool cellsAsDouble = tag.StartsWith("C");
+			int nRead = 0;
+			var cells = new List<string>();
+			for (int r = 0; r < rowCount && nRead < rowCount * colCount && nRead < 12; r++)
+			{
+				for (int c = 0; c < colCount && nRead < 12; c++)
+				{
+					string v = cellsAsDouble ? F(obj.ReadBitDouble()) : this.ReadVariantHyp(obj, out _);
+					cells.Add(v);
+					nRead++;
+				}
+				if (nRead > 24)
+					break;
+			}
+			Log($"  [{tag}] first {cells.Count} cells=[{string.Join(",", cells)}] (bit now={obj.Bit}, left={handleStart - obj.Bit})");
+		}
+		catch (Exception ex)
+		{
+			Log($"  [{tag}] failed at bit {obj.Bit}: {ex.Message}");
+		}
+	}
+
+	//Structured decode of the GRIP tail (after GripId): hypothesis orderings + raw dump + text.
+	void DecodeGripTail(BitReader obj, BitReader handle, BitReader text, long handleStart, Func<double, string> F, byte[] objects)
+	{
+		long start = obj.Bit;
+		long remaining = handleStart - start;
+		Log($"  -- grip tail: {remaining} bits --");
+
+		this.TryGrip(obj, start, handleStart, F, "G1: [MM bit][RT bit][defRow BL][colCount BL]");
+		this.TryGripVariantRun(obj, start, handleStart, F, "G2: 6 x variant");
+		this.TryGripDoubles(obj, start, handleStart, F, "G3: 6 x BD");
+		this.TryGripHandles(obj, start, handleStart, F, "G4: 8 x handle");
+		this.TryGripLongs(obj, start, handleStart, F, "G5: 16 x BL");
+
+		//Raw bit dump (the definitive record).
+		obj.Bit = start;
+		this.DumpBits(objects, start, handleStart, "GRIP-TAIL");
+		if (text != null)
+			this.DumpTextStream(text);
+	}
+
+	void TryGrip(BitReader obj, long start, long handleStart, Func<double, string> F, string tag)
+	{
+		obj.Bit = start;
+		try
+		{
+			bool mm = obj.ReadBit();
+			bool rt = obj.ReadBit();
+			int defRow = obj.ReadBitLong();
+			int colCount = obj.ReadBitLong();
+			Log($"  [{tag}] mm={mm} rt={rt} defRow={defRow} colCount={colCount} left={handleStart - obj.Bit}");
+		}
+		catch (Exception ex)
+		{
+			Log($"  [{tag}] failed: {ex.Message}");
+		}
+	}
+
+	void TryGripVariantRun(BitReader obj, long start, long handleStart, Func<double, string> F, string tag)
+	{
+		obj.Bit = start;
+		var values = new List<string>();
+		try
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				values.Add(this.ReadVariantHyp(obj, out _));
+			}
+			Log($"  [{tag}] [{string.Join(" ", values)}] left={handleStart - obj.Bit}");
+		}
+		catch (Exception ex)
+		{
+			Log($"  [{tag}] failed after {values.Count}: {ex.Message}");
+		}
+	}
+
+	void TryGripDoubles(BitReader obj, long start, long handleStart, Func<double, string> F, string tag)
+	{
+		obj.Bit = start;
+		var values = new List<string>();
+		try
+		{
+			for (int i = 0; i < 6; i++)
+			{
+				values.Add(F(obj.ReadBitDouble()));
+			}
+			Log($"  [{tag}] [{string.Join(" ", values)}] left={handleStart - obj.Bit}");
+		}
+		catch (Exception ex)
+		{
+			Log($"  [{tag}] failed after {values.Count}: {ex.Message}");
+		}
+	}
+
+	void TryGripHandles(BitReader obj, long start, long handleStart, Func<double, string> F, string tag)
+	{
+		obj.Bit = start;
+		var values = new List<string>();
+		try
+		{
+			for (int i = 0; i < 8; i++)
+			{
+				values.Add(obj.HandleReference().ToString());
+			}
+			Log($"  [{tag}] [{string.Join(" ", values)}] left={handleStart - obj.Bit}");
+		}
+		catch (Exception ex)
+		{
+			Log($"  [{tag}] failed after {values.Count}: {ex.Message}");
+		}
+	}
+
+	void TryGripLongs(BitReader obj, long start, long handleStart, Func<double, string> F, string tag)
+	{
+		obj.Bit = start;
+		var values = new List<string>();
+		try
+		{
+			for (int i = 0; i < 16; i++)
+			{
+				values.Add(obj.ReadBitLong().ToString());
+			}
+			Log($"  [{tag}] [{string.Join(" ", values)}] left={handleStart - obj.Bit}");
+		}
+		catch (Exception ex)
+		{
+			Log($"  [{tag}] failed after {values.Count}: {ex.Message}");
+		}
 	}
 
 	/// <summary>
@@ -493,6 +735,8 @@ class EvalGraphDump
 		}
 
 		public int Read2Bits() => this.NBits(2);
+
+		public int NBits16() => this.NBits(16);
 
 		public bool ReadBit() => this.NBits(1) != 0;
 

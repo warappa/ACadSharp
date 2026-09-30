@@ -337,10 +337,17 @@ internal partial class DwgObjectReader : DwgSectionIO
 		BlockPropertiesTable table = new();
 		CadBlockPropertiesTableTemplate template = new CadBlockPropertiesTableTemplate(table);
 
-		// A properties table is a data object with a variable-size row array. Only the
-		// common header is decoded; the remaining rows are discarded. The readers are
-		// re-positioned per object.
-		this.readCommonNonEntityData(template);
+		// The common header is read by readEvaluationExpression.
+		this.readEvaluationExpression(template);
+
+		// The decoded block-element prefix (verified against a real R2010+ file).
+		table.BeMajor = this._objectReader.ReadBitLong();
+		table.BeMinor = this._objectReader.ReadBitLong();
+		table.Eed1071 = this._objectReader.ReadBitLong();
+
+		// The remaining column/row data is not yet decoded (the class has no public ObjectARX
+		// API and LibreDWG's struct is empty); preserve it raw so a round-trip does not lose it.
+		(table.RawTail, table.RawTailBitCount) = this.readRawTail();
 
 		return template;
 	}
@@ -350,11 +357,49 @@ internal partial class DwgObjectReader : DwgSectionIO
 		BlockPropertiesTableGrip grip = new();
 		CadBlockPropertiesTableGripTemplate template = new CadBlockPropertiesTableGripTemplate(grip);
 
-		// A properties table grip is a data object. Only the common header is decoded; the
-		// remaining payload is discarded. The readers are re-positioned per object.
-		this.readCommonNonEntityData(template);
+		// The common header is read by readEvaluationExpression.
+		this.readEvaluationExpression(template);
+
+		// The decoded grip fields (verified against a real R2010+ file).
+		grip.BeMajor = this._objectReader.ReadBitLong();
+		grip.BeMinor = this._objectReader.ReadBitLong();
+		grip.Eed1071 = this._objectReader.ReadBitLong();
+		grip.Bl91 = this._objectReader.ReadBitLong();
+		grip.Bl92 = this._objectReader.ReadBitLong();
+		grip.Location = this._objectReader.Read3BitDouble();
+		grip.InsertCycling = this._objectReader.ReadBit();
+		grip.InsertCyclingWeight = this._objectReader.ReadBitLong();
+
+		// The remaining payload (the constant 91-bit field, not yet cracked) is preserved raw
+		// so a round-trip does not lose it.
+		(grip.RawTail, grip.RawTailBitCount) = this.readRawTail();
 
 		return template;
+	}
+
+	/// <summary>
+	/// Reads the remaining (opaque) bits of the object data, up to the handle stream,
+	/// and returns them MSB-first (zero-padded to the byte boundary) together with the
+	/// exact bit count, so a round-trip does not lose the data.
+	/// </summary>
+	private (byte[] Data, int BitCount) readRawTail()
+	{
+		long remaining = this._handlesReader.PositionInBits() - this._objectReader.PositionInBits();
+		if (remaining <= 0)
+		{
+			return (null, 0);
+		}
+
+		byte[] data = new byte[(int)((remaining + 7) / 8)];
+		for (int i = 0; i < (int)remaining; ++i)
+		{
+			if (this._objectReader.ReadBit())
+			{
+				data[i >> 3] |= (byte)(0x80 >> (i & 7));
+			}
+		}
+
+		return (data, (int)remaining);
 	}
 
 	private CadTemplate readBlockLookupAction()
