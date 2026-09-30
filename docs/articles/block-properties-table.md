@@ -2,13 +2,26 @@
 
 > **Status:** the on-disk layout is **decoded and implemented** for the block-element
 > prefix (table + grip) and the grip's full field set. The **table's column/row/cell
-> body** was **cracked this pass**: it is a standard R2010+ object whose **inline string
-> region** the library's own `SetPositionByFlag` + `ReadVariableText` reads (the earlier
-> "opaque blob / 0xCC encoding" claim was a misaligned read — see the
+> body** is a standard R2010+ object whose **inline string region** the library's own
+> `SetPositionByFlag` + `ReadVariableText` reads (see the
 > [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read)).
-> **Still open:** wiring the string region into the reader/writer and mapping the
-> extracted strings to the `Columns` / `Rows` / `Cells` model. The decoded fields are
-> verified against `L3-02-Dynamic Blocks.dwg` (all six objects) and covered by
+>
+> **Correction (this pass — supersedes the "96-bit record" section below):** the body is
+> a **continuous self-describing typed-field stream** (resbuf-style), **not** a fixed
+> 96-bit record array. The earlier "96-bit period" (0.848 autocorrelation) and the
+> "constant `02 94 00 00 00 00 00` 7-byte record prefix" were **non-byte-aligned windowing
+> artifacts**: a corrected 56-bit scan finds **no** `0x0002940000000000` in any table, and
+> the 96-bit windows at `191 + 96k` show *shifting* content (pairwise match only 0.812).
+> Every field is `2-bit tag + value` (tag `00`/`01`/`10`/`11`); the *width* of a `00`/`01`
+> field depends on the field's **type** (BL = 32/8 bit, BS = 16/8 bit, BD = 64/0 bit,
+> variant = 16/8/0/64 bit), which only the semantic model knows. The **grip** body is
+> **0 bits** (empty) in both `L3-02` and `Block Properties Table.dwg`. See the
+> [body-structure section](#the-table-body-a-continuous-typed-field-stream).
+>
+> **Still open:** pinning the exact field *order* of the table body (the
+> `Columns` / `Rows` / `Cells` layout) and wiring the string region into the
+> reader/writer. The decoded fields are verified against `L3-02-Dynamic Blocks.dwg`
+> (all six objects) and covered by
 > [`BlockPropertiesTableTests`](../../src/ACadSharp.Tests/IO/DWG/BlockPropertiesTableTests.cs).
 > See [`evaluation-graph.md`](evaluation-graph.md) for the shared object envelope and
 > expression.
@@ -335,7 +348,96 @@ string stream" interpretation from the previous pass was wrong: the string data 
 they unrelated dynamic-block strings?). The string region is now readable end-to-end;
 mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
 
- ### The table body: isolated, sized, and structured
+ ### The table body: a continuous typed-field stream
+
+**This pass re-examined the body bit-by-bit and corrected the "96-bit record"
+interpretation below.** The body is a **continuous self-describing typed-field stream**
+(the same resbuf-style `2-bit tag + value` encoding used by the expression and the
+block-element prefix), **not** a fixed 96-bit record array.
+
+**Evidence (`.tmp-decode` `vstream` mode, which decodes the body as a self-describing
+variant stream — `tag 00` = 16-bit, `01` = 8-bit, `10` = 0, `11` = 64-bit — and the
+`recs` mode's 96-bit windows):**
+
+* **The `02 94` "prefix" is gone.** A corrected 56-bit scan for `0x0002940000000000`
+  finds **no** match in any of the five tables (3 from `L3-02`, 2 from `Block
+  Properties Table.dwg`). The earlier "constant 7-byte record prefix" was a
+  **non-byte-aligned windowing artifact** (the 96-bit windows do not land on record
+  boundaries).
+* **The 96-bit "period" was an autocorrelation artifact.** The `recs` mode's 96-bit
+  windows at `191 + 96k` show *shifting* content (pairwise match only 0.812, against a
+  0.917 "same-record" expectation) — the content moves as the window slides, which is
+  the signature of a **stream of variable-width fields**, not fixed 96-bit records.
+* **The fields are self-describing.** Decoding the body as a variant stream yields a
+  clean, consistent sequence of values (integers, a `-9999` / `0xF601` "not found"
+  sentinel, `0.0` doubles) that runs all the way to the string region with no
+  misalignment — e.g. `L3-02` TABLE #1: `33, 175, 0, 0, 0, …, 10, 2, 2, 0, -1, 5,
+  -9999, -9999, 145, 0.0, …`.
+
+**The full object layout (verified, all six objects):**
+
+```
+[size] [handleSize] [class]
+[common header]            ownHandle + ext-data + reactors + missing + xdic + hasDs
+[expression]               parentid(BL) + major(BL) + minor(BL) + code(BS) + nodeid(BL)  = 82 bits
+[block-element prefix]     be_major(BL) + be_minor(BL) + eed1071(BL)   (3 × ReadBitLong)
+[body]                     the column/row/cell data — a continuous typed-field stream
+[string region]            [16-bit size][1-bit flag=1]  (inline UTF-16, byte-swapped LE)
+[handle stream]
+```
+
+The **body** (between the block-element prefix and the string region) is where the
+`Columns` / `Rows` / `Cells` live. It is a **run of `2-bit tag + value` fields**; the
+*width* of a `tag 00` / `tag 01` field depends on the field's **type** (which only the
+semantic model / writer knows):
+
+| type   | tag 00 | tag 01 | tag 10 | tag 11 |
+|--------|--------|--------|--------|--------|
+| **BL** | 34 (2+32) | 10 (2+8) | 2 | — |
+| **BS** | 18 (2+16) | 10 (2+8) | 2 | 2 (=256) |
+| **BD** | 66 (2+64) | 2 (=1.0) | 2 (=0.0) | — |
+| variant| 18 (2+16) | 10 (2+8) | 2 (=0) | 66 (2+64) |
+
+> **The tag ambiguity (why blind decoding is not enough):** the 2-bit tag alone does
+> **not** determine the width. A `tag 00` could be 16/32/64 bits (BS/BL/BD), and a
+> `tag 01` could be 8 bits or 0 bits (BD = 1.0). The width is set by the field's
+> **type**, which only the semantic model / writer knows. So the body must be decoded
+> **guided by the field types** (the `Columns` / `Rows` / `Cells` layout), not blind.
+> The variant-stream decode above is a *hypothesis* (it assumes every field is a
+> variant); it is a useful probe but not the final layout.
+
+**Cross-file body sizes** (`.tmp-decode` `body` mode; the grip body is **0 bits** in
+both files — a grip is a single point, not a table):
+
+| file | table | body (bits) |
+|---|---|---|
+| `L3-02-Dynamic Blocks.dwg` | TABLE #1 | 1665 |
+| `L3-02-Dynamic Blocks.dwg` | TABLE #3 | 5396 |
+| `L3-02-Dynamic Blocks.dwg` | TABLE #6 | 1151 |
+| `Block Properties Table.dwg` | TABLE #1 | 773 |
+| `Block Properties Table.dwg` | TABLE #3 | 773 |
+
+**The `Block Properties Table.dwg` pair (two 773-bit tables, identical shape)** is the
+key to pinning the layout: comparing the two tables bit-by-bit separates the
+**structural (constant) fields** from the **data (varying) fields**. Both start
+`31, 125, 0, 0, …` (be_major, be_minor, eed1071, then a `0`), then diverge; both share
+a regular `1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 3, 1, 1, 1, 1, 4, …` sub-pattern (a small
+per-field counter or index) and a `261` value at a matching offset.
+
+**Next step (not yet done):** decode the body **guided by the semantic-model field
+types** (`MustMatch` B, `ContainsRuntimeParametersOnly` B, `DefaultActiveRowIndex` BL,
+`ColumnCount` BL, `ColumnCount × [Parameter handle + name + type + Constant/Editable/
+Removable B + DefaultValue/UnmatchedValue variants]`, `RowCount` BL,
+`RowCount × ColumnCount × variant`) and confirm which width choices produce a
+consistent parse across the five tables.
+
+<details><summary>Superseded: the "96-bit record" interpretation (previous pass)</summary>
+
+<p><em>The following section was derived from a T6-only 191-aligned view and is
+**disproven** by this pass — see the correction above. It is retained for the record
+only.</em></p>
+
+### The table body: isolated, sized, and structured
 
  With the string region out of the way, the **remaining undecoded data** is the region
  between the `be_*`/`eed1071` prefix and the string region — the actual
@@ -443,6 +545,8 @@ mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
   `ContainsRuntimeParametersOnly`). The record *period* and *shape* are established; the
   *fields within a record* and the *header fields* are the next thing to pin down.
 
+</details>
+
 ## Status & next steps
 
 **Done (this work):**
@@ -482,12 +586,13 @@ See the [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object
    string→field mapping must be derived from the data + the semantic model.)
 3. **Pin down the ~74-bit part of the grip gap that precedes the 17-bit metadata**
    (its field type is still not confirmed).
- 4. **Decode the table body's records + header.** The body is isolated, its **96-bit
-    record period** is established, and the body is now split into a **variable-size
-    header** (the column definitions — ≡ 33 / 20 / 95 mod 96) + **N fixed 96-bit records**
-    (the rows) (see the [body section](#the-table-body-isolated-sized-and-structured)).
-    The next step is the **per-record field layout** (cell values, type codes, variant
-    payload) and the **header fields** (column count, the per-column
-    `Constant` / `Editable` / `Removable` / `DefaultValue` / `UnmatchedValue` /
-    `CustomProperties` / `Parameter` / `Format`, then `DefaultActiveRowIndex`, `MustMatch`,
-    `ContainsRuntimeParametersOnly`).
+ 4. **Decode the table body's field layout.** The body is a **continuous self-describing
+    typed-field stream** (not a 96-bit record array — that was a windowing artifact;
+    see the [body-structure section](#the-table-body-a-continuous-typed-field-stream)).
+    The next step is to decode it **guided by the semantic-model field types**
+    (`MustMatch` B, `ContainsRuntimeParametersOnly` B, `DefaultActiveRowIndex` BL,
+    `ColumnCount` BL, `ColumnCount × [Parameter handle + name + type +
+    `Constant`/`Editable`/`Removable` B + `DefaultValue`/`UnmatchedValue` variants]`,
+    `RowCount` BL, `RowCount × ColumnCount × variant`), using the two identical 773-bit
+    `Block Properties Table.dwg` tables to separate constant (structural) from varying
+    (data) bits.
