@@ -413,6 +413,29 @@ mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
   the table, or a cell count). The other two groups (56–58, 64–71) vary less regularly and
   likely hold the cell value(s) + type code(s).
 
+  **The record as bytes (`.tmp-decode` `recs` mode, 96-bit window at the 191-bit
+  alignment, regrouped into 12 bytes).** The 96-bit record is 12 bytes: a **7-byte
+  constant prefix** (`02 94 00 00 00 00 00` — the 56-bit constant prefix) + a **5-byte
+  variable suffix**:
+
+  ```
+  rec@191: 02 94 00 00 00 00 00 | 00 0B 68 08 0A 00
+  rec@287: 02 94 00 00 00 00 00 | 00 0D 68 08 12 00
+  rec@383: 02 94 00 00 00 00 00 | 08 0E 88 08 1A 00
+  rec@479: 02 94 00 00 00 00 00 | 00 0F 68 08 22 00
+  rec@575: 02 94 00 00 00 00 00 | 1C 10 08 08 2A 00
+  rec@671: 02 94 00 00 00 00 00 | 08 10 88 08 32 00
+  rec@767: 02 94 00 00 00 00 00 | 14 10 E8 08 3A 00
+  rec@863: 02 94 00 00 00 00 00 | 00 11 68 08 42 00
+  rec@959: 02 94 00 00 00 00 00 | 0C 11 C8 08 4A 00
+  ```
+
+  The variable suffix (bytes 7–11) shows two strong signals: **byte 11 increases by
+  exactly 8 per record** (10, 18, 26, 34, 42, 50, 58, 66, 74) — a per-record counter or
+  an offset into a shared data array — and **byte 8 increases** (11, 13, 14, 15, 16, 16,
+  16, 17, 17). Byte 10 is constant (`08`). The 7-byte constant prefix (`02 94 …`) is the
+  shared "shape" of the record; its exact field type is still not pinned down.
+
   **Open:** the exact per-record field layout (which 96 bits are the cell values, the type
   codes, the variant payload) and the header fields (the column count, the per-column
   `Constant` / `Editable` / `Removable` / `DefaultValue` / `UnmatchedValue` /
