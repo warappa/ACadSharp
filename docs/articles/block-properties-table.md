@@ -335,6 +335,42 @@ string stream" interpretation from the previous pass was wrong: the string data 
 they unrelated dynamic-block strings?). The string region is now readable end-to-end;
 mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
 
+ ### The table body: isolated, sized, and structured
+
+ With the string region out of the way, the **remaining undecoded data** is the region
+ between the `be_*`/`eed1071` prefix and the string region — the actual
+ **column / row / cell** data. `.tmp-decode/Decode2.cs` `body` mode isolates it: it
+ walks the verified prefix (common header + 5-field expression + the `be_*`/`eed1071`
+ block-element fields) to find the body start, uses the library's `SetPositionByFlag`
+ to find the string-region start, and dumps the region in between.
+
+ | object | body (bits) | body (bytes) |
+ |---|---|---|
+ | TABLE #1 | 1665 | 208.1 |
+ | TABLE #3 | 5396 | 674.5 |
+ | TABLE #6 | 1151 | 143.9 |
+ | GRIP #2 / #4 / #5 | **0** | 0 |
+
+ Two immediate findings:
+
+ * **The grips carry no body at all.** A grip's tail is *entirely* the string region —
+   after its `be_*`/`bg_*` fields the next thing is the 17-bit metadata + strings.
+   That is consistent with the semantic model: a grip is a single point (a location),
+   not a table, so it has no columns/rows/cells.
+ * **The table body is a *header + repeating records* structure.** An autocorrelation
+   scan (`.tmp-decode` `body` mode, match-fraction at fixed lags) shows a strong
+   **96-bit period** in TABLE #6 (0.848 at lag 96, 0.842 at lag 192 = 2×96, against a
+   0.69 baseline). TABLE #1 / #3 are mostly zero-padded (0.76–0.82 baseline) so their
+   period is less distinct, but they peak at lag 160. In raw bits the record boundary
+   is visible as the repeating `0000010100101000…` motif at 96-bit intervals. So each
+   table body = a short **header** (≈ the first ~191 bits, holding the table-level
+   counts/flags) + **N records of 96 bits** (the per-row or per-column records).
+
+ **Open:** the per-record field layout (which 96 bits are the cell values, the type
+ codes, the variant payload) and the exact header fields (column count, row count,
+ `DefaultActiveRowIndex`, `MustMatch`, `ContainsRuntimeParametersOnly`). The record
+ *period* is established; the *fields within a record* are the next thing to pin down.
+
 ## Status & next steps
 
 **Done (this work):**
@@ -374,3 +410,8 @@ See the [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object
    string→field mapping must be derived from the data + the semantic model.)
 3. **Pin down the ~74-bit part of the grip gap that precedes the 17-bit metadata**
    (its field type is still not confirmed).
+ 4. **Decode the table body's records.** The body is isolated and its **96-bit record
+    period** is established (see the [body section](#the-table-body-isolated-sized-and-structured));
+    the next step is the **per-record field layout** (cell values, type codes, variant
+    payload) and the **header fields** (column count, row count, `DefaultActiveRowIndex`,
+    `MustMatch`, `ContainsRuntimeParametersOnly`).
