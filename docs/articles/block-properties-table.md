@@ -188,6 +188,9 @@ separate string stream) — see the
 
 The table's tail (2602/6539/3532 bits) begins with the same `be_major=33`,
 `be_minor=175`, `eed1071=0` triple as the grip, then is **not yet decoded**.
+Like the grip, the table's tail *ends* with the same 17-bit **text-region metadata**
+(flag + 16-bit string-stream pointer) — see the [dedicated section below](#the-91-bit-grip-gap--now-understood-as-the-text-region-metadata--a-constant-field) — so a table's
+`name` is also in the separate string stream, not in the object bytes.
 
 > *Correction (this session):* an earlier pass reported "real doubles ≈ 3.0 / 6.0 /
 > 12.0 spaced 64 bytes apart" in the table tail. **Retracted** — those are
@@ -222,6 +225,16 @@ stream**, and it has two parts:
    **pointer into a separate string stream**. The string **data** (the grip's `name`) is
    therefore *not* in the object bytes; it lives in the separate string stream the
    pointer references.
+
+**Verified across all six objects (3 tables + 3 grips):** the same 17-bit tail appears
+on the *tables* too. The 16-bit value (at `handleStart − 17`) is a tight cluster on all
+six — `0xE084` / `0xE088` / `0xE082` (tables #1/#2/#3) and `0xE085` / `0xE088` / `0xE082`
+(grips #1/#2/#3). They share the top 12 bits (`0xE08`) and differ only in the low bits,
+and **table #2 = grip #2 and table #3 = grip #3 match exactly** (table #1 and grip #1 are
+off by one). That clustering is the signature of a **pointer/index into the separate
+string stream** (the six strings sit adjacent in that stream), not an inline size. So the
+"text-region metadata" finding **generalizes to the tables**: a table's tail also ends with
+this 17-bit block, and its `name` likewise lives in the string stream it points at.
 
 The L3-02 string stream holds `"Block Table"`, `"Block Table1"`, `""` (the three
 tables) and `"Grip"` (+ more) for the grips — the names this metadata points at.
