@@ -392,7 +392,28 @@ mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
   the semantic model: the **header holds the columns**, and the **records are the rows**
   (each row = 96 bits of cell data).
 
-  **Open:** the per-record field layout (which 96 bits are the cell values, the type
+  **Varying-bit map (TABLE #6, all 9 records, `.tmp-decode` `recs` mode).** The per-bit
+  agreement across the 9 records shows **15 varying bits** at positions 56–58 (3b), 64–71
+  (8b), and 88–91 (4b):
+
+  | rec | 56–58 | 64–71 | 88–91 |
+  |---|---|---|---|
+  | 192 | `000` | `01011011` | `0001` (1) |
+  | 288 | `000` | `01101011` | `0010` (2) |
+  | 384 | `010` | `01110100` | `0011` (3) |
+  | 480 | `000` | `01111011` | `0100` (4) |
+  | 576 | `111` | `00000000` | `0101` (5) |
+  | 672 | `010` | `10001000` | `1100` (12) |
+  | 768 | `101` | `00001110` | `1111` (15) |
+  | 864 | `000` | `01011100` | `0000` (0) |
+  | 960 | `011` | `00011101` | `0001` (1) |
+
+  The **4-bit group (88–91) is sequential (1, 2, 3, 4, 5) for the first five records** — a
+  strong hint that one field is a small per-record index / count (the record's position in
+  the table, or a cell count). The other two groups (56–58, 64–71) vary less regularly and
+  likely hold the cell value(s) + type code(s).
+
+  **Open:** the exact per-record field layout (which 96 bits are the cell values, the type
   codes, the variant payload) and the header fields (the column count, the per-column
   `Constant` / `Editable` / `Removable` / `DefaultValue` / `UnmatchedValue` /
   `CustomProperties` / `Parameter` / `Format`, then `DefaultActiveRowIndex`, `MustMatch`,
