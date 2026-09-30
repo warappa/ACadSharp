@@ -102,6 +102,50 @@ foreach (uint nodeId in nodeIds) {
 | `BlockPropertiesTableColumn.Format` | display format of the column |
 | `BlockPropertiesTableColumn.Default/UnmatchedValue` | value used when the row/column does not match |
 
+### The full model (decompiled from the AutoCAD 2021 .NET API, `acdbmgd.dll`)
+
+The table above is the BricsCAD-compatible surface. The **authoritative** model is the
+AutoCAD 2021 .NET API, decompiled from `acdbmgd.dll` (`.tmp-decode/autocad/
+BPT_column_row.cs`). Each .NET property is a thin P/Invoke wrapper over the native
+`AcDbBlockPropertiesTable`; the native method names reveal the **field types** (but not
+the on-disk order — the P/Invoke names are *function* names, not field order):
+
+**`BlockPropertiesTable`** (native `AcDbBlockPropertiesTable`):
+
+| .NET property | type | native method |
+|---|---|---|
+| `IsDisabledInDrawingEditor` | `bool` | `disabledInDrawingEditor` |
+| `ContainsRuntimeParametersOnly` | `bool` | `runtimeParametersOnly` |
+| `MustMatch` | `bool` | `mustMatch` |
+| `DefaultActiveRowIndex` | `int` | `getDefaultActiveRow` / `setDefaultActiveRow` |
+| `Columns` | collection | `numberOfColumns`, `parameterInterface`, … |
+| `Rows` | collection | `numberOfRows`, `getCellValue`, … |
+
+**`BlockPropertiesTableColumn`** (per column index):
+
+| .NET property | type | native method |
+|---|---|---|
+| `Parameter` | `IParameter` (handle) | `parameterInterface` |
+| `CustomProperties` | `ObjectId` (handle) | `customProperties` |
+| `Format` | `string` | `format` |
+| `Removable` | `bool` | `removable` |
+| `Editable` | `bool` | `editable` |
+| `Constant` | `bool` | `constant` |
+| `UnmatchedValue` | variant | `unmatchedValue` |
+| `DefaultValue` | variant | `defaultValue` |
+
+**`BlockPropertiesTableRow`** (per row index): a collection of `colCount` cell variants
+(`getCellValue(row, col)`).
+
+**On-disk interpretation.** The `Parameter` / `CustomProperties` handles are 0 bits in
+the main stream (they live in the handle stream). So a column's *main-stream* footprint
+is `[Format string][Removable B][Editable B][Constant B][UnmatchedValue variant]
+[DefaultValue variant]`, and a row's is `colCount` variants. The **table**'s
+main-stream footprint is `[3 B][DefaultActiveRowIndex int][colCount int][colCount ×
+column][rowCount int][rowCount × row]`. The exact *order* of these fields — and the int
+encoding (BL / BS / raw-32) — is what the brute-force is pinning down: the native method
+names give the types, not the order.
+
 ## Sources
 
 * Autodesk Developer Blog (Augusto Goncalves, 2013-02-25): "Reading the Block Table of a
@@ -703,16 +747,23 @@ See the [complete-region-layout section](#the-complete-r2010-region-layout-write
     `Block Properties Table.dwg` tables to separate constant (structural) from varying
     (data) bits.
 
-    **Status of the guided decode:** the semantic model (`acdbmgd.dll` decompile,
-    `.tmp-decode/autocad/BPT_full.cs`) gives the field *types* — Table:
-    `IsDisabledInDrawingEditor` / `ContainsRuntimeParametersOnly` / `MustMatch` (B),
-    `DefaultActiveRowIndex` (int), `Columns`, `Rows`; Column: `Parameter` (IParameter
-    handle), `CustomProperties` (handle), `Format` (string), `Removable` / `Editable` /
-    `Constant` (B), `DefaultValue` / `UnmatchedValue` (variant). But the P/Invoke method
+    **Status of the guided decode:** the semantic model is now **fully decompiled** from
+    the AutoCAD 2021 .NET API (`acdbmgd.dll` → `.tmp-decode/autocad/BPT_column_row.cs`),
+    not just the Table but the `BlockPropertiesTableColumn` and
+    `BlockPropertiesTableRow` wrappers too (see the
+    [full-model section](#the-full-model-decompiled-from-the-autocad-2021-net-api-acdbmgdDll)).
+    It gives the field *types*: a column's main-stream footprint is
+    `[Format string][Removable B][Editable B][Constant B][UnmatchedValue variant]
+    [DefaultValue variant]` (the `Parameter` + `CustomProperties` handles live in the
+    handle stream), and a row's is `colCount` cell variants. But the P/Invoke method
     names are *function* names, **not** the on-disk field order, so a brute-force over
-    header orderings × int encodings (BL vs BS) × the column/row layout is running
-    (`.tmp-decode/guided/Guided.cs`). The open questions it must settle: the exact
-    header field order (3 B + `DefaultActiveRowIndex` + `ColumnCount`, and where
-    `RowCount` sits — before or between the columns and rows); the column field order
-    (the 3 B: removable/editable/constant; the 2 variants); the int encoding (BL vs
-    BS); and the int64 variant width (assumed 3 × BL).
+    `colCount` (1–8) × `rowCount` (1–15) × the int encoding (BL / BS / raw-32) is
+    running (`.tmp-decode/guided/Guided.cs`), validating that the body is fully consumed
+    *and* that the string-typed-field count matches the decoded string region
+    (9 / 12 / 20). As of this writing it is **not yet landing**: the assumed field
+    order keeps misaligning the bit stream (the parser trips over tag-`11` fields that
+    are undefined for BL/BD). The open questions it must settle: the exact on-disk
+    field *order* (the 3-B order, the 2-variant order, and where `RowCount` sits —
+    before or between the columns and rows); the int encoding (BL vs BS vs raw-32);
+    and the int64 variant width (assumed 3 × BL). The two identical 773-bit
+    `Block Properties Table.dwg` tables are the planned constant-vs-varying cross-check.
