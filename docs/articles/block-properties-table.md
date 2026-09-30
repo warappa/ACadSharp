@@ -178,9 +178,11 @@ bg_insert_cycling_weight BLd
 All of the above decode to sensible, consistent values across the three grips.
 **Open:** a constant **91-bit gap** remains after `bg_insert_cycling_weight` on all
 three grips (tails 302/302/174 bits). The 3D location *varies* (134 vs 6 bits) while
-the gap stays 91, so the gap is a separate fixed-size field — most likely the
-`name` `T` field's main-stream length plus additional string/variant fields that the
-LibreDWG layout does not list (LibreDWG's grip is complete, but the table is `??`).
+the gap stays 91, so the gap is a separate fixed-size region. A fresh pass shows it is
+the object's **final region**: a constant field (identical across the three grips)
+followed by the 17-bit **text-region metadata** (a flag = 1 + a 16-bit pointer into the
+separate string stream) — see the
+[dedicated section below](#the-91-bit-grip-gap--now-understood-as-the-text-region-metadata--a-constant-field).
 
 ### The table (`BLOCKPROPERTIESTABLE`) — not yet decoded
 
@@ -199,19 +201,36 @@ then per-column (parameter handle + format string + default/unmatched variants) 
 per-row (cells of variants), then `DefaultActiveRowIndex` (BS), `MustMatch` (B),
 `ContainsRuntimeParametersOnly` (B).
 
-### The 91-bit grip gap — fixed field, not yet cracked
+### The 91-bit grip gap — now understood as the text-region metadata + a constant field
 
-The constant 91-bit gap after `bg_insert_cycling_weight` is a **fixed field, identical
-on all three grips** (the last 16 bytes of every grip tail are the same:
-`1f ff ff ff e8 22 38 03 90 03 48 03 80 02 50 04`). It ends exactly at the
-text-region flag (bit `handleStart − 1`), so it is the last part of the object data.
-A greedy free-form decode (`BL, BL, BS, BS, BS, BL` → 4, 28, 1799, 6682, 28784, 40)
-yields arbitrary values, so the field is likely a `T`-length + fixed payload (or a
-fixed-size buffer/hash) that has not been cracked. The string *data* lives in a
-separate string stream (the object's text region), so the name bytes are not in the
-object data. The L3-02 string stream holds `"Block Table"`, `"Block Table1"`, `""`
-(the three tables) and `"Grip"` (+ more) for the grips — a useful cross-check once the
-`T`-length is located.
+A fresh data-driven pass (diffing the three grips' tails bit-by-bit) resolved most of
+this. The gap is the **last region of the object data, immediately before the handle
+stream**, and it has two parts:
+
+1. **A constant field** (the first 74 bits of the gap; ≈ 90 bits if measured from the
+   library reader's slightly earlier end) — **identical across all three grips** (the
+   three tails differ only in the final ~12 bits, which fall inside the pointer below).
+   Its exact bits (grip #1) are
+   `0100000100010001110000000001110010000000000110100100000000011100000000000001001010000000001`
+   truncated to 74 bits; a greedy `BL`/`BS` decode of it yields arbitrary values, so its
+   field type is still not pinned down.
+2. **The text-region metadata** (the final 17 bits): a 1-bit **flag** (bit
+   `handleStart − 1`, = 1 for all three grips) and a 16-bit **value** at
+   `handleStart − 17` (grip #1 = `0x4A00 = 18944`). That value is **not an inline
+   size** — interpreted as a size it would place the string data *before* the object's
+   own start (`strStart < dataStart`), which is impossible for inline data — so it is a
+   **pointer into a separate string stream**. The string **data** (the grip's `name`) is
+   therefore *not* in the object bytes; it lives in the separate string stream the
+   pointer references.
+
+The L3-02 string stream holds `"Block Table"`, `"Block Table1"`, `""` (the three
+tables) and `"Grip"` (+ more) for the grips — the names this metadata points at.
+
+> *Remaining:* the exact field type(s) of the ~74–90-bit constant part are still not
+> pinned down (a greedy `BL, BL, …` decode yields arbitrary values), and the 16-bit
+> pointer's encoding (a stream offset? a string-table index?) is unconfirmed. The
+> pointer differs per grip (each `name` points at a different string), which is why the
+> three tails differ only in the last ~12 bits.
 
 ## Status & next steps
 
@@ -231,7 +250,15 @@ object data. The L3-02 string stream holds `"Block Table"`, `"Block Table1"`, `"
    decoded fields against `L3-02-Dynamic Blocks.dwg`.
 
 **Still open:**
-1. **Crack the 91-bit grip gap** (a `T`-length + fixed payload, or a fixed-size
-   buffer) — it is a constant field, identical on all three sample grips.
+1. **Pin down the 91-bit grip gap's constant part** — now understood as a constant
+   field (≈ 74–90 bits, identical across all three grips) followed by the 17-bit
+   text-region metadata (a flag = 1 + a 16-bit pointer, e.g. `0x4A00 = 18944`, into the
+   separate string stream). The exact field type(s) of the constant part and the
+   pointer's encoding (stream offset? string-table index?) are still unconfirmed.
 2. **Crack the table's column/row/cell body** (LibreDWG's struct is empty); confirm
    against the string stream's strings (`"Block Table"`, `"Block Table1"`, `"Grip"`, …).
+   A fresh pass shows the three tables' bodies are **not** a single repeated unit:
+   table #1 and #3 are structurally similar (differ in only a few bytes) while #2
+   differs substantially, and none of the bodies is byte-aligned (they follow the
+   82-bit expression, which ends mid-byte) — so the column/row/cell records are
+   bit-packed and the per-record size must be derived from the size deltas.
