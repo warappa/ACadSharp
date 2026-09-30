@@ -685,6 +685,32 @@ in the region **equals** the order of the string-capable fields in the body. The
 main stream carries the *type tags* (which mark a variant as a string vs a number) and
 the *non-string values*; the string region carries the *string values* in order.
 
+**The `BlockPropertiesTable` class hierarchy (decompiled from AutoCAD 2021).** The
+Table class **inherits from `DBObject`** (not from a block or a property group), and
+its own fields are exactly: `IsDisabledInDrawingEditor` (B),
+`ContainsRuntimeParametersOnly` (B), `MustMatch` (B), `DefaultActiveRowIndex` (int),
+`Columns` (a `BlockPropertiesTableColumnCollection`), and `Rows` (a
+`BlockPropertiesTableRowCollection`). It also has an `AuditError` / `tableAudit`
+facility (a collection of per-cell `AuditError` records, each with `RowIndices`,
+`ColumnIndex`, `RowIndex`, `Type`), but that is a query API, not on-disk state. So the
+**2 leading named strings** (`"Block Table"`, `"Block Table1"`) are *not* Table-class
+fields — they precede the column data in the string region but the Table class has no
+"name" field. The likely explanation: the 2 named strings come from the `DBObject`
+base (the object's name / handle text) or a parent-block reference, and are *not* part
+of the class-specific body. This means the body's own string-capable fields are the
+**13 empty + 32 data = 45 strings** (not 47), which tightens the column / cell
+constraint (4 columns × 3 string-capable fields = 12, + 1 extra column-level + 32
+cells = 45).
+
+**Cross-version note (R2000 / R2004 files have no BPT).** Three user-supplied files
+(`car.dwg` R2000, `window_4.dwg` R2000, `DYN--TEE--3000--1.dwg` R2004) were tested:
+they contain the *old* dynamic-block mechanism (`AcDbBlockLinearParameter`,
+`AcDbBlockXYGrip`, `AcDbBlockScaleAction`, `AcDbBlockFlipAction`,
+`AcDbDynamicBlockGUID`, `AcDbDs::IndexedPropertySchema`, …) but **no
+`BlockPropertiesTable` class at all** — the BPT object was introduced in a much later
+release (the decompiled model is from AutoCAD 2021). So R2000 / R2004 files cannot be
+used to cross-check the BPT body finding.
+
 <details><summary>Superseded: the "96-bit record" interpretation (previous pass)</summary>
 
 <p><em>The following section was derived from a T6-only 191-aligned view and is
