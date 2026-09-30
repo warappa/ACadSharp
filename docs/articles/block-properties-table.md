@@ -713,6 +713,31 @@ of the four can cross-check the BPT body finding — the BPT object only exists 
 R2010+ files that have a dynamic block *with a lookup / visible property table* (the
 `L3-02` and `Block Properties Table.dwg` samples).
 
+**3rd independent schema confirmed on R2025 (AC1032) — the region layout holds.**
+A user-supplied R2025 file (`1kVKeetKOPIE.dwg`, AC1032) contains a
+`BlockPropertiesTable` object with a **3800-bit body** and **50 strings** in the
+string region (a distinct schema from the 773-bit pair and the three L3-02 schemas).
+The decoder (which reads the R2010+ object layout) confirms the region layout on
+this third schema: `prefixBits = 134` ✓, `flag = 1` ✓ (a string region is present),
+and `sizeField = 16b` ✓. The body's density profile is `[19,46,50,62,54, 18,18,15,14,13,16,21,16,12,14,14,17,11,12,13,16,18,12,10,15,17,18,11,11,15,18,17,13,11,17,17,14,14]`
+(ones per 100-bit chunk) — a **dense leading region** (chunks 0–4) followed by a
+**sparser tail** (chunks 5–37), the same macro shape as the 773-bit pair
+`[32,62,58,46,20,21,22,17]`. A cross-schema pattern match confirms the "constant" is
+schema-specific: 16-bit slices of the 773-bit tail appear in the 3800-bit body 304/385
+times (a similar repeating structure), but 48-bit slices appear **0/353** times, and the
+3800-bit leading 48 bits appear in the 773-bit pair **0 times** — so the 3800-bit body
+is a genuinely independent schema, not a re-use of the 773-bit pattern. This is the
+**third independent confirmation** of the R2010+ object region layout
+(134-bit prefix + 16-bit LE size field + 1-bit flag + body + string region).
+
+**The 50 strings (R2025 schema).** The string region holds: 2 leading named refs
+(`"Block Table"`, `"Block Table1"`), 3 `"UserVariable"` + 3 `"Custom"` pairs, 2 named
+(`"UpdatedDistance"`, `"VisibilityState"`), 11 empty, and 29 data strings (cell values
+like `"1kV Keet"`, `"Klassiek"`, `"Dubbelzijdig"`, `"Rechts"`, `"Links"`,
+`"1kV Keet - VPR"`, `"1kV Keet - VPL"`, `"Uitbreiding - …"`, `"Aanduiding
+omvormers"`, …). The 29 data strings suggest a larger table than the 773-bit pair's
+8×4 grid (e.g. ~5×6), consistent with the larger 3800-bit body.
+
 **Body-width hypothesis H1 (773 bits consumed, values implausible — preliminary).**
 The hypothesis `3 B (3) + DefaultActiveRowIndex (22) + ColumnCount (16) +
 4 × [Format (16) + Removable/Editable/Constant (3) + UnmatchedValue (16) +
