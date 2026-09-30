@@ -645,6 +645,46 @@ The 28 varying bits (positions 2–68) are the *only* per-instance data in a sam
 body; the cell *values* themselves live in the separate string region / the evaluation
 graph.
 
+**Schema of the 773-bit pair (from its 47-string region).** The 47 strings in the pair's
+string region break down into three groups that pin the column / row counts:
+
+| group | count | content |
+|---|---|---|
+| leading named refs | 2 | `"Block Table"`, `"Block Table1"` |
+| empty (column-level) | 13 | 13 × `""` (positions 3–15) |
+| data (cell-level) | 32 | 8 rows × 4 columns (positions 16–47) |
+
+The 32 data strings form a clean **8 × 4 grid**:
+
+| row | col 0 (number) | col 1 (name) | col 2 (plan) | col 3 (unit) |
+|---|---|---|---|---|
+| 0 | `6000` | Sarah | PER PLAN | UNIT A |
+| 1 | `6001` | Zac | REVERSE | UNIT A |
+| 2 | `6002` | Volker | PER PLAN | UNIT B |
+| 3 | `6003` | Victoria | REVERSE | UNIT B |
+| 4 | `6004` | Nauman | PER PLAN | UNIT C |
+| 5 | `6005` | Mike | REVERSE | UNIT C |
+| 6 | `6006` | Ashley | PER PLAN | UNIT D |
+| 7 | `6007` | Dave | REVERSE | UNIT D |
+
+So the schema is **`colCount = 4`, `rowCount = 8`**. The two tables in the pair have
+the *same* schema but **permuted** cell values (e.g. TABLE 1 has `PER PLAN`, `UNIT A`
+at positions 18–19; TABLE 2 has `UNIT A`, `PER PLAN`), which is why their bodies are
+~96% identical (same variant-code stream) while their string regions differ (permuted
+values). The 13 empty strings are the column-level string values (4 columns × 3
+string-capable fields — `Format`, `UnmatchedValue`, `DefaultValue` — = 12, plus 1 extra),
+and the 2 leading named refs are a puzzle (they precede the column data; the semantic
+model has no "block name" field, so they may come from a parent class).
+
+**String-reference mechanism (key insight).** The string region is a *sequence* of
+strings (`[BS charCount][charCount × 2 bytes UTF-16]` × 47), consumed in order. A
+string field in the body is **0 bits** in the main stream (the writer's
+`WriteVariableText` writes only to the `TextWriter`, not the `Main` writer); the
+*value* is pulled from the string region in sequence order. So the order of the strings
+in the region **equals** the order of the string-capable fields in the body. The
+main stream carries the *type tags* (which mark a variant as a string vs a number) and
+the *non-string values*; the string region carries the *string values* in order.
+
 <details><summary>Superseded: the "96-bit record" interpretation (previous pass)</summary>
 
 <p><em>The following section was derived from a T6-only 191-aligned view and is
