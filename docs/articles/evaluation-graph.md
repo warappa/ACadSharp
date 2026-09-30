@@ -290,13 +290,17 @@ Per-class tails (after the common header + expression):
 | `BLOCKHORIZONTALCONSTRAINTPARAMETER` | 2-pt param fields (name, 2 × 3 doubles, 4 displacement lists, 4 grip ids, base location) · **label (text) · description (text) · labelOffset (`ReadBitDouble`) · value set** |
 | `BLOCKVERTICALCONSTRAINTPARAMETER` | same as horizontal |
 | `ACDB_DYNAMICBLOCKPROXYNODE` | essentially just the expression — no extra tail in the samples (its `300`/`309` live in the DXF record) |
-| `BLOCKPROPERTIESTABLE` | `RowCount` (`ReadBitLong`) + an **opaque, bit-packed tail** (the rows) — *not yet decoded* |
-| `BLOCKPROPERTIESTABLEGRIP` | `GripId` (`ReadBitLong`) + an **opaque, bit-packed tail** — *not yet decoded* |
+| `BLOCKPROPERTIESTABLE` | block-element prefix (`be_major`/`be_minor`/`eed1071`, 3 × `ReadBitLong`) + an **opaque, bit-packed tail** (the column/row/cell data) — *prefix decoded, tail still open* |
+| `BLOCKPROPERTIESTABLEGRIP` | block-element prefix (3 × `ReadBitLong`) + `bg_bl91`/`bg_bl92` (2 × `ReadBitLong`) + `bg_location` (3-bit double) + `bg_insert_cycling` (bit) + `bg_insert_cycling_weight` (`ReadBitLong`) + a **constant 91-bit tail** — *decoded, 91-bit gap still open* |
 
-**The opaque table/grip tail:** the field after `RowCount`/`GripId` is **bit-packed and not
+**The table/grip tail:** the fields above the tail are **decoded and verified** (see
+[block-properties-table.md](block-properties-table.md)). The remaining tail is **bit-packed and not
 byte-aligned** (it does not land on a byte boundary) and does not decode as a run of handle
-references, bit-longs, or bit-doubles. These two are data-only objects (their Id is *not* part of
-the evaluation graph), so the library reads their `RowCount`/`GripId` and stops; the row/cell
+references, bit-longs, or bit-doubles: for the grip it is a **constant 91-bit field** (identical
+across all three sample grips — most likely the `name` `T` field's main-stream length plus a fixed
+payload), and for the table it is the column/row/cell body (LibreDWG's struct is empty). These two
+are data-only objects (their Id is *not* part of the evaluation graph), so the library decodes the
+fields above and preserves the tail verbatim in `RawTail` (lossless round-trip). The row/cell
 structure remains an open question. `evalgraph-rawdump` dumps the raw tail bytes for a future pass.
 
 ---
@@ -325,7 +329,7 @@ This 2008 reading is **consistent with, but less precise than, the edge-list int
 5. ~~Unevaluated sentinels per class~~ — **partially resolved**: the component's `1.797693134862314E+99` ("not yet evaluated") and the base-component `0` are confirmed; per-class sentinels for the other classes are not yet catalogued.
 6. Whether the `98`/`99` tag values are version-dependent (2007: 27/31/25/8; modern: 33/329) — still open.
 7. ~~The DWG layout of the user / horizontal / vertical constraint parameter tails~~ — **decoded** (see "The evaluation object's DWG layout" above); the full tails (value set, label/description/labelOffset) are now read and written.
-8. The `BLOCKPROPERTIESTABLE` row and `BLOCKPROPERTIESTABLEGRIP` payloads — **still open**: bit-packed, not byte-aligned, and they don't decode as a run of handles/longs/doubles. Data-only objects (not part of the evaluation graph); `evalgraph-rawdump` dumps the raw tail bytes for a future pass.
+8. The `BLOCKPROPERTIESTABLE` row and `BLOCKPROPERTIESTABLEGRIP` payloads — **partially decoded** (see [block-properties-table.md](block-properties-table.md)): the block-element prefix (`be_major`/`be_minor`/`eed1071`) and the grip's `bg_bl91`/`bg_bl92`/`bg_location`/`bg_insert_cycling`/`bg_insert_cycling_weight` are decoded and verified. **Still open:** the table's column/row/cell body and the grip's constant 91-bit tail — both bit-packed, not byte-aligned, and they don't decode as a run of handles/longs/doubles. Data-only objects (not part of the evaluation graph); the undecoded remainder is preserved verbatim in `RawTail` (lossless round-trip).
 
 **New finding (this session):** the parameter `140` group code is the **`LabelOffset`** (the property is literally named `LabelOffset` in the ObjectARX model), **not** a stored value. Parameter values are **computed on the fly** from the connected grips' displacements during `evaluate()`; they are not persisted in the parameter record. The only persisted "value" is the component's `EvaluatedValue` (code `40`), which is the updated grip coordinate (or the `1.797693134862314E+99` sentinel when not yet evaluated).
 

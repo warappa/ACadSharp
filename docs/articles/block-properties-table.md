@@ -1,10 +1,13 @@
 # Block Properties Table (BPT) — format research
 
-> **PRELIMINARY — in progress.** This article records the research state for the
-> `BLOCKPROPERTIESTABLE` / `BLOCKPROPERTIESTABLEGRIP` classes as of the current working
-> session. Sections marked *open* are not yet verified. It will be finalized (or merged
-> into [`evaluation-graph.md`](evaluation-graph.md)) once the on-disk layout is decoded.
-> Do not rely on the unverified parts.
+> **Status:** the on-disk layout is **decoded and implemented** for the block-element
+> prefix (table + grip) and the grip's full field set; the **table's column/row/cell
+> body** and the **grip's constant 91-bit tail** are **still open** (preserved verbatim in
+> `RawTail` for lossless round-trip). The decoded fields are verified against
+> `L3-02-Dynamic Blocks.dwg` (all six objects) and covered by
+> [`BlockPropertiesTableTests`](../../src/ACadSharp.Tests/IO/DWG/BlockPropertiesTableTests.cs).
+> See [`evaluation-graph.md`](evaluation-graph.md) for the shared object envelope and
+> expression.
 
 ## What a Block Properties Table is
 
@@ -74,37 +77,6 @@ foreach (uint nodeId in nodeIds) {
 | `BlockPropertiesTableColumn.Parameter` | the bound parameter (source of the column name) |
 | `BlockPropertiesTableColumn.Format` | display format of the column |
 | `BlockPropertiesTableColumn.Default/UnmatchedValue` | value used when the row/column does not match |
-
-## On-disk state (L3-02-Dynamic Blocks.dwg, AC1032)
-
-* Both classes: common header + the `AcDbEvalExpr` expression (see
-  [`evaluation-graph.md`](evaluation-graph.md), "The evaluation object's DWG layout").
-* `BLOCKPROPERTIESTABLE` object data: `RowCount` (`ReadBitLong`, = 33 in L3-02) + a
-  **2592-bit (324-byte) tail** starting at bit offset 4 (not byte-aligned).
-* `BLOCKPROPERTIESTABLEGRIP` object data: `GripId` (`ReadBitLong`, = 33) + a
-  **292-bit (36.5-byte) tail** starting at bit offset 4.
-* The objects have a **string data section** (text stream). L3-02 strings:
-  TABLE: `"Block Table"`, `"Block Table1"`, `""` · GRIP: `"Grip"` (+ more).
-* The tail does **not** decode as a run of handle references, `ReadBitLong`s,
-  `ReadBitDouble`s, or 3-D points (all attempts so far fail, including the
-  `MustMatch`/`ContainsRuntimeParametersOnly`/`DefaultActiveRowIndex`/`colCount`
-  orderings, which yield implausible `colCount = 0`).
-
-## Open questions (this session)
-
-1. **Field order and types** of the table tail. Candidate model (from the .NET API):
-   `[MustMatch][ContainsRuntimeParametersOnly][DefaultActiveRowIndex][column count]
-   [columns: parameter handle + flags + DefaultValue + UnmatchedValue + Format (text)]
-   [row count][rows: cell count + cells (variants)]` — unverified.
-2. **How a variant (cell) is encoded on disk** — is the expression's
-   `code` + typed-value the same encoding, and is the `code` a `ReadBitShort` or a raw
-   16-bit value? The L3-02 "code = 55537" (unsigned −9999) observation is suspicious:
-   `ReadBitShort` cannot produce 55537, so the earlier field boundaries may be
-   misaligned for these classes.
-3. **The GRIP payload** (292 bits): presumably the bound parameter (handle), the name
-   (`"Grip"` in the text stream), and geometry.
-4. **DXF codes** for the table/rows/cells — the DXF record only carries 90/91 today;
-   no reference with the full DXF code list has been found yet.
 
 ## Sources
 
@@ -237,16 +209,29 @@ A greedy free-form decode (`BL, BL, BS, BS, BS, BL` → 4, 28, 1799, 6682, 28784
 yields arbitrary values, so the field is likely a `T`-length + fixed payload (or a
 fixed-size buffer/hash) that has not been cracked. The string *data* lives in a
 separate string stream (the object's text region), so the name bytes are not in the
-object data.
+object data. The L3-02 string stream holds `"Block Table"`, `"Block Table1"`, `""`
+(the three tables) and `"Grip"` (+ more) for the grips — a useful cross-check once the
+`T`-length is located.
 
-## Next steps
+## Status & next steps
 
-1. **Implement the decoded layout** in the `BlockPropertiesTable` /
-   `BlockPropertiesTableGrip` model (replacing the current `RawTail` placeholders):
-   the 5-field expression (above) + the grip's 5 BLs + 3BD + B + BLd, with the
-   undecoded tail (the 91-bit grip gap; the whole table tail after the
-   `be_*`/`eed1071` triple) preserved raw to keep round-trips lossless.
-2. **Crack the 91-bit grip gap** (a `T`-length + fixed payload, or a fixed-size
-   buffer) and the table's column/row/variant layout; confirm against the string
-   stream's strings.
-3. Add round-trip tests (sample-gated, self-skipping).
+**Done (this work):**
+1. **Implemented the decoded layout** in the `BlockPropertiesTable` /
+   `BlockPropertiesTableGrip` model (replacing the old `RawTail`-only placeholders):
+   the 5-field expression + the grip's `be_*`/`eed1071`/`bg_bl91`/`bg_bl92`/
+   `bg_location` (3BD) / `bg_insert_cycling` / `bg_insert_cycling_weight`, with the
+   undecoded tail (the 91-bit grip gap; the whole table tail after the `be_*`/
+   `eed1071` triple) preserved verbatim in `RawTail` to keep round-trips lossless.
+2. **DWG reader + writer** read and write the decoded fields in on-disk order.
+3. **DXF writer** emits the fields (codes `90`–`96` + `10`/`20`/`30`). *Limitation:*
+   there is no authoritative DXF code reference for these classes (LibreDWG's struct
+   is empty, and no AutoCAD DXF sample with a BPT record was found), so the codes are
+   **assigned by analogy** and may not match AutoCAD's own.
+4. **Tests** — `BlockPropertiesTableTests` (sample-gated, self-skipping) verify the
+   decoded fields against `L3-02-Dynamic Blocks.dwg`.
+
+**Still open:**
+1. **Crack the 91-bit grip gap** (a `T`-length + fixed payload, or a fixed-size
+   buffer) — it is a constant field, identical on all three sample grips.
+2. **Crack the table's column/row/cell body** (LibreDWG's struct is empty); confirm
+   against the string stream's strings (`"Block Table"`, `"Block Table1"`, `"Grip"`, …).
