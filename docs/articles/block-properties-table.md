@@ -1,10 +1,14 @@
 # Block Properties Table (BPT) — format research
 
 > **Status:** the on-disk layout is **decoded and implemented** for the block-element
-> prefix (table + grip) and the grip's full field set; the **table's column/row/cell
-> body** and the **grip's constant 91-bit tail** are **still open** (preserved verbatim in
-> `RawTail` for lossless round-trip). The decoded fields are verified against
-> `L3-02-Dynamic Blocks.dwg` (all six objects) and covered by
+> prefix (table + grip) and the grip's full field set. The **table's column/row/cell
+> body** was **cracked this pass**: it is a standard R2010+ object whose **inline string
+> region** the library's own `SetPositionByFlag` + `ReadVariableText` reads (the earlier
+> "opaque blob / 0xCC encoding" claim was a misaligned read — see the
+> [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read)).
+> **Still open:** wiring the string region into the reader/writer and mapping the
+> extracted strings to the `Columns` / `Rows` / `Cells` model. The decoded fields are
+> verified against `L3-02-Dynamic Blocks.dwg` (all six objects) and covered by
 > [`BlockPropertiesTableTests`](../../src/ACadSharp.Tests/IO/DWG/BlockPropertiesTableTests.cs).
 > See [`evaluation-graph.md`](evaluation-graph.md) for the shared object envelope and
 > expression.
@@ -219,31 +223,26 @@ stream**, and it has two parts:
    field type is still not pinned down.
 2. **The text-region metadata** (the final 17 bits): a 1-bit **flag** (bit
    `handleStart − 1`, = 1 for all three grips) and a 16-bit **value** at
-   `handleStart − 17` (grip #1 = `0x4A00 = 18944`). That value is **not an inline
-   size** — interpreted as a size it would place the string data *before* the object's
-   own start (`strStart < dataStart`), which is impossible for inline data — so it is a
-   **pointer into a separate string stream**. The string **data** (the grip's `name`) is
-   therefore *not* in the object bytes; it lives in the separate string stream the
-   pointer references.
+   `handleStart − 17`.
 
-**Verified across all six objects (3 tables + 3 grips):** the same 17-bit tail appears
-on the *tables* too. The 16-bit value (at `handleStart − 17`) is a tight cluster on all
-six — `0xE084` / `0xE088` / `0xE082` (tables #1/#2/#3) and `0xE085` / `0xE088` / `0xE082`
-(grips #1/#2/#3). They share the top 12 bits (`0xE08`) and differ only in the low bits,
-and **table #2 = grip #2 and table #3 = grip #3 match exactly** (table #1 and grip #1 are
-off by one). That clustering is the signature of a **pointer/index into the separate
-string stream** (the six strings sit adjacent in that stream), not an inline size. So the
-"text-region metadata" finding **generalizes to the tables**: a table's tail also ends with
-this 17-bit block, and its `name` likewise lives in the string stream it points at.
+> **Correction (previous pass misread this value):** the 16-bit value is **not** a
+> pointer into a separate string stream. Read the way the library reads it (a
+> little-endian `UShort` from the bit stream, i.e. the **byte-swapped** form of the
+> MSB-first bits) it is a small **size** — **74 bits for all three grips** (the MSB-first
+> bits `0x4A00` byte-swap to `0x004A` = 74). `SetPositionByFlag` uses it as
+> `stringStart = handleStart − 17 − size`, which lands **inside the object's own data
+> region**, so the string data (the grip's `name`, etc.) is **inline**, immediately
+> before the 17-bit metadata. The "tight `0xE0x` cluster" the previous pass saw in a
+> naive MSB-first read was the byte-swapped form of these small size values. The same
+> 17-bit tail (flag = 1 + a 16-bit size) appears on the *tables* too — see the
+> [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read)
+> for the decoded values (898 / 1104 for the tables) and the strings the library's own
+> `ReadVariableText` extracts (`"Block Table"` / `"Block Table1"` for the tables,
+> `"Grip"` + more for the grips).
 
-The L3-02 string stream holds `"Block Table"`, `"Block Table1"`, `""` (the three
-tables) and `"Grip"` (+ more) for the grips — the names this metadata points at.
-
-> *Remaining:* the exact field type(s) of the ~74–90-bit constant part are still not
-> pinned down (a greedy `BL, BL, …` decode yields arbitrary values), and the 16-bit
-> pointer's encoding (a stream offset? a string-table index?) is unconfirmed. The
-> pointer differs per grip (each `name` points at a different string), which is why the
-> three tails differ only in the last ~12 bits.
+> *Remaining:* the exact field type(s) of the ~74-bit part of the gap that precedes the
+> 17-bit metadata are still not pinned down, and the semantic role of the extracted
+> strings (table name vs. column `Format`/`Parameter` vs. row/cell data) is open.
 
 ### The 17-bit tail, in the library's own R2010+ terms
 
@@ -261,32 +260,80 @@ if flag:
     if size & 0x8000:
         hiSize   = UShort at (position − 32)  // 16-bit, at handleStart − 33
         size     = (size & 0x7FFF) | (hiSize << 15)   // 30-bit
-    stringData = at (position − 16 − size)    // `size` bytes, right before the size field
+    stringData = at (position − 16 − size)    // `size` BITS, right before the size field
 ```
 
+(Note the unit is **bits**, not bytes — e.g. a `size` of 898 is 112.25 bytes, so the
+string region is bit-aligned with the rest of the object data, not byte-aligned.)
+
 So the object data layout is
-`[real fields] [string data: size bytes] [hiSize] [size: 16b] [flag: 1b]`, and the
-`flag` is the *last* bit of the object data. The `flag` values for L3-02 are
-**T1=1, T2=0, T3=0, G1=0, G2=1, G3=1** — i.e. **tables #2 and #3 have no string
-stream**, so their entire body is pure table data (the cleanest to analyze), while
-tables #1 / grips #2/#3 carry a string region. The 16-bit `size` (e.g. `0xE084`) is
-**not an inline byte count** (interpreted as one it would place the string data before
-the object's own start), so it is a **pointer/index into the separate string stream**
-the object's strings live in — consistent with the "tight cluster" finding above.
+`[real fields] [string data] [hiSize (if 0x8000)] [size: 16b] [flag: 1b]`, and the
+`flag` is the *last* bit of the object data.
 
-### The table body is *not* a plain field sequence
+> **Correction (previous pass misread the flags and the value):** the `flag` is
+> **1 for all six objects** — every BPT object has a string region (the earlier
+> "T2=0, T3=0, G1=0" was a misaligned read). And the 16-bit `size` is **not** a
+> pointer into a separate string stream: read as the library's little-endian `UShort`
+> it is a small value (898 / 74 / 1104 / 74 / 74, none with the `0x8000` extended bit
+> set), and `stringStart = handleStart − 17 − size` lands **inside the object's own
+> data region**, immediately before the 17-bit metadata. The string data is therefore
+> **inline**, and the "tight `0xE0x` cluster" seen in a naive MSB-first read was the
+> **byte-swapped** form of these small size values — not a pointer. See the
+> [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read)
+> for the decoded values and the strings the library extracts.
 
-A fresh, cleanly-rebased bit dump of the three tables' bodies (after the
-`be_major`/`be_minor`/`eed1071` triple) shows the data is **not** a straightforward
-`BL`/`BS`/`BD` field sequence. Table #2's body opens with a 34-bit `BL` whose value is
-`0xE0CCCCCC` (a run of `0xCC` = `1100 1100` bytes), and the same `0xE0` prefix that
-appears in the 16-bit tail pointer shows up here too. `0xCC`/`0xE0` are not valid
-`BL`/`BS`/`BD` tag + value pairs, so the body uses an **encoding the library does not
-currently apply** (a compression / delta / secondary-data scheme), not the plain
-bit-packed field widths in the table above. Cracking it therefore needs the AutoCAD
-R2010+ secondary-data spec, which is not public (LibreDWG's struct is empty, ODA is
-closed, de·caff is paid) — the body is preserved verbatim in `RawTail` for lossless
-round-trip in the meantime.
+### Breakthrough: the body is a standard R2010+ object — the "opaque blob" was a misaligned read
+
+> **Correction (supersedes the "opaque blob" claim in the previous pass):** the table
+> body is **not** a compression / delta / secondary-data scheme. It is a **standard
+> R2010+ object data region**, and the library's **own** text-region machinery reads it.
+> The `0xE0` / `0xCC` "opaque" bytes seen in an earlier raw dump were a **misaligned
+> read** of the inline UTF-16 **string data** (see below), not an unknown encoding.
+
+**Ground truth, taken from the library itself** (`.tmp-decode/Decode2.cs` `strings`
+mode, which builds the library's own `DwgStreamReaderBase` via `GetStreamHandler`,
+calls `SetPositionByFlag(handleStart − 1)` exactly as `DwgObjectReader` L261 does, and
+pumps the library's own `ReadVariableText`):
+
+| object | `SetPositionByFlag` → | strings extracted by `ReadVariableText` |
+|---|---|---|
+| TABLE #1 | 5873241 | `"Block Table"` (11), `"Block Table1"` (12) |
+| TABLE #3 | 6033772 | `"Block Table"` (11), `"Block Table1"` (12) |
+| TABLE #6 | 6539967 | `"Block Table"` (11), `"Block Table1"` (12) |
+| GRIP #2 | 5874613 | `"Grip"` (4), + a 40-char and a 256-char string |
+| GRIP #4 | 6035381 | `"Grip"` (4), + 6 more strings (one 3090-char, embedding `"End Grip"`, `"UpdatedBaseX"`, `"XScale"`) |
+| GRIP #5 | 6071429 | `"Grip"` (4), + a 40-char and a 256-char string |
+
+So the body is a standard R2010+ object whose **inline string region** the library
+already knows how to read. The three tables carry the same two short strings
+(`"Block Table"` / `"Block Table1"`); the grips carry the grip name (`"Grip"`) plus
+several larger strings that belong to the surrounding dynamic-block parameter data.
+
+**The 16-bit value, decoded.** The `flag` (the last bit of the object data) is **1 for
+all six objects** — every BPT object has a string region. The 16-bit value at
+`handleStart − 17` is read by the library as a **little-endian `UShort` from the bit
+stream**, i.e. the **byte-swapped** form of the natural MSB-first 16-bit read. The
+decoded values are:
+
+| object | MSB-first 16 bits | library `ReadUShort` (= the real value) |
+|---|---|---|
+| TABLE #1 | `0x8203` | **898** |
+| GRIP #2  | `0x4A00` | **74** |
+| TABLE #3 | `0x5004` | **1104** |
+| GRIP #4  | `0x4A00` | **74** |
+| GRIP #5  | `0x4A00` | **74** |
+
+None have the `0x8000` bit set, so the **extended (30-bit) `hiSize` path is never taken**
+for these objects; the value is a plain 16-bit count. `SetPositionByFlag` uses it as
+`stringStart = handleStart − 17 − value`, which is why the "pointer to a separate
+string stream" interpretation from the previous pass was wrong: the string data is
+**inline**, immediately before the 17-bit metadata, and the value is what locates it.
+
+**Open:** the exact *semantic* mapping of the extracted strings (are
+`"Block Table"` / `"Block Table1"` the table name, a column `Format`, or a column
+`Parameter` name? do the grips' larger strings hold the table's row/cell data, or are
+they unrelated dynamic-block strings?). The string region is now readable end-to-end;
+mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
 
 ## Status & next steps
 
@@ -305,16 +352,25 @@ round-trip in the meantime.
 4. **Tests** — `BlockPropertiesTableTests` (sample-gated, self-skipping) verify the
    decoded fields against `L3-02-Dynamic Blocks.dwg`.
 
+**Breakthrough (this pass):** the table body is **not** an opaque/compressed blob — it is
+a standard R2010+ object whose **inline string region** the library's own
+`SetPositionByFlag` + `ReadVariableText` already reads. The 17-bit tail is
+`[16-bit size][1-bit flag]` (flag = 1 for all six objects; the size is a small bit count
+— 898 / 74 / 1104 / 74 / 74 — read as a byte-swapped little-endian `UShort`, none with
+the `0x8000` extended bit set). The library extracts the real strings (tables:
+`"Block Table"` / `"Block Table1"`; grips: `"Grip"` + related dynamic-block strings).
+See the [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read).
+
 **Still open:**
-1. **Pin down the 91-bit grip gap's constant part** — now understood as a constant
-   field (≈ 74–90 bits, identical across all three grips) followed by the 17-bit
-   text-region metadata (a flag = 1 + a 16-bit pointer, e.g. `0x4A00 = 18944`, into the
-   separate string stream). The exact field type(s) of the constant part and the
-   pointer's encoding (stream offset? string-table index?) are still unconfirmed.
-2. **Crack the table's column/row/cell body** (LibreDWG's struct is empty); confirm
-   against the string stream's strings (`"Block Table"`, `"Block Table1"`, `"Grip"`, …).
-   A fresh pass shows the three tables' bodies are **not** a single repeated unit:
-   table #1 and #3 are structurally similar (differ in only a few bytes) while #2
-   differs substantially, and none of the bodies is byte-aligned (they follow the
-   82-bit expression, which ends mid-byte) — so the column/row/cell records are
-   bit-packed and the per-record size must be derived from the size deltas.
+1. **Wire the string region into the reader/writer.** `readBlockPropertiesTable` /
+   `readBlockPropertiesTableGrip` currently read only the main-data fields + `RawTail`
+   and never touch the `_textReader` / merged reader, so the decoded objects do not yet
+   carry the extracted strings. Add the `ReadVariableText` calls (matching the on-disk
+   order of the object's `T` fields) so the objects carry the real string fields.
+2. **Map the extracted strings to the semantic model** — are `"Block Table"` /
+   `"Block Table1"` the table name, a column `Format`, or a column `Parameter` name? Do
+   the grips' larger strings hold the table's row/cell data, or are they unrelated
+   dynamic-block strings? (LibreDWG's `Dwg_Object_BLOCKPROPERTIESTABLE` is empty, so the
+   string→field mapping must be derived from the data + the semantic model.)
+3. **Pin down the ~74-bit part of the grip gap that precedes the 17-bit metadata**
+   (its field type is still not confirmed).
