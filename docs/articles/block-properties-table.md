@@ -366,10 +366,18 @@ mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
    table body = a short **header** (≈ the first ~191 bits, holding the table-level
    counts/flags) + **N records of 96 bits** (the per-row or per-column records).
 
+ **Record structure confirmed** (`.tmp-decode` `recs` mode, dumping 96-bit windows at the
+ record offsets and computing the pairwise match): TABLE #6's records match at **0.917**
+ (a 56-bit constant prefix + 14 scattered data bits — the per-bit agreement line shows
+ exactly which bits vary), TABLE #1 at 0.800, TABLE #3 at 0.650 (its cells hold more
+ distinct data, so the records agree less). This confirms the body is a fixed-layout
+ record array: a constant "shape" per record with a small per-record payload.
+
  **Open:** the per-record field layout (which 96 bits are the cell values, the type
  codes, the variant payload) and the exact header fields (column count, row count,
  `DefaultActiveRowIndex`, `MustMatch`, `ContainsRuntimeParametersOnly`). The record
- *period* is established; the *fields within a record* are the next thing to pin down.
+ *period* and *shape* are established; the *fields within a record* are the next thing
+ to pin down.
 
 ## Status & next steps
 
