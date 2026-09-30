@@ -702,14 +702,29 @@ of the class-specific body. This means the body's own string-capable fields are 
 constraint (4 columns × 3 string-capable fields = 12, + 1 extra column-level + 32
 cells = 45).
 
-**Cross-version note (R2000 / R2004 files have no BPT).** Three user-supplied files
-(`car.dwg` R2000, `window_4.dwg` R2000, `DYN--TEE--3000--1.dwg` R2004) were tested:
-they contain the *old* dynamic-block mechanism (`AcDbBlockLinearParameter`,
-`AcDbBlockXYGrip`, `AcDbBlockScaleAction`, `AcDbBlockFlipAction`,
-`AcDbDynamicBlockGUID`, `AcDbDs::IndexedPropertySchema`, …) but **no
-`BlockPropertiesTable` class at all** — the BPT object was introduced in a much later
-release (the decompiled model is from AutoCAD 2021). So R2000 / R2004 files cannot be
-used to cross-check the BPT body finding.
+**Cross-version note (R2000 / R2004 / R2025 files have no BPT).** Four user-supplied
+files were tested: `car.dwg` (R2000), `window_4.dwg` (R2000), `DYN--TEE--3000--1.dwg`
+(R2004), and `1kVKeetKOPIE.dwg` (R2025 / AC1032). The two R2000 files contain the
+*old* dynamic-block mechanism (`AcDbBlockLinearParameter`, `AcDbBlockXYGrip`,
+`AcDbBlockScaleAction`, `AcDbBlockFlipAction`, `AcDbDynamicBlockGUID`,
+`AcDbDs::IndexedPropertySchema`, …) but **no `BlockPropertiesTable` class at all**; the
+R2004 and R2025 files are minimal (2 class entries each, no dynamic blocks). So none
+of the four can cross-check the BPT body finding — the BPT object only exists in
+R2010+ files that have a dynamic block *with a lookup / visible property table* (the
+`L3-02` and `Block Properties Table.dwg` samples).
+
+**Body-width hypothesis H1 (773 bits consumed, values implausible — preliminary).**
+The hypothesis `3 B (3) + DefaultActiveRowIndex (22) + ColumnCount (16) +
+4 × [Format (16) + Removable/Editable/Constant (3) + UnmatchedValue (16) +
+DefaultValue (16) = 51] + RowCount (16) + 8 × 4 × cell (16)` sums to exactly
+**773 bits**, a strong signal the field-width scheme is close. But the decoded values
+are implausible (`DefaultActiveRowIndex = 526009`, `ColumnCount = 2725`,
+`RowCount = 65310` instead of 4 / 8), so the 16-bit fields are *not* the count ints
+and the leading region's field order / widths still need refinement. The 3 B flags
+decode to `(1, 0, 0)` (plausible), with only the 3rd flag in the varying set — so the
+per-instance data is not a clean leading block. Next step: pin the exact leading-region
+field order (the P/Invoke names are function names, not on-disk order) and the int /
+variant encodings, then validate a full parse against all five bodies.
 
 <details><summary>Superseded: the "96-bit record" interpretation (previous pass)</summary>
 
