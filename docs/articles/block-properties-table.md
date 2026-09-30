@@ -245,6 +245,49 @@ tables) and `"Grip"` (+ more) for the grips — the names this metadata points a
 > pointer differs per grip (each `name` points at a different string), which is why the
 > three tails differ only in the last ~12 bits.
 
+### The 17-bit tail, in the library's own R2010+ terms
+
+The "text-region metadata" above is the object's **R2010+ text/secondary-data region**,
+exactly as the library's reader handles it (`DwgObjectReader` L259–263 →
+`DwgStreamReaderBase.SetPositionByFlag` L374–402 + `applyFlagToPosition` L1139–1170).
+For an R2010+ object the reader builds a **merged reader** (object + text + handles)
+and positions the *text* reader with:
+
+```
+position = handleStart − 1            // the last bit of the object data
+flag     = bit at position           // "string stream present"
+if flag:
+    size     = UShort at (position − 16)      // 16-bit, at handleStart − 17
+    if size & 0x8000:
+        hiSize   = UShort at (position − 32)  // 16-bit, at handleStart − 33
+        size     = (size & 0x7FFF) | (hiSize << 15)   // 30-bit
+    stringData = at (position − 16 − size)    // `size` bytes, right before the size field
+```
+
+So the object data layout is
+`[real fields] [string data: size bytes] [hiSize] [size: 16b] [flag: 1b]`, and the
+`flag` is the *last* bit of the object data. The `flag` values for L3-02 are
+**T1=1, T2=0, T3=0, G1=0, G2=1, G3=1** — i.e. **tables #2 and #3 have no string
+stream**, so their entire body is pure table data (the cleanest to analyze), while
+tables #1 / grips #2/#3 carry a string region. The 16-bit `size` (e.g. `0xE084`) is
+**not an inline byte count** (interpreted as one it would place the string data before
+the object's own start), so it is a **pointer/index into the separate string stream**
+the object's strings live in — consistent with the "tight cluster" finding above.
+
+### The table body is *not* a plain field sequence
+
+A fresh, cleanly-rebased bit dump of the three tables' bodies (after the
+`be_major`/`be_minor`/`eed1071` triple) shows the data is **not** a straightforward
+`BL`/`BS`/`BD` field sequence. Table #2's body opens with a 34-bit `BL` whose value is
+`0xE0CCCCCC` (a run of `0xCC` = `1100 1100` bytes), and the same `0xE0` prefix that
+appears in the 16-bit tail pointer shows up here too. `0xCC`/`0xE0` are not valid
+`BL`/`BS`/`BD` tag + value pairs, so the body uses an **encoding the library does not
+currently apply** (a compression / delta / secondary-data scheme), not the plain
+bit-packed field widths in the table above. Cracking it therefore needs the AutoCAD
+R2010+ secondary-data spec, which is not public (LibreDWG's struct is empty, ODA is
+closed, de·caff is paid) — the body is preserved verbatim in `RawTail` for lossless
+round-trip in the meantime.
+
 ## Status & next steps
 
 **Done (this work):**
