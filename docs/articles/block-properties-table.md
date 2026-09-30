@@ -985,3 +985,28 @@ See the [complete-region-layout section](#the-complete-r2010-region-layout-write
      (`.tmp-decode/guided/Crack773.cs` / a two-body solver). The body's dense leading
      region (chunks 0–4) is the table- + column-level fields; the sparser tail
      (chunks 5–37) is the row / cell data.
+
+**Two-schema string-count constraint (derived this pass).** The body's string-typed-field
+count = the string region's string count. Let `T` = table-level string fields (shared
+across schemas — the `Table` class is identical) and `C` = string fields per column
+(shared — the `Column` class is identical). Then:
+
+- 773-bit schema (47 strings, 32 cells = 4×8): `T + 4C = 15`.
+- 3800-bit schema (125 strings, 104 string-cells): `T + colCount₂·C = 21`.
+
+Subtracting gives `C·(colCount₂ − 4) = 6`, whose integer solutions are:
+
+| `C` (string fields/col) | `colCount₂` (R2025) | `T` (table-level) |
+| --- | --- | --- |
+| 3 (Format+Default+Unmatched) | 6 | 3 |
+| 2 | 7 | 7 |
+| 1 | 10 | 11 |
+
+**Leading hypothesis: `C=3`, `colCount₂=6`, `T=3`** — i.e. the R2025 table has **6
+columns** (vs 4 for the 773-bit pair) and the same **3 table-level string fields**
+(the 2 leading named `"Block Table"` / `"Block Table1"` + 1 empty). The 773-bit pair
+then has 4 columns, `T=3`, `C=3` (15 = 3 + 4·3 ✓) and 32 cells (4×8 ✓); the R2025
+schema has 6 columns, `T=3`, `C=3` (21 = 3 + 6·3 ✓) and 104 string-cells. Note the
+R2025 cell count is **not** a clean `6 × rowCount` (104/6 = 17.3), so not every cell
+is a string — some are numeric (in the main stream) — consistent with the 3800-bit
+body being ~5× the 773-bit body. This is the constraint set for the body-width search.
