@@ -591,6 +591,60 @@ assumptions. The 28 varying bits (the header / `DefaultActiveRowIndex` / a few n
 cells) are the *only* per-instance data in the body; the cell *values* themselves live
 in the separate string region.
 
+**Refinement — cross-schema verification: the "constant" is schema-specific, not a
+universal AutoCAD constant.** To check whether the ~96%-constant body is a universal
+encoding feature or a property of one schema, I ran the decoder over the *other*
+dynamic-block samples in the repo. The 10 `samples/dynamic-blocks/*.dwg` files (the
+classic single-parameter blocks) contain **no `BlockPropertiesTable` objects** at all
+(they are simple parameter blocks with no lookup table). The `L3-02-Dynamic Blocks.dwg`
+file, however, holds **three** `BlockPropertiesTable` objects with **three different
+schemas** (body sizes 1665 / 5396 / 1151 bits). A five-body comparison (the two 773-bit
+tables + the three L3-02 tables) gives a decisive refinement:
+
+| group | schema | body (bits) | relationship |
+|---|---|---|---|
+| `Block Properties Table.dwg` #1, #3 | *one* schema (47 strings) | 773, 773 | **identical** except 28 bits in the first 69 (positions 2–68) |
+| `L3-02-Dynamic Blocks.dwg` #1, #3, #6 | *three* different schemas | 1665, 5396, 1151 | **all different** |
+
+Three concrete results:
+
+1. **The 773 pair's repeating tail is schema-specific.** The regular `1010 0000 0010
+   1000 0000 1010 …` pattern in the 773-bit tail appears **0 times** in any of the
+   three L3-02 bodies. Even a 24-bit slice from the 773 body's mid region
+   (`0001 0010 0011 1111 1111 1111 1111 1111`) appears 0 times in the L3-02 bodies.
+   The "constant" pattern is not a universal encoding constant — it is the
+   **variant-code stream for that specific schema**.
+2. **The *shape* is universal; the *bits* are not.** All five bodies share the same
+   macro shape — a dense leading region (≈ the first 200–400 bits; 46–62 ones per
+   100-bit chunk) followed by a sparser tail (≈ 7–22 ones per 100-bit chunk) — but
+   the exact bits differ between schemas. So the body's *structure* (dense header +
+   sparse per-cell reference block) is universal, while its *content* is
+   schema-specific.
+3. **Within one schema the body is ~96% constant; across schemas it is not.** The two
+   773-bit tables (same schema, permuted cell data) differ in only 28 bits, all in
+   the leading region. The three L3-02 tables (different schemas) differ substantially
+   (last-300-bit agreement: 266 and 235 of 300).
+
+**Implication for the decode.** The "constant" is a property of the *schema* (the
+table's column / row / variant structure), not a universal AutoCAD constant. This
+means:
+
+- I **cannot** treat the 773-bit tail as a template for other tables' bodies — each
+  schema has its own variant-code stream.
+- The body must be decoded **guided by the semantic-model field types** (per schema):
+  `MustMatch` B, `ContainsRuntimeParametersOnly` B, `DefaultActiveRowIndex` int,
+  `ColumnCount` int, `ColumnCount × [Parameter handle (0 b) + Format string (0 b) +
+  CustomProperties handle (0 b) + Removable B + Editable B + Constant B +
+  UnmatchedValue variant + DefaultValue variant]`, `RowCount` int,
+  `RowCount × Row (colCount cell variants)`. The body size is set by `ColumnCount`,
+  `RowCount`, and the variant widths.
+- The 773-bit pair remains a valid **same-schema** cross-check (two objects, 28-bit
+  diff), but it is *not* a universal template.
+
+The 28 varying bits (positions 2–68) are the *only* per-instance data in a same-schema
+body; the cell *values* themselves live in the separate string region / the evaluation
+graph.
+
 <details><summary>Superseded: the "96-bit record" interpretation (previous pass)</summary>
 
 <p><em>The following section was derived from a T6-only 191-aligned view and is
