@@ -6,6 +6,13 @@
 > `SetPositionByFlag` + `ReadVariableText` reads (see the
 > [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read)).
 >
+> **Now confirmed from both sides (this pass):** the complete R2010+ region layout
+> (main → string region → 16-bit little-endian size → flag → handle stream) is verified
+> against **both** the writer (`WriteSpearShift`) and the reader (`SetPositionByFlag` +
+> `applyFlagToPosition`), and a standalone byte-level decoder reads the string region with
+> **exact** consumption (898/898, 1104/1104, 2352/2352 bits). See the
+> [complete-region-layout section](#the-complete-r2010-region-layout-writer--reader-both-confirmed-and-exact-string-region-consumption).
+>
 > **Correction (this pass — supersedes the "96-bit record" section below):** the body is
 > a **continuous self-describing typed-field stream** (resbuf-style), **not** a fixed
 > 96-bit record array. The earlier "96-bit period" (0.848 autocorrelation) and the
@@ -348,6 +355,94 @@ string stream" interpretation from the previous pass was wrong: the string data 
 they unrelated dynamic-block strings?). The string region is now readable end-to-end;
 mapping it to the `Columns` / `Rows` / `Cells` model is the remaining step.
 
+### The complete R2010+ region layout (writer + reader, both-confirmed) and exact string-region consumption
+
+The previous section confirmed the string region via the library's **own** readers
+(`SetPositionByFlag` + `ReadVariableText`). This pass goes further: it confirms the
+**complete object-data region layout from the writer side** (`DwgMergedStreamWriter.
+WriteSpearShift` L240–289) and decodes the string region with a **standalone
+byte-level decoder** (`.tmp-decode/guided/Guided.cs`) that reads the object directly
+from the raw object section — **no library readers involved** — and verifies the
+string region is *exactly* consumed.
+
+**The region layout (R2010+, both-confirmed).** An R2010+ object's data is three
+sub-regions plus the handle stream, assembled in this order by `WriteSpearShift`:
+
+    [main stream]                            // every B/BL/BS/BD field; handles & strings are 0-bit placeholders
+    [string region: S bits]                 // only if S > 0
+    [size field: 16 / 32 / 48 bits]         // only if S > 0
+    [flag: 1 bit]                           // = 1 iff a string region is present
+    [handle stream: handleSize bits]
+
+`WriteSpearShift` writes exactly this: the main stream first; if the text writer has
+any content (`textSizeBits > 0`), the string region is spliced in, then the
+16-bit / 32 / 48-bit size field via `SetPositionByFlag`, then `WriteBit(true)`;
+otherwise just `WriteBit(false)`; then the handle stream. The reader
+(`DwgObjectReader` L259–263 → `SetPositionByFlag` L374–402 + `applyFlagToPosition`
+L1139–1170) reads it back:
+
+    handleStart = headerEnd + size*8 − handleSize        // all in bits
+    flag        = bit at (handleStart − 1)              // last bit of the object data
+    if flag:
+        S = UShort at (handleStart − 17)               // 16-bit, LITTLE-ENDIAN
+        if S & 0x8000:
+            hi = UShort at (handleStart − 33)         // 16-bit high part
+            S = (S & 0x7FFF) + (hi << 15)
+        string region = S bits at (handleStart − 17 − S)   // ends right before the size field
+    else:
+        (no string region; the main stream ends at handleStart − 1)
+
+Two details this pass nailed (the previous pass had the *reader* side but not the
+*writer* side, and was off-by-one on the string-region end):
+
+* **The 16-bit size field is little-endian** (raw bytes, low byte first), **not** the
+  natural MSB-first bit read. `SetPositionByFlag` writes it via `WriteBytes(
+  LittleEndianConverter …)` (L623–641); the reader's `ReadUShort` reads it back as a
+  LE `UShort`. Reading it MSB-first gave impossible values (33283 / 20484 / 1241580035);
+  reading it LE gives the small, sensible sizes **898 / 1104 / 2352**.
+* **The string region ends at `handleStart − 17`** (immediately before the 16-bit
+  size field), so its start is `handleStart − 17 − S`. The flag is 1 bit at
+  `handleStart − 1`; the size field is 16 bits at `handleStart − 17`. (An earlier
+  draft used `handleStart − 16 − S` — off by the flag bit, which made the decoded
+  strings drift.)
+
+**Exact string-region consumption (the strongest validation).** The standalone decoder
+reads each object straight from the raw object section (modular `size` / `handleSize`
+header → 2-bit-pair object type → main-stream prefix: common data + expression +
+`be_*`/`eed1071`), computes `handleStart` / `S` / the string region from the layout
+above, and decodes the string region as a run of `WriteVariableText` fields
+(`BitShort` char count + char-count × 2 UTF-16 bits). The string region is
+**exactly** consumed in all three `L3-02` tables:
+
+| object   | S (bits) | strings extracted                                                                                          | consumption |
+|----------|----------|------------------------------------------------------------------------------------------------------------|-------------|
+| TABLE #1 | 898      | `"Block Table"`, `"Block Table1"`, `""`, `""`, `"UpdatedDistance"`, `""`, `""`, `"UpdatedDistance"`, `""`   | **898/898** |
+| TABLE #3 | 1104     | `"Block Table"`, `"Block Table1"`, `""`, `""`, `"UserVariable"`, `""`, `""`, `"UpdatedDistance"`, `""`, `""`, `"UpdatedDistance"`, `""` | **1104/1104** |
+| TABLE #6 | 2352     | `"Block Table"`, `"Block Table1"`, `"UserVariable"`, `"Custom"`, `"UpdatedDistanceX"`, `"1 Space"` … `"10 Spaces"` (20 strings) | **2352/2352** |
+
+A byte-level decoder that lands **exactly** on the string-region boundary (no over-
+or under-read) is the strongest evidence the region layout is correct: the
+class-specific body is the bits *before* the string region, and the 17-bit tail
+(`[16-bit size][flag]`) sits between the string region and the handle stream.
+
+**The class-specific body, sized.** Subtracting the string region, the 17-bit tail,
+and the common-header handles from each table's `RawTail` (2596 / 6533 / 3536 bits)
+gives the class-specific body:
+
+| object   | RawTail | − string region | − 17-bit tail | − 16-bit common handles | = class-specific body |
+|----------|---------|-----------------|---------------|--------------------------|------------------------|
+| TABLE #1 | 2596    | 898             | 17            | 16                       | **1665** |
+| TABLE #3 | 6533    | 1104            | 17            | 16                       | **5396** |
+| TABLE #6 | 3536    | 2352            | 17            | 16                       | **1151** |
+
+The common-header handles (the object's own handle + owner + N reactors + the
+`XDataDictionary` handle, read by the handles reader) are a constant **16 bits** for
+all three tables — the same count the writer's `handleSize` field reports. The
+class-specific body (1665 / 5396 / 1151 bits) is the region between the
+`be_*`/`eed1071` prefix and the string region, and holds the `Columns` / `Rows` /
+`Cells` — the **remaining work** (see the section above and
+[Status & next steps](#status--next-steps)).
+
  ### The table body: a continuous typed-field stream
 
 **This pass re-examined the body bit-by-bit and corrected the "96-bit record"
@@ -573,6 +668,17 @@ the `0x8000` extended bit set). The library extracts the real strings (tables:
 `"Block Table"` / `"Block Table1"`; grips: `"Grip"` + related dynamic-block strings).
 See the [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object--the-opaque-blob-was-a-misaligned-read).
 
+**Now confirmed from both sides (this pass):** the complete region layout is verified
+against **both** the writer (`WriteSpearShift` L240–289) and the reader
+(`SetPositionByFlag` L374–402 + `applyFlagToPosition` L1139–1170), and a standalone
+byte-level decoder (`.tmp-decode/guided/Guided.cs`, no library readers) reads the string
+region with **exact** consumption — 898/898, 1104/1104, 2352/2352 bits across the three
+`L3-02` tables. Two non-obvious details were nailed: the 16-bit size field is
+**little-endian** (raw bytes, not the MSB-first bit read), and the string region ends at
+`handleStart − 17` (start `handleStart − 17 − S`). This also sizes the class-specific
+body (1665 / 5396 / 1151 bits) and the constant **16-bit** common-header-handle span.
+See the [complete-region-layout section](#the-complete-r2010-region-layout-writer--reader-both-confirmed-and-exact-string-region-consumption).
+
 **Still open:**
 1. **Wire the string region into the reader/writer.** `readBlockPropertiesTable` /
    `readBlockPropertiesTableGrip` currently read only the main-data fields + `RawTail`
@@ -596,3 +702,17 @@ See the [breakthrough section](#breakthrough-the-body-is-a-standard-r2010-object
     `RowCount` BL, `RowCount × ColumnCount × variant`), using the two identical 773-bit
     `Block Properties Table.dwg` tables to separate constant (structural) from varying
     (data) bits.
+
+    **Status of the guided decode:** the semantic model (`acdbmgd.dll` decompile,
+    `.tmp-decode/autocad/BPT_full.cs`) gives the field *types* — Table:
+    `IsDisabledInDrawingEditor` / `ContainsRuntimeParametersOnly` / `MustMatch` (B),
+    `DefaultActiveRowIndex` (int), `Columns`, `Rows`; Column: `Parameter` (IParameter
+    handle), `CustomProperties` (handle), `Format` (string), `Removable` / `Editable` /
+    `Constant` (B), `DefaultValue` / `UnmatchedValue` (variant). But the P/Invoke method
+    names are *function* names, **not** the on-disk field order, so a brute-force over
+    header orderings × int encodings (BL vs BS) × the column/row layout is running
+    (`.tmp-decode/guided/Guided.cs`). The open questions it must settle: the exact
+    header field order (3 B + `DefaultActiveRowIndex` + `ColumnCount`, and where
+    `RowCount` sits — before or between the columns and rows); the column field order
+    (the 3 B: removable/editable/constant; the 2 variants); the int encoding (BL vs
+    BS); and the int64 variant width (assumed 3 × BL).
