@@ -557,11 +557,17 @@ both files — a grip is a single point, not a table):
 | `Block Properties Table.dwg` | TABLE #3 | 773 |
 
 **The `Block Properties Table.dwg` pair (two 773-bit tables, identical shape)** is the
-key to pinning the layout: comparing the two tables bit-by-bit separates the
-**structural (constant) fields** from the **data (varying) fields**. Both start
-`31, 125, 0, 0, …` (be_major, be_minor, eed1071, then a `0`), then diverge; both share
-a regular `1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 3, 1, 1, 1, 1, 4, …` sub-pattern (a small
-per-field counter or index) and a `261` value at a matching offset.
+key to pinning the layout. A **bit-by-bit diff** of the two bodies (`.tmp-decode/bodies.txt`)
+gives a decisive result: the two tables differ in **only 28 bits, all within the first
+~69 bits** (positions 0–68); the **remaining 704 bits are byte-identical**. So the body
+is **~96% constant** — a small leading region carries the *varying* data (the numeric
+cell values / `DefaultActiveRowIndex`), and the bulk of the body is *constant*
+(structure + the string references that point into the separate string region). The
+differing bit positions are
+`2,5,7,8,14,20,23,24,26,27,29–33,37,40,42,43,44,46,47,54,56,57,58,63,68`; the
+`"10"` (tag-10) 2-bit units and the interleaved constant runs show the leading region
+is a fine-grained mix of a few short constant fields and the varying data, while the
+704-bit constant tail is the uniform per-string / per-variant reference block.
 
 **Next step (not yet done):** decode the body **guided by the semantic-model field
 types** (`MustMatch` B, `ContainsRuntimeParametersOnly` B, `DefaultActiveRowIndex` BL,
@@ -569,6 +575,21 @@ types** (`MustMatch` B, `ContainsRuntimeParametersOnly` B, `DefaultActiveRowInde
 Removable B + DefaultValue/UnmatchedValue variants]`, `RowCount` BL,
 `RowCount × ColumnCount × variant`) and confirm which width choices produce a
 consistent parse across the five tables.
+
+**What the constant-vs-varying diff already tells us:** the two tables in
+`Block Properties Table.dwg` are **two separate `BlockPropertiesTable` objects** (not
+two copies of one body) that share one column schema (47 strings) but carry permuted
+cell data. Their 704-bit constant tail has two parts: (a) a complex leading region
+(≈320 bits) and (b) a **regular repeating pattern** (`1010 0000 0010 1000 0000 1010
+0000 0010 …`, ≈384 bits) — the per-cell / per-variant reference block. Crucially, that
+pattern does **not** parse as standard BL/BS/BD long-form fields (`tag 00` would be
+18/34/66 bits, but the run is far tighter), which means the **class-specific body uses
+a different field-width scheme than the common object header** — the width is set by
+the field's *type* (per the [tag-ambiguity note](#the-field-widths)), so the body must
+be decoded guided by the semantic-model field types, not by blind tag-length
+assumptions. The 28 varying bits (the header / `DefaultActiveRowIndex` / a few numeric
+cells) are the *only* per-instance data in the body; the cell *values* themselves live
+in the separate string region.
 
 <details><summary>Superseded: the "96-bit record" interpretation (previous pass)</summary>
 
