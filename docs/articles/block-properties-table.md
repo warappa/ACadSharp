@@ -1206,3 +1206,64 @@ was an artifact of a fixed-width model that ignored the R2010+ 2-bit-tag +
 value-dependent-payload structure. **Open:** the other 3 bodies (t1/t2/t3) do not
 fit this assignment cleanly (their implied header is ~200 bits) — the cell
 string/numeric assignment per body needs empirical decoding, not assumption.
+
+## LibreDWG spec — the `Dwg_EvalVariant` / `Dwg_EvalExpr` structures (breakthrough)
+
+The user provided the **LibreDWG spec** (2010–2025, 14,068 lines). LibreDWG's
+`BLOCKPROPERTIESTABLE` object struct is **empty** (`parent` only — they have not
+cracked the table body), but it **does define the two key sub-structures** that
+the BPT body is built from (Chapter 4, p.237):
+
+### `Dwg_EvalExpr` (the expression the BPT inherits)
+```
+Dwg_EvalExpr
+    parentid     BLd
+    major        BL
+    minor        BL
+    value_code   BSd
+    value.num40  BD
+    value.pt2d   2RD
+    value.pt3d   3BD
+    value.text1  TV
+    value.long90 BL
+    value.handle91 H
+    value.short70 BS
+    nodeid       BL
+```
+The `value` is a **union selected by `value_code`** (a resbuf code):
+`40`→BD, `2`→2RD, `3`→3BD, `1`→TV, `90`→BL, `91`→H, `70`→BS.
+
+### `Dwg_EvalVariant` (a single variant = a resbuf entry)
+```
+Dwg_EvalVariant
+    code   BS
+    u.bd   BD
+    u.bl   BL
+    u.bs   BS
+    u.rc   RC
+    u.text TV
+    u.handle H
+```
+A `Dwg_EvalVariant` = `[code: BS][value: <union by code>]`. The `code` is a
+**BS** (2-bit tag: `00`→16-bit, `01`→8-bit, `10`→0, `11`→256) holding the
+resbuf code; the value follows in the code-specific primitive. So a double cell
+= `code(40)` + `BD` = 10 + (2 or 66) bits; a text cell = `code(1)` + `TV`;
+a long cell = `code(90)` + `BL`.
+
+### Full BPT body layout (R2010+/AC1032)
+```
+[common object header]
+[Dwg_EvalExpr]          parentid, major, minor, value_code, value(union), nodeid
+be_major     BL  (DXF 98)
+be_minor     BL  (DXF 99)
+eed1071      BL  (DXF 1071)
+<table data>  = column definitions + rows; each unmatched/default/cell value
+               is a Dwg_EvalVariant = [code BS][value union]
+```
+The existing ACadSharp reader already reads `[EvalExpr][BeMajor][BeMinor]
+[Eed1071]` and preserves the rest as `RawTail`. **The `RawTail` is the table
+data, and its cell/default values are `Dwg_EvalVariant`s** — this is the model
+to decode. The `d` suffix (BLd/BSd) is a LibreDWG annotation for fields with a
+default value; the on-disk primitive is the base (BL/BS). **Open:** the exact
+table-data layout (numColumns, column fields, numRows, rows) and confirmation
+of the `value_code`/`code` → union mapping on real bytes.
