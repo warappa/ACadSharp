@@ -1872,3 +1872,22 @@ region as schema-specific** (1kV = 126-bit records, the only fully-cracked schem
 1kV `RecordSchemaMatched` guard in `BptBodyDecoder` is the correct general behavior: it
 exposes `RecordIndices` only when the 1kV schema matched, and leaves them empty for other
 families (the pool still decodes for all).
+
+**The BPT's role (research — how a block references/uses it):** the
+`BlockPropertiesTable` is referenced **only by the IO layer** (the DWG/DXF reader/writer +
+templates) — **not by the `BlockLookupAction`, the `EvalGraph`, or any block** (verified:
+a grep for `BlockPropertiesTable` outside its own file + tests finds only the IO layer +
+the companion `BlockPropertiesTableGrip`). The **lookup mechanism** is the
+`BlockLookupAction` (a `BlockAction`), which is **self-contained**: its table data lives
+inline in the action object (`Columns` → `ColumnData.Rows`, loaded by
+`CadBlockLookupActionTemplate` from the action's own `RowValues`), and its `Evaluate` does
+a classic table lookup (match the input columns' values → read the matched output cells).
+It does **not** read from a `BlockPropertiesTable`. The `BlockPropertiesTable` +
+`BlockPropertiesTableGrip` are a **pair** described as "a data object that supports the
+dynamic block properties table (**a UI feature for displaying block properties**)," both
+data-only `EvaluationExpression`s that evaluate to `None`. So the BPT is a **display/UI
+table** (the "properties table" + its grip), **not a computation table** — the engine
+does not consume it. The decoded BPT body (the `Strings` + `RecordIndices`) is therefore a
+**dead end for the evaluation engine**: it is read + written (lossless round-trip) but not
+used for evaluation. Its practical value is **diagnostic** (a human-readable "properties
+table") and **lossless round-trip** (the `RawTail` is preserved verbatim).
