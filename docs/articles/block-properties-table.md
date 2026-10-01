@@ -1010,3 +1010,103 @@ schema has 6 columns, `T=3`, `C=3` (21 = 3 + 6·3 ✓) and 104 string-cells. Not
 R2025 cell count is **not** a clean `6 × rowCount` (104/6 = 17.3), so not every cell
 is a string — some are numeric (in the main stream) — consistent with the 3800-bit
 body being ~5× the 773-bit body. This is the constraint set for the body-width search.
+
+**The uniform-C model is disproven — the 125 strings are in field order (preliminary, this pass).**
+The 3rd schema's 125 strings decode in field order (100% region consumption) and show a
+non-uniform per-column string pattern:
+
+| field order | string content | interpretation |
+| --- | --- | --- |
+| [0] | "Block Table" | table-level name 1 |
+| [1] | "Block Table1" | table-level name 2 (parent block?) |
+| [2] [3] | "" "" | table-level empty strings (T=4?) |
+| [4-7] | "UserVariable" "Custom" "" "" | column 0 (4 strings) |
+| [8-11] | "UserVariable" "Custom" "" "" | column 1 (4 strings) |
+| [12-15] | "UserVariable" "Custom" "" "" | column 2 (4 strings) |
+| [16-18] | "UpdatedDistance" "" "" | column 3 (3 strings) |
+| [19-20] | "VisibilityState" "" | column 4 (2 strings) |
+| [21-124] | 104 value strings ("1kV Keet", "Klassiek", "Dubbelzijdig", "Rechts"/"Links"...) | row cell values |
+
+So the table has **5 columns** with string counts **[4,4,4,3,2]**, **T=4** table-level
+strings, and 104 string cells. `Column` evidently carries a **name** string on disk
+(plus Format, plus the UnmatchedValue/DefaultValue variants, which contribute a string
+only when string-typed):
+
+- `UserVariable` columns: name + format + 2 string variants = 4.
+- `UpdatedDistance`: name + 1 string variant + 1 numeric variant = 3.
+- `VisibilityState`: name + 2 numeric variants = 2.
+
+The 104 string cells / 5 columns = 20.8, so the rows are not a clean 5×N: the numeric
+cells (the `UpdatedDistance`/`VisibilityState` double/bool values) are the difference
+(e.g. 21 rows × 5 = 105 cells − 1 numeric cell, or 20 rows + 4 extra string cells).
+This supersedes the uniform-C hypothesis (C=3, col₂=6, T=3) — the `C` is not uniform
+across columns, so the two-schema constraint `C·(colCount₂−4)=6` has no solution for
+the real layout. **Open:** the exact per-variant on-disk encoding (tag width, payload
+widths) and the exact row count; the 3800-bit body's leading region starts `10` + 46
+zero bits + a sparse 1-run (bits 53,55,60,61,74,79,81,83,85..94...), which must be
+segmented into the header + column fields.
+
+## L3-02 DWG: three more same-schema bodies (preliminary)
+
+The user provided `l302.dwg` (571035 bytes, **AC1032 / R2025** — same version as
+`1kVKeetKOPIE.dwg`, hence the **same BPT encoding schema**). It contains **three**
+`BLOCKPROPERTIESTABLE` objects, all decoded with the verified R2010+ region layout:
+
+| object | body bits | string region | strings | consumed |
+| --- | --- | --- | --- | --- |
+| TABLE1 | 1665 | 898 | 9 | 898/898 = 100% |
+| TABLE2 | 5396 | 1104 | 12 | 1104/1104 = 100% |
+| TABLE3 | 1151 | 2352 | 20 | 2352/2352 = 100% |
+
+Size arithmetic cross-check (verified): `size*8 − handleSize = 10 (class type) + 134
+(prefix) + body + S + 17 (tail)` holds for all three (e.g. TABLE1: 351b →
+2808 − 84 = 2724 = 10 + 134 + 1665 + 898 + 17). The "body" region extraction is
+therefore **correct** and is the real bit-packed BPT data.
+
+### Per-table string structure (field order confirmed by 100% consumption)
+
+| table | col string counts | cell strings |
+| --- | --- | --- |
+| TABLE1 | [3, 2] | 0 |
+| TABLE2 | [3, 3, 2] | 0 |
+| TABLE3 | [4, 3] | 10 ("1 Space" … "10 Spaces") |
+
+Column name/format content: TABLE1 = "UpdatedDistance" (3) + "UpdatedDistance" (2);
+TABLE2 = "UserVariable" (3) + "UpdatedDistance" (3) + "UpdatedDistance" (2);
+TABLE3 = "UserVariable"/"Custom" (4) + "UpdatedDistanceX" (3). All 4 tables (incl. 1kV)
+share the 4 table-level strings "Block Table", "Block Table1", "", "".
+
+### Cell/row inference (preliminary)
+
+- **1kV: 26 rows** — the 104 cell strings form 26 repeating 4-tuples
+  (panel name, subtype, orientation, extended name); 1 of the 5 columns is
+  numeric (a double), the other 4 are string-valued.
+- **TABLE3: 10 rows** — 10 string cells = 10 rows × 1 string column
+  ("UpdatedDistanceX" is string-valued: "1 Space" … "10 Spaces"); the
+  "UserVariable" column is all-numeric.
+- **TABLE1 / TABLE2: 0 string cells** — all-numeric (row count not yet derivable
+  from strings alone).
+
+### Negative results this round (quantitative, C# tools)
+
+- **JointBPT** (size-equation system over all 4 same-schema objects, per-column
+  variant-type assignment, tag 1–4 bits, int payload 8–40, double payload 64–80,
+  defRow 1–72 bits, table flags 3–8): **no exact solution**.
+- **SemanticParser** (8 variant encodings × flag widths × defRow encodings × row
+  counts 18–24 on the 3800-bit body): no exact 3800-bit consumption; near-misses
+  stall mid-row.
+- **StreamDecode** on the 3800-bit body: leading region = bit0 = 1, bits 1–51 = 51
+  zeros, then sparse 1s at {53,55,60,61,74,79,81,83,85..94,…}; no clean B/BL/BS/BD
+  segmentation found among the leading programs.
+- Parity/uniform-width two-body model: no solution (earlier).
+
+### New hypothesis (preliminary, unverified)
+
+The `hasDsBinaryData` object-header flag (R2013+, `AcDb:AcDsPrototype_1b` data-store
+section) makes the body look possibly **binary/compressed** rather than plain
+B/BL/BS/BD fields (TABLE2's body shows repeating `0011 1100` byte patterns in its
+leading ~80 bits). If the BPT payload is a data-store blob, the uniform-width
+field model is invalid and explains all no-solution results. **Next step:** dump the
+AC1032 file's section table (real R2025 header, not the R2004 layout) and check for
+an AcDs section whose size correlates with the body sizes; also finish the
+independent-type JointBPT search.
