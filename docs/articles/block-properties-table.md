@@ -1633,6 +1633,52 @@ bit-packed, not text). So:
 - The BPT's actual strings live in a **separately-encoded** (binary/bit-packed) region of
   the object that a specialized decoder resolves — the exact string encoding is still open.
 
+## BREAKTHROUGH (confirmed): the full 1kV BPT body layout — the string region is `[ReadBitShort length][UTF-16LE]`
+
+The string-region encoding is now **cracked and confirmed**. Decoding the region starting
+at bit **3798** with the AutoCAD `[ReadBitShort]` length (2-bit tag: `00`→16-bit,
+`01`→8-bit, `10`→0, `11`→256) followed by `length·2` **UTF-16LE** bytes yields **126
+clean printable-ASCII strings consuming exactly 27388 of 27388 bits** (`exact = true`).
+
+The encoding of each string:
+- **`[ReadBitShort length]`** — a 2-bit-tag value (`00`→16-bit, `01`→8-bit, `10`→0,
+  `11`→256). All 126 1kV lengths are small, so they use tag `01` (8-bit) or `10` (0).
+- **`length·2` bytes as UTF-16LE** — 2 bytes/char; ASCII strings have high byte `0x00`.
+
+### Confirmation (decoding from candidate string-start P; region = bits P..31185)
+
+| P | region bits | result |
+| --- | --- | --- |
+| **3798** | 27388 | **126 strings, all printable, exact bit consumption** ✓ |
+| 3800 | 27386 | 125 strings (skips the leading empty string — artifact) |
+| 3820 | 27366 | **fails (EOF)** — the prior "whole 26th record" correction is wrong |
+| 3790 / 3810 / 3830 / 3850 | — | fail (non-printable) |
+
+### The complete 1kV BPT body (31219 bits, AC1032)
+
+| region | bits | content |
+| --- | --- | --- |
+| header | 544 | table of 16-bit/32-bit **global file offsets** (characterized above) |
+| records | 3254 | **25 whole 126-bit records + a 104-bit (22-short) 26th record** |
+| string region | 27388 | **126 strings**, each `[ReadBitShort length][length·2 UTF-16LE]` (confirmed) |
+| tail | 33 | 32-bit LE `0x6129978F` + flag `0` |
+| **total** | **31219** | 544 + 3254 + 27388 + 33 |
+
+**Corrections to the prior model:**
+- The 26th record is **truncated to 104 bits** (bits 3694..3797; 7-bit index **56** from
+  its first 104 bits). The body is exactly **22 bits short** of 26 complete records
+  (31219 + 22 = 31241 = 544 + 26×126 + 27388 + 33). The prior "correction" that the
+  26th record is whole (P = 3820) is **disconfirmed** — decoding from 3820 fails (EOF);
+  the 126-bit window at 3694..3819 was a misalignment across the record/string boundary.
+- The string region is **27388 bits** (P = 3798), not 27366 (P = 3820).
+- The string encoding is **`[ReadBitShort length][UTF-16LE]`** — not 2-bit chars, not a
+  1-bit `[BS]` stream, not a length-prefixed raw-byte stream. (This resolves the long
+  "string-region encoding unknown" open question.)
+
+**Open:** why the writer emitted the 26th record 22 bits short (a writer bug, a
+variable-length record, or a count/length field elsewhere); and whether the 544-bit
+header's 16-bit global offsets are shared across BPTs in the file.
+
 ### CORRECTION (preliminary): the 2-bit string-region model is disconfirmed; the 26th record is whole
 
 Re-deriving the string-region arithmetic from the verified 126-string content (1639 chars
