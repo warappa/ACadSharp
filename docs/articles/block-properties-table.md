@@ -1858,6 +1858,16 @@ the two. The **10th entry is truncated (29 bits)** — `byte3 = 0xa4` (index 10)
 0x24` (the counter continues 35 → 36) — the same "last entry truncated" pattern as the
 1kV's 26th record. The group base (`10`) is specific to this body's "value" strings; a
 different block with a different "value" group would use a different base.
+
+**Now implemented:** `BptBodyDecoder` decodes the 96-bit entry schema (`RecordSchema = 2`):
+a 256-bit header, 96-bit entries (last possibly truncated below the 72-bit minimum), the
+uniform string pool, and a 33-bit tail. Each entry yields a **label index** (bits 24..27, a
+direct pool index) and a **value index** (10 + the 4-bit count in bits 88..91, an
+offset-based pool index), exposed on `BlockPropertiesTable` as `LabelIndices` /
+`ValueIndices`. The `Decode` method tries the 1kV schema (544-bit header) first, then the
+L3-02 96-bit schema (256-bit header), and reports which matched. The 3536-bit L3-02 body
+("N Spaces") matches the 96-bit schema (9 entries); the other two L3-02 bodies (sparser
+layouts) match neither.
 - **The other L3-02 bodies (A: 10 strings, B: 16 strings) use a sparser layout**
   (many-zero 32-bit values, e.g. `0038404a 00000000 00000284 …`), so even within L3-02
   the record layout varies per BPT (likely by the block's property-table shape).

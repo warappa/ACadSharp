@@ -125,6 +125,48 @@ public class BlockPropertiesTable : EvaluationExpression, IDxfClassDefined
 		}
 	}
 
+	/// <summary>
+	/// The matched record schema: 0 = none, 1 = the 1kV 126-bit record (a 7-bit string index),
+	/// 2 = the L3-02 96-bit entry (a direct label index + an offset-based value index).
+	/// </summary>
+	public int RecordSchema
+	{
+		get
+		{
+			BptBodyDecoder.Body body = GetBody();
+			return body is null ? 0 : body.RecordSchema;
+		}
+	}
+
+	/// <summary>
+	/// The L3-02 96-bit entries' label indices (a direct string-pool index; empty when the
+	/// schema is not the L3-02 96-bit entry). Each label references the entry's own pool slot
+	/// (the "label" string, e.g. <c>Block Table</c>, <c>UserVariable</c>, or empty).
+	/// </summary>
+	public int[] LabelIndices
+	{
+		get
+		{
+			BptBodyDecoder.Body body = GetBody();
+			return body is null ? Array.Empty<int>() : body.LabelIndices;
+		}
+	}
+
+	/// <summary>
+	/// The L3-02 96-bit entries' value indices (an offset-based string-pool index = 10 + count;
+	/// empty when the schema is not the L3-02 96-bit entry). The record stores a small count
+	/// and the pool index is derived (the group base 10 is implicit in the block's "value"
+	/// type, e.g. the "N Spaces" group).
+	/// </summary>
+	public int[] ValueIndices
+	{
+		get
+		{
+			BptBodyDecoder.Body body = GetBody();
+			return body is null ? Array.Empty<int>() : body.ValueIndices;
+		}
+	}
+
 	private BptBodyDecoder.Body GetBody()
 	{
 		if (_bodyComputed) return _body;

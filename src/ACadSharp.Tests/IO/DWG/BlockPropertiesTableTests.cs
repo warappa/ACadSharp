@@ -208,8 +208,11 @@ public class BlockPropertiesTableTests
 	/// The "L3-02" block family (three tables) does NOT match the 1kV record schema, but the
 	/// string pool is a uniform mechanism: it still decodes to a clean set of printable
 	/// strings (10 / 16 / 21 per table) even though the record region is a different
-	/// schema. Verifies the pool decodes while <see cref="BlockPropertiesTable.RecordSchemaMatched"/>
-	/// is false and <see cref="BlockPropertiesTable.RecordIndices"/> is empty.
+	/// schema. The 3536-bit table (the "N Spaces" block) additionally matches the L3-02
+	/// 96-bit entry schema (a direct label index + an offset-based value index); the other
+	/// two (sparser layouts) do not. Verifies the pool decodes for all three, the 1kV
+	/// <see cref="BlockPropertiesTable.RecordIndices"/> is empty for all three, and the 96-bit
+	/// schema decodes the "N Spaces" block's label/value indices.
 	/// </summary>
 	[Fact]
 	public void ReadDecodesTheStringPoolForOtherBlockFamilies()
@@ -238,8 +241,35 @@ public class BlockPropertiesTableTests
 		Assert.Equal(16, counts[6533]);
 		Assert.Equal(21, counts[3536]);
 
-		//The 1kV record schema does not apply, so the record indices are empty.
-		Assert.All(tables, t => Assert.False(t.RecordSchemaMatched));
+		//The 1kV record schema does not apply to any L3-02 table, so the 1kV record indices
+		//are empty for all three.
 		Assert.All(tables, t => Assert.Empty(t.RecordIndices));
+
+		//The 3536-bit table (the "N Spaces" block) matches the L3-02 96-bit entry schema:
+		//9 full entries (the 10th is truncated, 29 bits, below the 72-bit minimum). The
+		//labels are the entry's own pool index (1..9); the values are the offset-based pool
+		//index 10 + count (the "N Spaces" group: pool[10] = empty, pool[11] = "1 Space", …).
+		BlockPropertiesTable nSpaces = tables.Single(t => t.RawTailBitCount == 3536);
+		Assert.Equal(2, nSpaces.RecordSchema);
+		Assert.True(nSpaces.RecordSchemaMatched);
+		Assert.Equal(new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 }, nSpaces.LabelIndices);
+		Assert.Equal(new[] { 10, 11, 10, 13, 11, 12, 10, 11, 13 }, nSpaces.ValueIndices);
+
+		//A few verified label/value resolutions (label = a direct pool index, value = 10 + count).
+		Assert.Equal("Block Table", nSpaces.Strings[nSpaces.LabelIndices[0]]);
+		Assert.Equal("1 Space", nSpaces.Strings[nSpaces.ValueIndices[1]]);
+		Assert.Equal("UserVariable", nSpaces.Strings[nSpaces.LabelIndices[4]]);
+		Assert.Equal("3 Spaces", nSpaces.Strings[nSpaces.ValueIndices[3]]);
+
+		//The other two L3-02 tables (sparser layouts) do NOT match the 96-bit schema.
+		Assert.All(
+			tables.Where(t => t.RawTailBitCount != 3536),
+			t =>
+			{
+				Assert.Equal(0, t.RecordSchema);
+				Assert.False(t.RecordSchemaMatched);
+				Assert.Empty(t.LabelIndices);
+				Assert.Empty(t.ValueIndices);
+			});
 	}
 }
