@@ -82,7 +82,7 @@ public partial class MainWindow : Window
     //
     // ACADSHARP_VIEWER_TITLEBAR=system hands the bar back to the OS (hides the strip,
     // the file name moves into the window Title); =custom forces the app-drawn one.
-    private static bool UseSystemTitleBar
+    internal static bool UseSystemTitleBar
     {
         get
         {
@@ -599,7 +599,11 @@ public partial class MainWindow : Window
 
         _bptDialog = new BlockPropertiesTableDialog(items);
         _bptDialog.Closed += (_, _) => _bptDialog = null;
-        _bptDialog.Show();
+        // Show it owned by the main window: on X11/XWayland that is the
+        // transient-for hint, so KWin keeps the dialog above the main window and
+        // moves it with the parent — the window-manager half of "child window".
+        // (CenterOwner only centers on the owner once there is one.)
+        _bptDialog.Show(this);
     }
 
     /// <summary>
@@ -678,7 +682,8 @@ public partial class MainWindow : Window
         var dialog = new NodeViewerDialog(target.Block, model.Properties[0], graph);
         _nodeViewerDialog = dialog;
         dialog.Closed += (_, _) => _nodeViewerDialog = null;
-        dialog.Show();
+        // Owned → transient-for on X11/XWayland, i.e. a child of the main window.
+        dialog.Show(this);
         return dialog;
     }
 

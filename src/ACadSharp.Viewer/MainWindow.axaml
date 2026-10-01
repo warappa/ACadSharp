@@ -9,8 +9,7 @@
         Width="1100" Height="700"
         MinWidth="700" MinHeight="400"
         KeyDown="OnKeyDown"
-        WindowDecorations="Full"
-        ExtendClientAreaToDecorationsHint="True"
+        Classes="appChrome"
         Background="{DynamicResource SolidBackgroundFillColorBase}">
     <Window.Resources>
         <conv:ValueForegroundConverter x:Key="ValueForeground" />

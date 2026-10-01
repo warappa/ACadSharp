@@ -155,4 +155,50 @@
         <Setter Property="HorizontalAlignment" Value="Center" />
         <Setter Property="TextAlignment" Value="Center" />
     </Style>
+
+    <!-- === App-drawn window chrome (every window) =======================
+         Every Viewer window draws its own titlebar under Avalonia 12 client-side
+         decorations: `WindowDecorations="Full"` keeps the CSD border, shadow and
+         resize grips (BorderOnly has regressions upstream — avalonia#21212), and
+         the hint extends the content over the frame. **No window sets
+         ExtendClientAreaTitleBarHeightHint**: that hint is an *override*
+         (`TitleBarHeight = override == -1 ? DefaultTitleBarHeight : override`),
+         so setting it makes Avalonia draw its own caption on top of ours. The
+         theme zeroing `DefaultTitleBarHeight` is declared inline per window — it
+         BasedOn's the Fluent theme's own `WindowDrawnDecorations` theme, which
+         StaticResource only reaches from window scope, not from a Styles file.
+         Facts + formulas: docs/design/fluentavalonia3-tokens.md §10. -->
+    <Style Selector="Window.appChrome">
+        <Setter Property="WindowDecorations" Value="Full" />
+        <Setter Property="ExtendClientAreaToDecorationsHint" Value="True" />
+    </Style>
+
+    <!-- === Child (dialog) window titlebar ==============================
+         The main window's strip, demoted one rank so a dialog reads as a child
+         window and not as a second application window: 30px (the Win11 dialog
+         titlebar, against the main strip's 34), the card-level fill + hairline
+         that marks a surface *inside* the app, a 12px inset aligned with the
+         dialogs' own 12px header padding, and the title in **Normal** weight at
+         secondary contrast (the main strip's title is Semibold). The leading
+         glyph keeps the app identity, at the quieter secondary accent.
+         A child window has no maximize button — a dialog does not maximize — and
+         so no double-click-to-maximize on child strips. -->
+    <Style Selector="Border.childTitleStrip">
+        <Setter Property="Height" Value="30" />
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="TextBlock.childTitle">
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}" />
+        <Setter Property="FontWeight" Value="Normal" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    </Style>
+    <!-- 29px, not 30: the strip Border spends 1px of its 30px on the hairline, so
+         the buttons fill the remaining content band and sit flush on it. -->
+    <Style Selector="Button.captionChild">
+        <Setter Property="Height" Value="29" />
+    </Style>
 </Styles>

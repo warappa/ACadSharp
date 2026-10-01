@@ -3,6 +3,7 @@ using ACadSharp.Tables;
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
@@ -36,12 +37,25 @@ public partial class NodeViewerDialog : Window
 		_graph = graph;
 
 		InitializeComponent();
+
+		if (MainWindow.UseSystemTitleBar)
+		{
+			// The same dev switch as the main window (ACADSHARP_VIEWER_TITLEBAR=system):
+			// the child strip goes away and the caption is the OS's again.
+			ExtendClientAreaToDecorationsHint = false;
+			ChildTitleStrip.IsVisible = false;
+		}
+
 		InitializeComponentState();
 	}
 
 	private void InitializeComponentState()
 	{
 		Header.Text = $"Nodes building '{_property.Name}' — block {_block.Name}";
+
+		// The child titlebar shows the window title, so it carries the same
+		// identity the header does; the WM title matches too (tools/x11-chrome-probe).
+		Title = $"Node viewer — {_property.Name}";
 
 		GraphModel.Result model = GraphModel.BuildAncestors(_graph, _property.NodeIndex);
 		// The mini-map gets the graph first, so the ViewChanged events the
@@ -78,4 +92,18 @@ public partial class NodeViewerDialog : Window
     private void OnZoomInClick(object? sender, RoutedEventArgs e) => Graph.ZoomIn();
 
     private void OnZoomOutClick(object? sender, RoutedEventArgs e) => Graph.ZoomOut();
+
+	// --- App-drawn child titlebar (FluentStyles.axaml, ChildWindowChrome.cs) ---
+
+	private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+	{
+		ChildWindowChrome.BeginDrag(this, e);
+	}
+
+	private void OnCaptionPointerPressed(object? sender, PointerPressedEventArgs e)
+	{
+		ChildWindowChrome.ConsumeCaptionPress(e);
+	}
+
+	private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 }

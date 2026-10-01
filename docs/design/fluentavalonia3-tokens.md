@@ -409,3 +409,45 @@ presses itself (≤500 ms apart by `PointerEventArgs.Timestamp`, ≤8 px apart) 
 | --- | --- |
 | `ACADSHARP_VIEWER_TITLEBAR=system` | hand the caption back to the OS (strip hidden, file name moves into `Window.Title`); `=custom` forces the app-drawn strip — the default on all platforms |
 | `ACADSHARP_VIEWER_X11_CSD=0` | drop `EnableDrawnDecorations` → the WM decorates again (A/B comparison, reproduces the old double bar) |
+
+### 10.5 Child (dialog) windows — the same chrome, one rank lower
+
+The two child windows (`Controls/NodeViewerDialog`, `Controls/BlockPropertiesTableDialog`)
+own their caption exactly like the main window — same `.appChrome` style
+(`FluentStyles.axaml`: `WindowDecorations="Full"` + `ExtendClientAreaToDecorationsHint`),
+same inline `DefaultTitleBarHeight=0` decorations theme, same `ElementRole` routing — and
+the strip is then **demoted so a dialog does not read as a second application window**:
+
+| Rank | main strip | child strip (`.childTitleStrip`) |
+| --- | --- | --- |
+| height | 34px (Win11 app titlebar) | **30px** (Win11 dialog titlebar) |
+| fill | `SolidBackgroundFillColorBaseBrush` (window level) | **`CardBackgroundFillColorDefaultBrush` + 1px bottom hairline** — a surface *inside* the app |
+| title | app name (secondary) + file name (tertiary), Semibold | **Normal weight, `TextFillColorSecondaryBrush`** — a label, not a brand |
+| inset | 16px (aligns with the panes) | **12px** (aligns with the dialogs' own 12px header padding) |
+| glyph | 14px `AccentFillColorDefaultBrush` | 12px `AccentFillColorSecondaryBrush` (identity, quieter) |
+| caption | Minimize + Maximize + Close, 46x32 | **Close only** on the modal node viewer; **Minimize + Close** on the modeless tables dialog; 46x**29** (`.captionChild` — the strip Border spends 1px of its 30 on the hairline) |
+| double-click | maximizes/restores (app code, #22239) | **none** — a dialog has no maximize button, so double-clicking its bar does nothing |
+
+Three more things make it read as a *child*, not as a peer window:
+
+- **Owner.** The modeless tables dialog is shown with `Show(this)` and the verification
+  node viewer with `Show(this)`; `ShowDialog(this)` already sets it. On X11/XWayland the
+  owner is the **transient-for** hint, so KWin keeps the dialog above the main window and
+  moves it with the parent; with `ShowInTaskbar="False"` it never gets its own taskbar
+  entry. `WindowStartupLocation="CenterOwner"` only centers on the owner once there is one.
+- **The title carries identity.** The strip binds to `Window.Title`
+  (`{Binding $parent[Window].Title}`) and the code-behind sets it from the same data as the
+  in-content header (`"Node viewer — dynamic-diameter"`, `"Block properties tables (1)"`), so
+  the WM title matches the caption (`tools/x11-chrome-probe` reads it back).
+- **Two ranks of header.** The strip is the *window* label; the dialogs' own header Border
+  stays the *document* header ("Nodes building 'dynamic-diameter' — block my-dynamic-block").
+  The strip never duplicates that text, so the old single-header look loses nothing.
+
+`ChildWindowChrome.cs` holds the shared input plumbing (`BeginDrag` = the
+`BeginMoveDrag` fallback for renderers without role routing, `ConsumeCaptionPress` = the
+caption-button press swallower). XAML event handlers need the two-parameter form
+`(object? sender, PointerPressedEventArgs e)` — a one-parameter handler fails at compile
+with AVLN3000.
+
+Verify headlessly: `--screenshot out.png samples/sample_AC1015.dwg dialog` (node viewer) and
+`--screenshot out.png samples/bpt-forensics/1kVKeetKOPIE.dwg bpt` (tables dialog).

@@ -1,6 +1,8 @@
 using ACadSharp.Viewer.Services;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
 using System.Collections.Generic;
 
 namespace ACadSharp.Viewer.Controls;
@@ -19,7 +21,20 @@ public partial class BlockPropertiesTableDialog : Window
     {
         InitializeComponent();
 
+        if (MainWindow.UseSystemTitleBar)
+        {
+            // The same dev switch as the main window (ACADSHARP_VIEWER_TITLEBAR=system):
+            // the child strip goes away and the caption is the OS's again.
+            ExtendClientAreaToDecorationsHint = false;
+            ChildTitleStrip.IsVisible = false;
+        }
+
         Header.Text = $"Block properties tables ({tables.Count})";
+
+        // The child titlebar shows the window title, so it carries the same
+        // identity the header does; the WM title matches too (tools/x11-chrome-probe).
+        Title = $"Block properties tables ({tables.Count})";
+
         TableList.ItemsSource = tables;
         TableList.SelectionChanged += OnTableSelected;
         TableList.SelectedIndex = 0;
@@ -54,4 +69,20 @@ public partial class BlockPropertiesTableDialog : Window
         PoolHeader.Text = $"String pool ({item.StringCount})";
         PoolGrid.ItemsSource = item.Strings;
     }
+
+    // --- App-drawn child titlebar (FluentStyles.axaml, ChildWindowChrome.cs) ---
+
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        ChildWindowChrome.BeginDrag(this, e);
+    }
+
+    private void OnCaptionPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        ChildWindowChrome.ConsumeCaptionPress(e);
+    }
+
+    private void OnMinimizeClick(object? sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+
+    private void OnCloseClick(object? sender, RoutedEventArgs e) => Close();
 }

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         xmlns:local="using:ACadSharp.Viewer.Controls"
         xmlns:tk="using:ACadSharp.Viewer"
         x:Class="ACadSharp.Viewer.Controls.NodeViewerDialog"
@@ -8,8 +9,46 @@
         Width="900" Height="600"
         MinWidth="500" MinHeight="300"
         ShowInTaskbar="False"
+        Classes="appChrome"
         WindowStartupLocation="CenterOwner">
+    <!-- App-drawn child-window titlebar. Same mechanism as the main window
+         (docs/design/fluentavalonia3-tokens.md §10): Avalonia keeps the CSD
+         border, shadow and resize grips and draws NO caption of its own, which
+         means DefaultTitleBarHeight = 0 and NO ExtendClientAreaTitleBarHeightHint
+         (that hint is an override that outranks the theme and would give this
+         window a second, Avalonia-drawn caption). The strip itself, its
+         child-window rank and the input routing are in FluentStyles.axaml and
+         ChildWindowChrome.cs. -->
+    <Window.WindowDecorationsTheme>
+        <ControlTheme TargetType="chrome:WindowDrawnDecorations"
+                      BasedOn="{StaticResource {x:Type chrome:WindowDrawnDecorations}}">
+            <Setter Property="DefaultTitleBarHeight" Value="0" />
+        </ControlTheme>
+    </Window.WindowDecorationsTheme>
     <DockPanel>
+        <!-- Child titlebar: 30px, card-level fill, title at Normal weight in the
+             secondary text color. Modal dialog → the caption is Close only (no
+             minimize, no maximize), so there is no double-click-to-maximize. -->
+        <Border x:Name="ChildTitleStrip" DockPanel.Dock="Top" Classes="childTitleStrip"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar"
+                PointerPressed="OnTitleBarPointerPressed">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space4}"
+                            Margin="12,0,0,0" VerticalAlignment="Center">
+                    <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="12"
+                                     Foreground="{DynamicResource AccentFillColorSecondaryBrush}"
+                                     VerticalAlignment="Center" />
+                    <TextBlock Classes="childTitle" Text="{Binding $parent[Window].Title}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                    <Button Classes="caption captionChild captionClose" Click="OnCloseClick"
+                            chrome:WindowDecorationProperties.ElementRole="CloseButton"
+                            PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Close">
+                        <ui:FASymbolIcon Symbol="Dismiss" FontSize="12" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
         <Border DockPanel.Dock="Top" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
             <DockPanel>
                 <!-- Zoom controls (the legends moved into the graph area as a

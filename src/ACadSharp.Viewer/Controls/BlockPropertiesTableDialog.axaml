@@ -1,13 +1,52 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         xmlns:svc="using:ACadSharp.Viewer.Services"
         x:Class="ACadSharp.Viewer.Controls.BlockPropertiesTableDialog"
         Title="Block properties tables"
         Width="900" Height="600"
         MinWidth="640" MinHeight="400"
         ShowInTaskbar="False"
+        Classes="appChrome"
         WindowStartupLocation="CenterOwner">
+    <!-- App-drawn child-window titlebar; same mechanism as the main window and as
+         NodeViewerDialog (docs/design/fluentavalonia3-tokens.md §10), with the
+         child-window rank in FluentStyles.axaml. This dialog is modeless, so its
+         caption carries Minimize + Close; it has no maximize, and so no
+         double-click-to-maximize on its titlebar. -->
+    <Window.WindowDecorationsTheme>
+        <ControlTheme TargetType="chrome:WindowDrawnDecorations"
+                      BasedOn="{StaticResource {x:Type chrome:WindowDrawnDecorations}}">
+            <Setter Property="DefaultTitleBarHeight" Value="0" />
+        </ControlTheme>
+    </Window.WindowDecorationsTheme>
     <DockPanel>
+        <Border x:Name="ChildTitleStrip" DockPanel.Dock="Top" Classes="childTitleStrip"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar"
+                PointerPressed="OnTitleBarPointerPressed">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space4}"
+                            Margin="12,0,0,0" VerticalAlignment="Center">
+                    <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="12"
+                                     Foreground="{DynamicResource AccentFillColorSecondaryBrush}"
+                                     VerticalAlignment="Center" />
+                    <TextBlock Classes="childTitle" Text="{Binding $parent[Window].Title}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                    <Button Classes="caption captionChild" Click="OnMinimizeClick"
+                            chrome:WindowDecorationProperties.ElementRole="MinimizeButton"
+                            PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Minimize">
+                        <ui:FASymbolIcon Symbol="FullScreenMinimize" FontSize="10" />
+                    </Button>
+                    <Button Classes="caption captionChild captionClose" Click="OnCloseClick"
+                            chrome:WindowDecorationProperties.ElementRole="CloseButton"
+                            PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Close">
+                        <ui:FASymbolIcon Symbol="Dismiss" FontSize="12" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
         <!-- Header strip (mirrors the NodeViewerDialog header). -->
         <Border DockPanel.Dock="Top" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
             <TextBlock x:Name="Header" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}"
