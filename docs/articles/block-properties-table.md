@@ -1807,3 +1807,48 @@ The cracked layout above is now **implemented** (no longer just forensics):
 26 indices `28, 29, 53, 118, 119, 94, 31…49, 56`, P=3798, schema matched. L3-02 =
 2596/6533/3536 bits → 10/16/21 strings, schema not matched. TEE3000 = 12972 bits → no
 trailing pool (inline strings), `Decode` returns null.
+
+## The L3-02 record schema (preliminary): a different, per-family layout
+
+Cracking the L3-02 record schema (the pre-pool region, which the 1kV model does not
+explain) shows it is a **genuinely different layout** from the 1kV's 544-bit-header +
+126-bit-record model. The L3-02 file has three BPTs (2596 / 6533 / 3536 bits; 10 / 16 /
+21 strings) whose pre-pool (record) regions are 1663 / 5388 / 1149 bits — none a
+multiple of 126, none `544 + N×126`, and 1663 is prime (so the region is not
+`N × R` for a single record size `R`).
+
+Findings (preliminary):
+
+- **The header has a shared field layout across families.** Both L3-02 bodies (A: 10
+  strings, C: 21 strings) share an identical 12-byte prefix shape
+  (`aa a4 XX 02 | 40 a3 ff fd | XX 3c 76 XX`), with only a few differing bytes (the
+  `02`/`3c`/`76` bytes are constant, a few bytes vary per BPT). The 1kV header carries
+  the same `ff fd` + `3c 76` pair, shifted to bytes 14–19. So the `…ff fd YY 3c 76 ZZ`
+  substructure is a recurring field (candidate: a tagged pointer / sentinel entry) that
+  appears in every family's header, at a family-specific position.
+- **One L3-02 body (C, 21 strings) has a clean 96-bit entry structure.** After a
+  ~256-bit header, the region is **9 × 96-bit entries**. Aligning the 9 entries
+  reveals a template: **81 constant bits, 15 variable bits** in three fields:
+  - **bits 24–27 (4-bit) = the entry's own counter, 1…9** (the high 4 bits of byte3,
+    which is `0x10·k + 4`, k = 1…9) — so this is the row index, **not** a string index.
+  - **bits 90–92 (3-bit) = a small value** 0, 2, 0, 6, 0, 4, 2, 3, 7.
+  - **bits 2–9 (8-bit) = a code** 91, 107, 117, 123, 128, 140, 135, 225, 254 (larger than
+    the 21-string pool's 0…20 range).
+  - The middle (`0x05280000` and the surrounding constant bits) is a constant
+    type/sentinel block shared by all 9 entries.
+  - **None of the three variable fields is a direct index into the 21-string pool**, so
+    the record→string link is **indirect / multi-level** (not a single index field).
+- **The other L3-02 bodies (A: 10 strings, B: 16 strings) use a sparser layout**
+  (many-zero 32-bit values, e.g. `0038404a 00000000 00000284 …`), so even within L3-02
+  the record layout varies per BPT (likely by the block's property-table shape).
+
+**Conclusion:** the BPT record layout is **per-block-family** (and even **per-BPT within
+a family** — the L3-02 file's three bodies use three different record layouts); only the
+trailing `[ReadBitShort][UTF-16LE]` string pool is uniform. There is **no single L3-02
+schema**: one body uses 96-bit entries (a 4-bit row counter, a 3-bit field, an 8-bit code,
+with an *indirect* record→string link), the others use sparser, different layouts. So a
+general reader must (1) **always decode the pool** (uniform) and (2) **treat the record
+region as schema-specific** (1kV = 126-bit records, the only fully-cracked schema). The
+1kV `RecordSchemaMatched` guard in `BptBodyDecoder` is the correct general behavior: it
+exposes `RecordIndices` only when the 1kV schema matched, and leaves them empty for other
+families (the pool still decodes for all).
