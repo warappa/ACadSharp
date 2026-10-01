@@ -147,7 +147,11 @@ public class PropertyItem
 
 /// <summary>
 /// The evaluated properties of a dynamic block. Activates all grip nodes
-/// (initial state, zero displacement) and evaluates the graph once.
+/// (initial state, zero displacement) and runs the forward evaluation
+/// (AutoCAD's "evaluate": the geometry computed from the stored values),
+/// followed by the reverse evaluation (the table-driven lookup actions,
+/// so a lookup action shows its current value — the one that produced the
+/// as-drawn geometry — rather than "<unset>").
 /// </summary>
 public class BlockModel
 {
@@ -183,6 +187,13 @@ public class BlockModel
             .ToList();
         graph.Activate(gripIndices);
         bool ok = graph.Evaluate();
+        // The forward pass leaves the table-driven lookup actions unset (they are
+        // only reachable via the flag-4 edges the forward order does not follow).
+        // The reverse pass evaluates them from the stored parameter values, so a
+        // lookup action shows its current value — the matched cell, which equals the
+        // stored value in the as-drawn state — instead of "<unset>". The downstream
+        // nodes are not re-evaluated by the reverse pass, so the geometry is unchanged.
+        graph.EvaluateReverse();
 
         List<PropertyItem> properties = new();
         foreach (EvaluationGraph.Node node in graph.Nodes.OrderBy(n => n.Index))
