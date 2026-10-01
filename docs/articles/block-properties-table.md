@@ -1519,13 +1519,25 @@ exactly** (the earlier `F8 = 0xD840…?` uncertainty is resolved: byte 47 = `0xE
 grid. (Matches the prior ODA-walk result: 6+ of the 16-bit values carry bit 15, valid
 only as *unsigned* 16-bit or 33-bit.)
 
-### The `[BS]` walk from bit 0 — 24 fields, sums to 552 (8 bits over)
+### The `[BS]` walk from bit 0 — 23 fields + 9-bit remainder = 544 exactly
 
 Parsing the 544-bit header as an ODA `[BS]` stream (tag 0 → 16-bit, tag 1 → 33-bit)
-from bit 0 gives **24 valid fields** (15 × 17-bit + 9 × 33-bit) that **sum to 552 bits —
-8 bits past the 544 header boundary** (the last 17-bit field, at bit 535, spans
-535..551 and straddles into record 0). So a pure `[BS]` stream does *not* cleanly tile
-544; the 32×17 factorization is a near-miss, not the true structure.
+from bit 0 gives **23 complete fields** (14 × 17-bit + 9 × 33-bit) that end at bit
+534 (= 535 bits), followed by a **9-bit remainder** (value `0x0A` = 10):
+**535 + 9 = 544 exactly.** A 24th `[BS]` field starts at bit 535 and straddles into
+record 0 (value 2562) — so the header is *not* a run of 24 complete `[BS]` fields
+(walking it naïvely gives 24 fields summing to 552 bits, 8 bits over); the true framing
+is 23 fields + 9 trailing bits. The 32×17 factorization is a near-miss, not the true
+structure.
+
+**The 2-bit-tag (AutoCAD `ReadBitShort`) hypothesis is disconfirmed:** parsing the header
+with AutoCAD's 2-bit-tag encoding (`00`→2-byte LE, `01`→1 byte, `10`→0, `11`→256)
+from bit 0 yields the `12288`/`21999` values the prior session observed, then a bogus
+run of **seven `256`** (tag `11`) values at bits 238..252 and 364..368 — not a coherent
+structure. The 1-bit `[BS]` walk is the better parse.
+
+The 23 fields (bit position, width, value; the 9 32-bit payloads shown as
+`[hi16 · lo16]`):
 
 The 24 fields (bit position, width, value; the 9 32-bit payloads shown as
 `[hi16 · lo16]`):
@@ -1555,7 +1567,7 @@ The 24 fields (bit position, width, value; the 9 32-bit payloads shown as
 | 21 | 484 | 16 | 15116 |
 | 22 | 501 | 16 | 36131 |
 | 23 | 518 | 16 | 53268 |
-| 24 | 535 | 16 | 2562 (straddles into record 0) |
+| — | 535 | 9 | `0x0A` = 10 (9-bit remainder; a 24th 16-bit field would read 2562 and straddle into record 0) |
 
 The 32-bit `[BS]` payloads **each split into two 16-bit quantities that are both
 in-range file offsets** (≤ 65534 < 74687) — e.g. field 16 = `0xD840591F` is the exact
@@ -1564,7 +1576,7 @@ leading 4 bytes of 48-bit field F8 above.
 ### The 16-bit values are file offsets (the key new evidence)
 
 The 1kV DWG is **74687 bytes** long; a 16-bit offset spans 0..65535, so every 16-bit
-value above is a *valid in-range file offset*. Probing the 24 byte-offset targets:
+value above is a *valid in-range file offset*. Probing the 23 field targets:
 
 - **offset 36131** (field 22) → `00 6b 00 52 00 6f 00 75 00 6e 00 64 00 54 …` = UTF-16BE
   `"kRoundTripPu…"` — a real readable symbol in the file.
@@ -1581,15 +1593,17 @@ null/version fields, after which the stream is a mix of 16-bit and 32-bit (two p
 ### Status
 
 - **Confirmed (exact):** 544 = 32×17 = 11×48+16; the 6-byte/48-bit decomposition and the
-  16-bit chunk table above.
+  16-bit chunk table above; the 1-bit `[BS]` walk = 23 complete fields (ending at bit
+  534 = 535 bits) + 9-bit remainder = 544 exactly.
+- **Disconfirmed (this session):** the 2-bit-tag (AutoCAD `ReadBitShort`) walk — yields
+  `12288`/`21999` then a bogus run of seven `256` values.
 - **Supported (preliminary):** the 16-bit header values are in-range file offsets into
   the 74687-byte DWG; two hit readable UTF-16BE strings (`"kRoundTripPu…"`, `"…t saved
   by a…"`); the nine 32-bit `[BS]` payloads each = two packed 16-bit in-range offsets.
-- **Open:** (a) the `[BS]` walk overshoots 544 by 8 bits — the header is not a clean
-  `[BS]` stream from bit 0, and the true field framing (and why 544 = 32×17) is
-  unresolved; (b) what the 32-bit dual-offset fields semantically reference (two related
-  strings? a name + its category?); (c) whether the offset list is the BPT's own
-  row/column metadata (26 rows × 4-name groups) or a global file string-index table.
+- **Open:** (a) the semantic meaning of the 23 `[BS]` fields + 9-bit remainder (the 9-bit
+  value 10; the leading `0`/`0` pair); (b) what the 32-bit dual-offset fields reference
+  (two related strings? a name + its category?); (c) whether the offset list is the BPT's
+  own row/column metadata (26 rows × 4-name groups) or a global file string-index table.
 
 ### CORRECTION (preliminary): the 2-bit string-region model is disconfirmed; the 26th record is whole
 
