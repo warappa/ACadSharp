@@ -1707,7 +1707,43 @@ pool (a string-interning table), and a 33-bit tail.
 variable-length record, or a count/length field elsewhere); and whether the 544-bit
 header's 16-bit global offsets are shared across BPTs in the file.
 
-### CORRECTION (preliminary): the 2-bit string-region model is disconfirmed; the 26th record is whole
+### Cross-validation (preliminary): the string pool is general; the record/header schema is 1kV-specific
+
+Applying the cracked 1kV model to the other BPTs (l302 obj1/obj3/obj5, TEE3000 obj1 —
+full `RawTail` dumps, `[ReadBitShort][UTF-16LE]` string-start scan):
+
+| file | body bits | string pool | record region | 1kV model |
+| --- | --- | --- | --- | --- |
+| 1kV | 31219 | **126 strings** (P=3798) | 3254 = 25×126 + 104 | ✓ (544 header + 126-bit records) |
+| l302 obj1 | 2596 | **10 strings** (P=1663) | 1663 (≡25 mod 126) | ✗ |
+| l302 obj3 | 6533 | **16 strings** (P=5388) | 5388 (≡96 mod 126) | ✗ |
+| l302 obj5 | 3536 | **21 strings** (P=1149) | 1149 (≡15 mod 126) | ✗ |
+| TEE3000 | 12972 | **none** (inline) | — | ✗ |
+
+**Findings (preliminary):**
+- The **`[ReadBitShort length][UTF-16LE]` string-pool encoding is general** across BPTs:
+  it decodes with exact bit consumption for 1kV (126) and all three l302 BPTs (10/16/21).
+  Every l302 pool begins with the same BPT "scaffold" strings 1kV has — `Block Table`,
+  `Block Table1`, `UserVariable`, `Custom`, `UpdatedDistance(X)` — plus block-specific
+  names (l302 obj5: `1 Space`, `2 Spaces`, `3 Spaces`).
+- The **1kV record/header schema is specific to 1kV**: no l302 record region is a
+  multiple of 126 (remainders 25/96/15), and none is `544 + N×126`. So the 544-bit
+  header + 126-bit-record + 7-bit-index structure is a 1kV (or one block family's)
+  variant, not the universal BPT record format.
+- **TEE3000 has a different schema entirely** — no trailing string pool (the
+  `[ReadBitShort][UTF-16LE]` scan finds at most 1 empty string; its strings are inline,
+  at 28-byte spacing, with a 9-byte `c6 f6 36 b2 05 46 16 26 c6` prefix).
+
+**Implication:** the BPT string pool (interned UTF-16LE strings with `[ReadBitShort]`
+lengths) is a shared mechanism; the record/header that references it varies by block
+type. A general BPT reader must treat the record region as schema-specific, while the
+string-pool decode is uniform.
+
+### CORRECTION (preliminary, **superseded**): the 2-bit string-region model is disconfirmed; the 26th record is whole
+
+> **Superseded** by the [confirmed breakthrough](#breakthrough-confirmed-the-full-1kV-bpt-body-layout--the-string-region-is-readbitshort-lengthutf-16le)
+> below this point: the 26th record is **truncated to 104 bits** (P = 3798), not whole
+> (P = 3820); decoding from 3820 fails (EOF).
 
 Re-deriving the string-region arithmetic from the verified 126-string content (1639 chars
 total) kills the prior "100% consumption at 2-bit chars" claim:
