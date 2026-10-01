@@ -146,8 +146,9 @@ public class PropertyItem
 }
 
 /// <summary>
-/// The evaluated properties of a dynamic block. Activates all grip nodes
-/// (initial state, zero displacement) and runs the forward evaluation
+/// The evaluated properties of a dynamic block. Activates all activatable nodes — the
+/// parameter grips (initial state, zero displacement) and the properties-table grip
+/// (its stored location) — and runs the forward evaluation
 /// (AutoCAD's "evaluate": the geometry computed from the stored values),
 /// followed by the reverse evaluation (the table-driven lookup actions,
 /// so a lookup action shows its current value — the one that produced the
@@ -181,8 +182,11 @@ public class BlockModel
             return null;
         }
 
+        // The activation seeds: the parameter grips and the properties-table grip
+        // (both are user-touchable handles; see EvaluationExpression.IsActivatable).
+        // A node's Expression can be null (an unparseable node record), so filter null-safely.
         List<int> gripIndices = graph.Nodes
-            .Where(n => n.Expression is BlockGrip)
+            .Where(n => n.Expression is { } e && e.IsActivatable)
             .Select(n => n.Index)
             .ToList();
         graph.Activate(gripIndices);

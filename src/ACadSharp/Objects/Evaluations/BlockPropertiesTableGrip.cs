@@ -5,8 +5,11 @@ using CSMath;
 namespace ACadSharp.Objects.Evaluations;
 
 /// <summary>
-/// Represents a BLOCKPROPERTIESTABLEGRIP object, a data object that supports the dynamic
-/// block properties table (a UI feature for displaying block properties).
+/// Represents a BLOCKPROPERTIESTABLEGRIP object, the user-touchable handle that anchors the
+/// dynamic block properties table (a UI feature for displaying block properties) in the
+/// drawing. The grip's value is its stored <see cref="Location"/> (written to the context's
+/// "Value" port during evaluation); it feeds the <see cref="BlockPropertiesTable"/> node
+/// through a value edge.
 /// </summary>
 /// <remarks>
 /// Object name <see cref="DxfFileToken.ObjectBlockPropertiesTableGrip"/> <br/>
@@ -93,10 +96,50 @@ public class BlockPropertiesTableGrip : EvaluationExpression, IDxfClassDefined
 	public override string SubclassMarker => DxfSubclassMarker.BlockPropertiesTableGrip;
 
 	/// <summary>
-	/// The properties table grip is a data-only stub (the lookup table is not decoded), so it
-	/// has no meaningful value before evaluation.
+	/// The default value of the table grip: its stored <see cref="Location"/> (the position of
+	/// the table's UI handle, as the block was drawn).
+	/// <para>
+	/// Like a parameter grip's zero <c>Displacement</c>, a table grip has a meaningful value even
+	/// before evaluation: the value of a handle is its position (it anchors the properties table
+	/// in the drawing).
+	/// </para>
 	/// </summary>
-	protected override EvaluationValue GetDefaultValue() => EvaluationValue.None;
+	protected override EvaluationValue GetDefaultValue() => EvaluationValue.FromPoint(this.Location);
+
+	/// <summary>
+	/// The current value, correctly typed (hides the base <see cref="EvaluationExpression.CurrentValue"/>;
+	/// a computed read of it). For a table grip this is the stored <see cref="Location"/>.
+	/// <para>
+	/// Falls back to the <see cref="Location"/> when the node has not been evaluated yet (the
+	/// evaluation result is unset), so the grip always exposes its current value rather than an
+	/// empty placeholder.
+	/// </para>
+	/// </summary>
+	public new EvaluationValue<XYZ> CurrentValue => base.CurrentValue.As<XYZ>();
+
+	/// <summary>
+	/// Evaluates the table grip: writes its stored <see cref="Location"/> (the position of the
+	/// table's UI handle, as the block was drawn) to the "Value" output port.
+	/// <para>
+	/// The table grip is a handle the user can touch (it anchors the properties table in the
+	/// drawing), but it is not a block parameter: it carries no displacement. Its value feeds
+	/// the <see cref="BlockPropertiesTable"/> node through the value edge (the table's
+	/// "Value" port).
+	/// </para>
+	/// </summary>
+	public override bool Evaluate(EvaluationContext context)
+	{
+		EvaluationValue location = EvaluationValue.FromPoint(this.Location);
+		context.SetValue(this.Id, "Value", location);
+		base.CurrentValue = location;
+		return true;
+	}
+
+	/// <summary>
+	/// The table grip is a handle the user can touch (it anchors the properties table in the
+	/// drawing): it is an activation seed of the block evaluation.
+	/// </summary>
+	public override bool IsActivatable => true;
 
 	/// <inheritdoc/>
 	public DxfClass GetDxfClass()

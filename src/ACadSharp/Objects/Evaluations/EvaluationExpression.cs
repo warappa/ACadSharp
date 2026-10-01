@@ -99,4 +99,17 @@ public abstract class EvaluationExpression : NonGraphicalObject
 	{
 		return true;
 	}
+
+	/// <summary>
+	/// Whether this node is a grip the user can touch (a handle in the block's UI). Such a node
+	/// is an activation seed of the block evaluation: the evaluation starts from the grips the
+	/// user touched (initial state) and propagates through the value edges to the parameters and
+	/// actions the grip drives.
+	/// <para>
+	/// The parameter grips (<see cref="BlockGrip"/> and its subclasses) and the properties-table
+	/// grip (<see cref="BlockPropertiesTableGrip"/>, the table's UI handle) are activatable;
+	/// parameters, actions, and the table itself are not (they are reached from the grips).
+	/// </para>
+	/// </summary>
+	public virtual bool IsActivatable => false;
 }

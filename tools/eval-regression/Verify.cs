@@ -32,8 +32,9 @@ foreach (BlockRecord block in doc.BlockRecords)
 
     dynamicCount++;
 
+    // Activation seeds: the parameter grips + the properties-table grip (IsActivatable).
     List<int> gripIndices = graph.Nodes
-        .Where(n => n.Expression is BlockGrip)
+        .Where(n => n.Expression is { } e && e.IsActivatable)
         .Select(n => n.Index)
         .ToList();
     graph.Activate(gripIndices);

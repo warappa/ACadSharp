@@ -84,4 +84,7 @@ public abstract class BlockGrip : BlockElement
 
 		return true;
 	}
+
+	/// <inheritdoc/>
+	public override bool IsActivatable => true;
 }

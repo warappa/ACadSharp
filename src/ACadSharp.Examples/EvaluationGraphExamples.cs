@@ -81,8 +81,9 @@ namespace ACadSharp.Examples
 			Console.WriteLine();
 			Console.WriteLine($"=== Block '{blockName}' ===");
 
-			// Activate all grip nodes (the user-touched nodes).
-			List<int> gripIndices = graph.Nodes.Where(n => n.Expression is BlockGrip).Select(n => n.Index).ToList();
+			// Activate all activatable nodes (the user-touched nodes: the parameter grips
+			// and the properties-table grip; see EvaluationExpression.IsActivatable).
+			List<int> gripIndices = graph.Nodes.Where(n => n.Expression is { } e && e.IsActivatable).Select(n => n.Index).ToList();
 			graph.Activate(gripIndices);
 
 			bool ok = graph.Evaluate();

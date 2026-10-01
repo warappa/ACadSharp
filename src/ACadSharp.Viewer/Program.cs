@@ -116,8 +116,10 @@ static class SmokeTest
             Console.WriteLine();
             Console.WriteLine($"=== evaluation: block '{block.Name}' ===");
 
+            // The activation seeds: the parameter grips and the properties-table grip
+            // (both are user-touchable handles; see EvaluationExpression.IsActivatable).
             List<int> gripIndices = graph.Nodes
-                .Where(n => n.Expression is BlockGrip)
+                .Where(n => n.Expression is { } e && e.IsActivatable)
                 .Select(n => n.Index)
                 .ToList();
             graph.Activate(gripIndices);

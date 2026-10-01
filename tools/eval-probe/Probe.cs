@@ -13,7 +13,8 @@ foreach (var block in doc.BlockRecords)
 {
     var graph = block.EvaluationGraph;
     if (graph is null) continue;
-    var grips = graph.Nodes.Where(n => n.Expression is BlockGrip).Select(n => n.Index).ToList();
+    // Activation seeds: the parameter grips + the properties-table grip (IsActivatable).
+    var grips = graph.Nodes.Where(n => n.Expression is { } e && e.IsActivatable).Select(n => n.Index).ToList();
     graph.Activate(grips);
     graph.Evaluate();
     Console.WriteLine($"=== block {block.Name} ===");
