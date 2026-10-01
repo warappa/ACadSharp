@@ -439,9 +439,13 @@ Three more things make it read as a *child*, not as a peer window:
   (`{Binding $parent[Window].Title}`) and the code-behind sets it from the same data as the
   in-content header (`"Node viewer — dynamic-diameter"`, `"Block properties tables (1)"`), so
   the WM title matches the caption (`tools/x11-chrome-probe` reads it back).
-- **Two ranks of header.** The strip is the *window* label; the dialogs' own header Border
-  stays the *document* header ("Nodes building 'dynamic-diameter' — block my-dynamic-block").
-  The strip never duplicates that text, so the old single-header look loses nothing.
+- **No header row under a child titlebar.** A dialog's own title line under the strip
+  repeats the caption word for word, so the child strip carries the *whole* identity and the
+  header row is deleted: `"Block properties tables (1)"` (tables dialog) and
+  `"Node viewer — Visibility1 · block 1kVKeetUitbreiding"` (node viewer — property **and**
+  block, because the deleted header was the only place the block name appeared). What a
+  header row also carried — the fit/zoom buttons — survives as a 36px icon-only command bar
+  (`.iconCommand`, right-aligned, hairline under it) with no text in it.
 
 `ChildWindowChrome.cs` holds the shared input plumbing (`BeginDrag` = the
 `BeginMoveDrag` fallback for renderers without role routing, `ConsumeCaptionPress` = the

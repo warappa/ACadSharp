@@ -47,12 +47,9 @@
                 </StackPanel>
             </Grid>
         </Border>
-        <!-- Header strip (mirrors the NodeViewerDialog header). -->
-        <Border DockPanel.Dock="Top" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
-            <TextBlock x:Name="Header" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}"
-                      TextTrimming="CharacterEllipsis" />
-        </Border>
 
+        <!-- No header strip: the titlebar carries the window identity, and a
+             second line repeating it is pure duplication. -->
         <!-- Left: the document's tables (a table is a standalone object; a file
              holds one per dynamic block that defines a properties table). -->
         <Border DockPanel.Dock="Left" Width="220" Padding="8"

@@ -51,11 +51,10 @@ public partial class NodeViewerDialog : Window
 
 	private void InitializeComponentState()
 	{
-		Header.Text = $"Nodes building '{_property.Name}' — block {_block.Name}";
-
-		// The child titlebar shows the window title, so it carries the same
-		// identity the header does; the WM title matches too (tools/x11-chrome-probe).
-		Title = $"Node viewer — {_property.Name}";
+		// The titlebar carries the whole identity: the property whose subgraph this
+		// is, plus the block it belongs to. There is no header strip under the
+		// titlebar repeating it.
+		Title = $"Node viewer — {_property.Name} · block {_block.Name}";
 
 		GraphModel.Result model = GraphModel.BuildAncestors(_graph, _property.NodeIndex);
 		// The mini-map gets the graph first, so the ViewChanged events the

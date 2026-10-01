@@ -49,23 +49,23 @@
                 </StackPanel>
             </Grid>
         </Border>
-        <Border DockPanel.Dock="Top" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
-            <DockPanel>
-                <!-- Zoom controls (the legends moved into the graph area as a
-                     non-interactive overlay, see the Grid below). -->
-                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="{StaticResource Space4}" VerticalAlignment="Center">
-                    <Button Click="OnFitClick" Focusable="False" ToolTip.Tip="Fit graph to view">
-                        <ui:FASymbolIcon Symbol="FullScreen" />
-                    </Button>
-                    <Button Click="OnZoomInClick" Focusable="False" ToolTip.Tip="Zoom in">
-                        <ui:FASymbolIcon Symbol="ZoomIn" />
-                    </Button>
-                    <Button Click="OnZoomOutClick" Focusable="False" ToolTip.Tip="Zoom out">
-                        <ui:FASymbolIcon Symbol="ZoomOut" />
-                    </Button>
-                </StackPanel>
-                <TextBlock x:Name="Header" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}" TextTrimming="CharacterEllipsis" />
-            </DockPanel>
+        <Border DockPanel.Dock="Top" Height="36" Padding="12,0" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
+            <!-- Command bar, buttons only: the title row under the titlebar is
+                 gone, because the titlebar carries the whole identity
+                 ("Node viewer — <property> · block <block>"). The legends stay in
+                 the graph area as a non-interactive overlay (see the Grid below). -->
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button Classes="iconCommand" Click="OnFitClick" Focusable="False" ToolTip.Tip="Fit graph to view">
+                    <ui:FASymbolIcon Symbol="FullScreen" />
+                </Button>
+                <Button Classes="iconCommand" Click="OnZoomInClick" Focusable="False" ToolTip.Tip="Zoom in">
+                    <ui:FASymbolIcon Symbol="ZoomIn" />
+                </Button>
+                <Button Classes="iconCommand" Click="OnZoomOutClick" Focusable="False" ToolTip.Tip="Zoom out">
+                    <ui:FASymbolIcon Symbol="ZoomOut" />
+                </Button>
+            </StackPanel>
         </Border>
         <Border DockPanel.Dock="Bottom" Padding="12,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,1,0,0">
             <TextBlock x:Name="Details" FontFamily="{StaticResource FontFamilyCode}" FontSize="{StaticResource CodeFontSize}"

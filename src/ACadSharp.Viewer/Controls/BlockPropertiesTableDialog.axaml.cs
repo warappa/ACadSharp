@@ -29,10 +29,8 @@ public partial class BlockPropertiesTableDialog : Window
             ChildTitleStrip.IsVisible = false;
         }
 
-        Header.Text = $"Block properties tables ({tables.Count})";
-
-        // The child titlebar shows the window title, so it carries the same
-        // identity the header does; the WM title matches too (tools/x11-chrome-probe).
+        // The titlebar carries the window identity; there is no header strip under
+        // it, so the count lives in the title alone.
         Title = $"Block properties tables ({tables.Count})";
 
         TableList.ItemsSource = tables;
