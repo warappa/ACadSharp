@@ -46,6 +46,11 @@ public partial class MainWindow : Window
     // window, so the theme cannot change while it is open and needs no hook.)
     private NodeViewerDialog? _nodeViewerDialog;
 
+    // The open (modeless) block properties tables dialog, if any: one dialog
+    // serves the whole document, so a second click activates the existing one
+    // instead of stacking another.
+    private BlockPropertiesTableDialog? _bptDialog;
+
     // Per-block evaluation models for the current document. BlockModel.Create
     // activates and evaluates the shared EvaluationGraph (a side effect), so
     // re-running it on every selection of the same block is wasted work; this
@@ -306,7 +311,13 @@ public partial class MainWindow : Window
         _isBusy = true;
         _blockModelCache.Clear();
         _lastPath = path;
+        // A still-open tables dialog would keep the previous file's data.
+        if (_bptDialog is { IsVisible: true })
+        {
+            _bptDialog.Close();
+        }
         ReloadButton.IsEnabled = true;
+        TablesButton.IsEnabled = true;
         LoadingRing.IsVisible = true;
         FileNameText.Text = path;
         SetStatus($"Loading {Path.GetFileName(path)}…", StatusKind.Neutral);
@@ -344,6 +355,8 @@ public partial class MainWindow : Window
             _fullTree = new List<BlockTreeNode>();
             TreeSummary.Text = string.Empty;
             ApplyTreeFilter();
+            ReloadButton.IsEnabled = false;
+            TablesButton.IsEnabled = false;
             SetStatus($"Failed to load {Path.GetFileName(path)}: {ex.Message}", StatusKind.Error);
         }
         finally
@@ -452,6 +465,63 @@ public partial class MainWindow : Window
         }
 
         new NodeViewerDialog(_selectedNode.Block, item, graph).ShowDialog(this);
+    }
+
+    /// <summary>
+    /// Opens the block properties tables dialog for the loaded document
+    /// (the decoded "display table" objects), or notes in the status bar when
+    /// the document holds none.
+    /// </summary>
+    private void OnTablesClick(object? sender, RoutedEventArgs e)
+    {
+        if (_document is null)
+        {
+            return;
+        }
+
+        List<BptTableItem> items = BlockPropertiesTableModel.Build(_document);
+        if (items.Count == 0)
+        {
+            SetStatus("No block properties tables in this document.", StatusKind.Neutral);
+            return;
+        }
+
+        OpenBlockPropertiesTables(items);
+    }
+
+    private void OpenBlockPropertiesTables(List<BptTableItem> items)
+    {
+        if (_bptDialog is { IsVisible: true })
+        {
+            _bptDialog.Activate();
+            return;
+        }
+
+        _bptDialog = new BlockPropertiesTableDialog(items);
+        _bptDialog.Closed += (_, _) => _bptDialog = null;
+        _bptDialog.Show();
+    }
+
+    /// <summary>
+    /// Verification helper (used by the --screenshot mode): opens the block
+    /// properties tables dialog (modeless) so it can be captured headlessly.
+    /// Returns the dialog window, or null when the document holds no tables.
+    /// </summary>
+    public TopLevel? OpenBlockPropertiesTablesForVerification()
+    {
+        if (_document is null)
+        {
+            return null;
+        }
+
+        List<BptTableItem> items = BlockPropertiesTableModel.Build(_document);
+        if (items.Count == 0)
+        {
+            return null;
+        }
+
+        OpenBlockPropertiesTables(items);
+        return _bptDialog;
     }
 
     /// <summary>

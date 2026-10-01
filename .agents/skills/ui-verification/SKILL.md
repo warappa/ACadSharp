@@ -32,6 +32,7 @@ NUGET_PACKAGES=$PWD/.tmp-nuget DOTNET_ROLL_FORWARD=Major \
 - `interact` — simulate wheel zoom, drag pan, click select, hover through the real input pipeline
 - `zoombug` / `minimap` — mini-map rectangle tracking + navigation
 - `fingerprint` — a **deterministic layout fingerprint** (node positions, edge labels + multiplicity, scale/pan, visible rect): a cheap regression check without pixels
+- `bpt` — open the block properties tables dialog (if the file holds any tables) and capture it
 
 It writes a `diag.txt` (setup, load, dialog, capture timestamps) next to the output.
 

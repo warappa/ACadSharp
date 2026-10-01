@@ -37,7 +37,8 @@ namespace ACadSharp.Viewer;
 /// the node viewer, zooms in (so the visible-area rectangle is clearly
 /// smaller than the whole graph), and navigates through the mini-map
 /// (press + drag), verifying both the rectangle tracking and the
-/// mini-map navigation.
+/// mini-map navigation. The "bpt" argument opens the block properties
+/// tables dialog (if the file holds any tables) and captures it.
 /// </summary>
 static class Screenshot
 {
@@ -58,6 +59,7 @@ static class Screenshot
         bool minimap = modes.Contains("minimap");
         bool fingerprint = modes.Contains("fingerprint");
         bool wheeltest = modes.Contains("wheeltest");
+        bool bpt = modes.Contains("bpt");
         if (filePath is not null && !File.Exists(filePath))
         {
             Console.Error.WriteLine($"file not found: {filePath}");
@@ -437,6 +439,31 @@ static class Screenshot
                                 Log($"minimap after drag: {miniMapViewer.MiniMap.MiniMapStateForVerification}");
                             }
                         }
+                    }
+                }
+
+                // Optionally open the block properties tables dialog (modeless)
+                // and capture it instead.
+                if (bpt)
+                {
+                    TopLevel? bptDialog = window.OpenBlockPropertiesTablesForVerification();
+                    Log($"bpt dialog opened={bptDialog is not null}");
+                    if (bptDialog is not null)
+                    {
+                        // Pump until the dialog is visible and its first
+                        // selection has populated the detail pane.
+                        for (int i = 0; i < 30 && !bptDialog.IsVisible; i++)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                            Thread.Sleep(20);
+                        }
+                        for (int i = 0; i < 10; i++)
+                        {
+                            Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                            Thread.Sleep(10);
+                        }
+                        Log($"bpt dialog visible={bptDialog.IsVisible} bounds={bptDialog.Bounds}");
+                        dialog = bptDialog;
                     }
                 }
 

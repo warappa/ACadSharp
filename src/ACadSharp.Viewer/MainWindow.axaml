@@ -59,6 +59,13 @@
                             <TextBlock Text="Reload" />
                         </StackPanel>
                     </Button>
+                    <Button x:Name="TablesButton" Click="OnTablesClick" IsEnabled="False" Padding="10,0" MinHeight="32"
+                           ToolTip.Tip="Block properties tables — the decoded display tables of this document">
+                        <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
+                            <ui:FASymbolIcon Symbol="View" />
+                            <TextBlock Text="Tables" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
                 <Button x:Name="SettingsButton" DockPanel.Dock="Right" Padding="10,0" MinHeight="32" Focusable="False"
                        ToolTip.Tip="Appearance — theme and accent">
