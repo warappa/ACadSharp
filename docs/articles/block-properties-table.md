@@ -1267,3 +1267,86 @@ to decode. The `d` suffix (BLd/BSd) is a LibreDWG annotation for fields with a
 default value; the on-disk primitive is the base (BL/BS). **Open:** the exact
 table-data layout (numColumns, column fields, numRows, rows) and confirmation
 of the `value_code`/`code` → union mapping on real bytes.
+
+## Breakthrough (this session): the RawTail = the table data + the full R2010+ tail — exact 1kV numbers
+
+Using the **verified existing reader** (not hand-math), the `RawTail` the reader
+captures is now fully understood. It is the **entire remainder of the object
+after the BPT prefix** — i.e. `RawTail = [table data][string region (S)][size
+field][1-bit flag]`, extending all the way to the handle-region start.
+
+**Why:** `DwgObjectReader.cs:245,257` sets
+`handleSectionOffset = dataStart + sizeInBits − handleSize` and positions
+`_handlesReader` there. `readRawTail` (`Objects.cs:385`) computes
+`remaining = _handlesReader.PositionInBits() − _objectReader.PositionInBits()`,
+so the RawTail runs from the end of the prefix (after `eed1071`) to the handle
+region start — which includes the string region, size field, and 1-bit flag.
+
+### The 1kV object (AC1032), verified
+| field | value | source |
+|---|---|---|
+| `size` (modular short, bytes) | 3941 → `sizeInBits` = 31528 | scan |
+| `handleSize` | 181 bits | scan |
+| `RawTailBitCount` | **31219** | verified reader |
+| `S` (string region) | **27386** bits | L302Dump, 100% consumed |
+| string count | **125** | L302Dump |
+| size field | 16-bit LE | L302Dump |
+| 1-bit flag | **1** | L302Dump |
+| `be_major` / `be_minor` / `eed1071` | **33 / 73 / 0** | verified reader |
+| **table data** | `31219 − 27386 − 16 − 1` = **3806 bits** | derived |
+
+So the **table data is the first 3806 bits of the RawTail** (the string region is
+the next 27386 bits, then the 16-bit size field, then the 1-bit flag).
+
+### The "body" == the table-data region (the earlier 1kV fit is corrected)
+The L302Dump "body" (3800 bits, `[after the 134-bit prefix][before the string
+region]`) **exactly equals the RawTail's first 3800 bits** (verified by the
+`Align` tool, 3800/3800 bit match). Combined with the 3806-bit table-data size,
+this confirms the table-data region sits at the **head of the RawTail** and the
+"body" and "table data" are the same region (the 6-bit delta is a 2-bit
+`handleStart` offset in the L302Dump extraction). **This corrects the earlier
+"1kV fits 3800" size table**, which had (incorrectly) counted 1872 bits of
+string cells *inside* the 3800-bit body — in R2010+ a string value consumes
+**zero main-stream bits** (the text lives in the string region; only the
+`code` BS is in the main stream).
+
+### The 1kV table content (125 strings, in reference order)
+- **Names:** `"Block Table"`, `"Block Table1"`.
+- **Column names:** `UserVariable` (×3), `UpdatedDistance`, `VisibilityState`.
+- **Rows:** ~24 rows of Dutch text (panel/distribution-board names, e.g.
+  `"1kV Keet"`, `"Klassiek"`, `"Rechts"`/`"Links"`, `"BIC/LIC/SEC"`,
+  `"Lastscheider/Contactor"`, `"IL Shelter"`, `"Double Wide"`, …) — each row
+  = a set of property values for one configuration.
+
+**Next:** decode the 3806-bit table-data stream as a sequence of
+`Dwg_EvalVariant` (`[code BS][value]`) cells, pulling string cells (code 1) from
+the string region in order. The `TDecode` tool does this; the open question is
+the header layout (name, numColumns, numRows, flags) before the cell matrix.
+
+### Status & open questions (end of this session)
+**Cracked / verified (solid):**
+- The R2010+ object envelope and the `handleSectionOffset = objectStart + sizeInBits −
+  handleSize` relation (the RawTail runs from the end of the prefix to the handle-region
+  start, and therefore includes the string region, size field, and 1-bit flag).
+- The 1kV object's exact numbers (RawTailBitCount 31219, string region 27386 bits = 125
+  strings, 100% consumed; `be_major`/`be_minor`/`eed1071` = 33/73/0).
+- The table-data region (the first ≈3800–3816 bits of the RawTail) and its **content**
+  (a "Block Table" with columns `UserVariable`×3, `UpdatedDistance`, `VisibilityState` and
+  ≈24 rows of Dutch panel/distribution names).
+
+**Open (the hard remaining piece):**
+- The table-data **cell encoding** — the 3800–3816-bit region does **not** decode as a
+  flat `BL`/`BS`/variant stream from bit 0 (the codes come out as garbage, e.g. 12288,
+  2.05E+279), so it has a header + a structured column/row layout that is not yet cracked.
+  The `Dwg_EvalVariant` (`[code BS][value union]`) model from LibreDWG is the best
+  hypothesis for individual cells, but the wrapping table header (name, `numColumns`,
+  `numRows`, flags) and the exact column/row field order are unresolved.
+- The exact `flag` / size-field position is sensitive to a 2-bit `handleStart` offset
+  (the verified reader's RawTail last bit is 0, while the L302Dump extraction reports
+  flag 1) — the 125-string content is the robust anchor, not the raw flag byte.
+
+**Implementation status:** the `BlockPropertiesTable` reader reads `[EvalExpr][be_major]
+[be_minor][eed1071]` and preserves the rest as `RawTail` (bit-exact round-trip, verified
+by `BlockPropertiesTableTests`); the writer re-emits it. The DXF reader/writer is a
+stub (the class has no public ObjectARX property API — only the current value is
+addressable), which is consistent with the table data still being undecoded.
