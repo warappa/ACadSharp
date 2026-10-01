@@ -1675,6 +1675,34 @@ The encoding of each string:
   1-bit `[BS]` stream, not a length-prefixed raw-byte stream. (This resolves the long
   "string-region encoding unknown" open question.)
 
+### Full validation: the 26 records index the string pool (the model is self-consistent)
+
+Decoding all 26 records (25 whole + the 104-bit 26th) with the 126-bit template and
+resolving each 7-bit index (`bit70 << 6 | 6-bit[97..102]`) into the 126-string pool:
+
+| k | bits | const match | index | → string |
+| --- | --- | --- | --- | --- |
+| 0 | 126 | 70/70 | 28 | `Rechts` |
+| 1 | 126 | 70/70 | 29 | `1kV Keet - VPR` |
+| 2 | 126 | 70/70 | 53 | `1kV Keet aanduiding omvormers - VPR` |
+| 3 | 126 | 69/70 | 118 | `IL Shelter` |
+| 4 | 126 | 69/70 | 119 | `Double Wide` |
+| 5 | 126 | 69/70 | 94 | `IL Shelter` |
+| 6..24 | 126 | 70/70 | 31..49 | `Klassiek`, `Links`, `1kV Keet - VPL`, `1kV Keet`, `Dubbelzijdig`, `Uitbreiding - 1kV keet`, … |
+| 25 | 104 | 48/48 | 56 | `Dubbelzijdig` |
+
+- **Every index is valid** (`< 126`) and resolves to a meaningful Dutch electrical term.
+- **Bit 70 refinement:** the 64..71 field is `0x04` **except bit 70**, which is the
+  index's high bit. Records with index ≥ 64 (k3/k4/k5 = 118/119/94) have bit 70 = 1 and
+  show 69/70 (the one mismatch is bit 70); records with index < 64 show 70/70. So bit 70
+  is **variable** (the index's top bit), not constant.
+- **The 26th record (104 bits, index 56)** matches its first 104 template bits (48/48);
+  it is the last record and is 22 bits short.
+
+**The model is self-consistent and fully validated** for the 1kV file: a header of global
+file offsets, 26 records each holding a 7-bit index into a 126-entry UTF-16LE string
+pool (a string-interning table), and a 33-bit tail.
+
 **Open:** why the writer emitted the 26th record 22 bits short (a writer bug, a
 variable-length record, or a count/length field elsewhere); and whether the 544-bit
 header's 16-bit global offsets are shared across BPTs in the file.
