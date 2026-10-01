@@ -40,10 +40,30 @@ public class BlockPropertiesTableTests
 		this._output = output;
 	}
 
-	private string SamplePath =>
-		Environment.GetEnvironmentVariable("EVALGRAPH_SAMPLE")
-		?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-			"Downloads", "L3-02-Dynamic Blocks.dwg");
+	//Locate a BPT forensics sample by file name: the BPT_SAMPLE_DIR env var (if set) or
+	//the repo's samples/bpt-forensics (a dedicated, gitignored location). The samples are
+	//research files (not the standard dynamic-block test corpus, which DynamicBlockTests
+	//scans), so they live outside samples/dynamic-blocks; the test skips when the file is
+	//not present, keeping the suite portable.
+	private static string? FindSample(string fileName)
+	{
+		var env = Environment.GetEnvironmentVariable("BPT_SAMPLE_DIR");
+		if (env is not null)
+		{
+			string p = Path.Combine(env, fileName);
+			if (File.Exists(p)) return p;
+		}
+		var baseDir = AppContext.BaseDirectory;
+		for (int i = 0; i < 10; i++)
+		{
+			string p = Path.GetFullPath(Path.Combine(baseDir, "samples", "bpt-forensics", fileName));
+			if (File.Exists(p)) return p;
+			string parent = Path.GetFullPath(Path.Combine(baseDir, ".."));
+			if (parent == baseDir) break;
+			baseDir = parent;
+		}
+		return null;
+	}
 
 	//The BPT objects are data-only (not part of the evaluation graph), so they are not
 	//reached via the graph nodes. Enumerate the document's object table (the private
@@ -73,10 +93,10 @@ public class BlockPropertiesTableTests
 	[Fact]
 	public void ReadDecodesTheTableAndGripFields()
 	{
-		string sample = this.SamplePath;
-		if (!File.Exists(sample))
+		string sample = FindSample("L3-02-Dynamic Blocks.dwg");
+		if (sample is null)
 		{
-			this._output.WriteLine($"SKIP: sample not present at {sample}");
+			this._output.WriteLine("SKIP: L3-02 sample not present");
 			return;
 		}
 
@@ -134,5 +154,92 @@ public class BlockPropertiesTableTests
 		Assert.All(tables, t => Assert.True(t.RawTail is { Length: > 0 }));
 		Assert.All(grips, g => Assert.Equal(107, g.RawTailBitCount));
 		Assert.All(grips, g => Assert.True(g.RawTail is { Length: > 0 }));
+	}
+
+	/// <summary>
+	/// The "1kV Keet" block family (one table, 31219 bits) matches the full 1kV schema:
+	/// a 544-bit header, 26 records (each a 7-bit string-pool index), a 126-string pool,
+	/// and a 33-bit tail. Verifies the structured decode end-to-end (see
+	/// <c>docs/articles/block-properties-table.md</c> for the bit-exact layout).
+	/// </summary>
+	[Fact]
+	public void ReadDecodesThe1kVBody()
+	{
+		string sample = FindSample("1kVKeetKOPIE.dwg");
+		if (sample is null)
+		{
+			this._output.WriteLine("SKIP: 1kV sample not present");
+			return;
+		}
+
+		CadDocument doc;
+		using (var reader = new DwgReader(sample))
+		{
+			doc = reader.Read();
+		}
+
+		var (tables, _) = Collect(doc);
+		this._output.WriteLine($"tables={tables.Count}");
+		Assert.Single(tables);
+
+		BlockPropertiesTable t = tables[0];
+		Assert.Equal(31219, t.RawTailBitCount);
+
+		//The full 1kV schema matched.
+		Assert.True(t.RecordSchemaMatched);
+		Assert.Equal(3798, t.StringPoolStart);
+
+		//The string pool (126 interned UTF-16LE strings) + its verified scaffolding.
+		Assert.Equal(126, t.Strings.Length);
+		Assert.Contains("Block Table", t.Strings);
+		Assert.Contains("Block Table1", t.Strings);
+		Assert.Contains("UserVariable", t.Strings);
+		Assert.Contains("Custom", t.Strings);
+
+		//The 26 record indices, and the record -> string resolution (a few verified pairs).
+		int[] expected = { 28, 29, 53, 118, 119, 94, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 56 };
+		Assert.Equal(expected, t.RecordIndices);
+		Assert.Equal("Rechts", t.Strings[t.RecordIndices[0]]);
+		Assert.Equal("1kV Keet - VPR", t.Strings[t.RecordIndices[1]]);
+		Assert.Equal("Klassiek", t.Strings[t.RecordIndices[6]]);
+	}
+
+	/// <summary>
+	/// The "L3-02" block family (three tables) does NOT match the 1kV record schema, but the
+	/// string pool is a uniform mechanism: it still decodes to a clean set of printable
+	/// strings (10 / 16 / 21 per table) even though the record region is a different
+	/// schema. Verifies the pool decodes while <see cref="BlockPropertiesTable.RecordSchemaMatched"/>
+	/// is false and <see cref="BlockPropertiesTable.RecordIndices"/> is empty.
+	/// </summary>
+	[Fact]
+	public void ReadDecodesTheStringPoolForOtherBlockFamilies()
+	{
+		string sample = FindSample("L3-02-Dynamic Blocks.dwg");
+		if (sample is null)
+		{
+			this._output.WriteLine("SKIP: L3-02 sample not present");
+			return;
+		}
+
+		CadDocument doc;
+		using (var reader = new DwgReader(sample))
+		{
+			doc = reader.Read();
+		}
+
+		var (tables, _) = Collect(doc);
+		this._output.WriteLine($"tables={tables.Count}");
+		Assert.Equal(3, tables.Count);
+
+		//Every table decodes its string pool, and the (bit count -> string count) mapping is
+		//the verified one: 2596 -> 10, 6533 -> 16, 3536 -> 21.
+		var counts = tables.ToDictionary(t => t.RawTailBitCount, t => t.Strings.Length);
+		Assert.Equal(10, counts[2596]);
+		Assert.Equal(16, counts[6533]);
+		Assert.Equal(21, counts[3536]);
+
+		//The 1kV record schema does not apply, so the record indices are empty.
+		Assert.All(tables, t => Assert.False(t.RecordSchemaMatched));
+		Assert.All(tables, t => Assert.Empty(t.RecordIndices));
 	}
 }

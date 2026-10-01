@@ -358,6 +358,5 @@ MigrationBackup/
 .tmp-*
 .kilo/
 AGENTS.local.md
-samples/dynamic-blocks/1kVKeetKOPIE.dwg
-samples/dynamic-blocks/DYN--TEE--3000--1.dwg
-samples/dynamic-blocks/L3-02-Dynamic Blocks.dwg
+# BPT forensics research samples (reverse-engineering inputs; not the standard test corpus)
+samples/bpt-forensics/

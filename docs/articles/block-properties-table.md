@@ -1775,3 +1775,35 @@ total) kills the prior "100% consumption at 2-bit chars" claim:
 - `02 9X` (90..9F) appears 13 times; other BPT bodies (l302) share none of the 1kV
   record-template bits (3-way per-bit diff: 1106 runs, 553 constant — no shared
   template), so cross-BPT diffing is a dead end for the header.
+
+## Now implemented: the decoder in the library + the `tools/bpt-decode` tool
+
+The cracked layout above is now **implemented** (no longer just forensics):
+
+- **`ACadSharp.Objects.Evaluations.BptBodyDecoder`** — a static, self-contained decoder
+  (nullable-disabled, so it lifts cleanly into the library). `Decode(data, bitCount)`
+  splits a BPT body into the 544-bit header, the records (each a 7-bit string-pool
+  index `bit 70 << 6 | 6-bit[97..102]`), the string pool, and the 33-bit tail. The pool
+  start is found by **search** (scan candidate starts; keep the one whose
+  `[ReadBitShort][UTF-16LE]` stream consumes the pool exactly with every string
+  printable, preferring the most strings — this distinguishes the true start P=3798
+  from the off-by-a-bit artifact P=3800). `RecordSchemaMatched` reports whether the 1kV
+  record schema matched; when it did **not**, `RecordIndices` is left empty (the pool
+  still decodes).
+- **`BlockPropertiesTable`** exposes the decoded form lazily: `Strings` (the pool),
+  `RecordIndices`, `StringPoolStart`, and `RecordSchemaMatched`. The raw payload is
+  still preserved verbatim (`RawTail`/`RawTailBitCount`) for lossless round-trips.
+- **`tools/bpt-decode`** — a reusable, self-documenting tool (see its `README.md`):
+  loads a DWG, decodes every BPT's `RawTail` with the library's decoder, and prints the
+  body layout + the record → string resolutions.
+- **`BlockPropertiesTableTests`** locks in the decode against real samples: the 1kV body
+  (126 strings, 26 record indices, `StringPoolStart` 3798, schema matched) and the L3-02
+  bodies (10/16/21 strings, schema **not** matched → empty indices). The sample DWGs
+  live in the gitignored `samples/bpt-forensics/` (kept out of `samples/dynamic-blocks/`
+  so the `DynamicBlockTests` corpus is not polluted).
+
+**Verified numbers** (all reproduced by the C# decoder, not just the Python forensics):
+1kV = 31219 bits → header 544 + 3254 records + 27388 pool + 33 tail = 126 strings,
+26 indices `28, 29, 53, 118, 119, 94, 31…49, 56`, P=3798, schema matched. L3-02 =
+2596/6533/3536 bits → 10/16/21 strings, schema not matched. TEE3000 = 12972 bits → no
+trailing pool (inline strings), `Decode` returns null.
