@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:chrome="using:Avalonia.Controls.Chrome"
         xmlns:svc="using:ACadSharp.Viewer.Services"
         xmlns:conv="using:ACadSharp.Viewer.Converters"
         x:Class="ACadSharp.Viewer.MainWindow"
@@ -8,22 +9,45 @@
         Width="1100" Height="700"
         MinWidth="700" MinHeight="400"
         KeyDown="OnKeyDown"
+        WindowDecorations="Full"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaTitleBarHeightHint="34"
         Background="{DynamicResource SolidBackgroundFillColorBase}">
     <Window.Resources>
         <conv:ValueForegroundConverter x:Key="ValueForeground" />
     </Window.Resources>
+    <!-- The decorations theme: Avalonia keeps the frame (border, shadow, resize
+         grips) and draws NO caption of its own. TitleBarHeight resolves to
+         TitleBarHeightOverride when it is set, and the override comes from
+         ExtendClientAreaTitleBarHeightHint — so that hint is deliberately NOT set
+         here; with it unset the theme default of 0 wins, HasTitleBar is false, and
+         the PART_TitleBar / PART_TitleTextPanel / PART_OverlayPanel parts of the
+         Fluent decorations template all stay hidden. That is what leaves our
+         AppTitleStrip as the only caption; with the hint present Avalonia draws its
+         own 34px caption (icon title text + its own caption buttons) on top of the
+         strip — two titlebars again, both app-drawn. -->
+    <Window.WindowDecorationsTheme>
+        <ControlTheme TargetType="chrome:WindowDrawnDecorations"
+                      BasedOn="{StaticResource {x:Type chrome:WindowDrawnDecorations}}">
+            <Setter Property="DefaultTitleBarHeight" Value="0" />
+        </ControlTheme>
+    </Window.WindowDecorationsTheme>
     <DockPanel>
         <!-- ============ App-drawn title strip (Windows 11 caption geometry) ========
-             With ExtendClientAreaToDecorationsHint the OS frame is extended into the
-             client area, so we draw the strip ourselves. Win11 caption facts applied
+             The app owns the caption bar: ExtendClientAreaToDecorationsHint pulls the
+             client area up into the frame, and on X11/XWayland Program.cs sets
+             X11PlatformOptions.EnableDrawnDecorations so Avalonia draws the border,
+             shadow and resize grips and the window manager draws nothing. Avalonia
+             12 routes the non-client input by role: this strip is the TitleBar
+             (drag area), the caption buttons declare their own roles so they get the
+             click instead of starting a window move. Win11 caption facts applied
              here: 34px strip, 16px left inset, the app glyph, title + (de-emphasized)
              file name, 46x32 caption buttons flush right with squared corners (they
              touch the window edge → corner scale 0) and the red close hover.
-             The whole strip is draggable (OnTitleBarPointerPressed); the caption
-             buttons swallow the press (OnCaptionPointerPressed) and do the action. -->
-        <Border DockPanel.Dock="Top" Height="34" Background="{DynamicResource SolidBackgroundFillColorBase}"
+             Double-clicking the strip maximizes/restores (handled in code: on X11
+             client-side decorations Avalonia 12.1 does not do it itself). -->
+        <Border x:Name="AppTitleStrip" DockPanel.Dock="Top" Height="34"
+                Background="{DynamicResource SolidBackgroundFillColorBase}"
+                chrome:WindowDecorationProperties.ElementRole="TitleBar"
                 PointerPressed="OnTitleBarPointerPressed">
             <Grid ColumnDefinitions="Auto,*,Auto">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space4}"
@@ -40,14 +64,17 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
                     <Button x:Name="MinimizeButton" Classes="caption" Click="OnMinimizeClick"
+                            chrome:WindowDecorationProperties.ElementRole="MinimizeButton"
                             PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Minimize">
                         <ui:FASymbolIcon Symbol="FullScreenMinimize" FontSize="10" />
                     </Button>
                     <Button x:Name="MaximizeButton" Classes="caption" Click="OnMaximizeClick"
+                            chrome:WindowDecorationProperties.ElementRole="MaximizeButton"
                             PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Maximize / Restore">
                         <ui:FASymbolIcon x:Name="MaximizeIcon" Symbol="FullScreenMaximize" FontSize="10" />
                     </Button>
                     <Button x:Name="CloseButton" Classes="caption captionClose" Click="OnCloseClick"
+                            chrome:WindowDecorationProperties.ElementRole="CloseButton"
                             PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Close">
                         <ui:FASymbolIcon Symbol="Dismiss" FontSize="12" />
                     </Button>

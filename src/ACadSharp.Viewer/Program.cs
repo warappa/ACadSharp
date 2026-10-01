@@ -57,6 +57,24 @@ class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            // Linux runs on the X11 backend — also inside a Wayland session, where
+            // it goes through XWayland (the native Avalonia.Wayland backend is not
+            // referenced). Most Linux window managers, KWin included, decorate the
+            // frame server-side, which stacked the WM's caption on top of our own
+            // title strip (a double titlebar). EnableDrawnDecorations hands the
+            // frame to Avalonia: it draws the border, shadow and resize grips and
+            // stops requesting WM decorations. Combined with
+            // Window.ExtendClientAreaToDecorationsHint (MainWindow.axaml) the
+            // caption bar belongs to the app, so the Fluent title strip is the only
+            // titlebar — the same result as the Windows and macOS builds.
+            .With(new X11PlatformOptions
+            {
+                // ACADSHARP_VIEWER_X11_CSD=0 hands the frame back to the window
+                // manager (the pre-Avalonia-12 look) for A/B comparison.
+                EnableDrawnDecorations = !string.Equals(
+                    Environment.GetEnvironmentVariable("ACADSHARP_VIEWER_X11_CSD"),
+                    "0", StringComparison.OrdinalIgnoreCase),
+            })
 #if DEBUG
             .WithDeveloperTools()
 #endif

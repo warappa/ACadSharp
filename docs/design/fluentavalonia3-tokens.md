@@ -219,7 +219,8 @@ standard `TextBox` + `FASymbolIcon Symbol="Find"` (a real magnifier).
 
 The controls available for the Viewer, grouped:
 
-- **Window / chrome:** `FAAppWindow`, `FAAppWindowTitleBar`.
+- **Window / chrome:** `FAAppWindow`, `FAAppWindowTitleBar` *(not used — the Viewer draws
+  its own caption strip; see §10)*.
 - **Navigation:** `FANavigationView` (+`Item`/`Header`/`Pane`), `FABreadcrumbBar` (+`Item`).
 - **Menus / flyouts:** `FAMenuFlyout` (+`Item`/`Separator`/`SubItem`), `FARadioMenuFlyoutItem`,
   `FAToggleMenuFlyoutItem`, `FACommandBar` family.
@@ -248,6 +249,9 @@ Already in use in the Viewer: `FASymbolIcon`, `FAMenuFlyout`, `FARadioMenuFlyout
 - **`TextVerticalAlignmentOverrideBehavior`** (`Disabled` / `EnabledNonWindows` [default] /
   `AlwaysEnabled`) is only respected **at app start**.
 - **HighContrast dictionary is a placeholder** (all `#FF0000`) — do not build on it.
+- **`ExtendClientAreaTitleBarHeightHint` overrides the theme's titlebar height** (it feeds
+  `WindowDrawnDecorations.TitleBarHeightOverride`), so with client-side decorations it makes
+  Avalonia draw its own caption on top of ours. Leave it unset — see §10.
 - **Don't re-derive the type ramp.** Use the NuGet's `TypographyPage` values (Caption 12/16,
   Body 14/20, BodyStrong 14/20, Subtitle 20/28, Title 28/36, TitleLarge 40/52, Display 68/92);
   Microsoft's full ramp adds 18/24 steps that the NuGet does not expose.
@@ -330,3 +334,78 @@ density) merged in `App.axaml` **after** `<sty:FluentAvaloniaTheme />`.
   headless platform does not need STA, so do not set it.
 - FA 3.0.2 with no OS accent (headless): the accent resolves to **`#9b8aff`** (Win11
   purple) in both variants — see §3.
+
+---
+
+## 10. App-owned window chrome (Avalonia 12 client-side decorations on Linux)
+
+**The goal:** the app draws its own caption bar (the SourceGit look) on every platform,
+including KDE Plasma / Wayland, with the Fluent title strip
+(`MainWindow.axaml` → `AppTitleStrip`) as the *only* titlebar.
+
+**The platform path.** Avalonia 12 runs on the **X11 backend on Linux, i.e. through
+XWayland** inside a Wayland session. The native `Avalonia.Wayland` backend is a separate,
+experimental opt-in package and is *not* referenced here; upstream has no
+`EnableDrawnDecorations` equivalent for it, so a Wayland-native window on KWin is always
+decorated server-side. The X11 backend has the switch that fixes this:
+
+```csharp
+.With(new X11PlatformOptions { EnableDrawnDecorations = true })   // Program.cs
+```
+
+It makes Avalonia draw the border, shadow and resize grips and stops it asking the WM for
+a frame. It is flagged experimental, so the analyzer diagnostic is suppressed deliberately:
+`<NoWarn>$(NoWarn);AVALONIA_X11_CSD</NoWarn>` in `ACadSharp.Viewer.csproj`.
+
+**Verified on this machine** (KWin on Wayland, Avalonia 12.1.3) by reading the live
+XWayland window properties: `_MOTIF_WM_HINTS flags=3 functions=0 decorations=0` and **no**
+`_NET_FRAME_EXTENTS` — identical to SourceGit's window on the same session, and the
+signature of "the WM draws nothing".
+
+**The gotcha that produces a *second* titlebar.** `ExtendClientAreaTitleBarHeightHint`
+feeds `WindowDrawnDecorations.TitleBarHeightOverride`, and
+
+```
+TitleBarHeight = TitleBarHeightOverride == -1 ? DefaultTitleBarHeight : TitleBarHeightOverride
+HasTitleBar    = TitleBarHeight > 0   // gates PART_TitleBar, PART_TitleTextPanel, PART_OverlayPanel
+```
+
+(`src/Avalonia.Controls/Chrome/WindowDrawnDecorations.cs` @12.1.3; the parts are in
+`src/Avalonia.Themes.Fluent/Controls/WindowDrawnDecorations.xaml` @12.1.3). With the hint
+set, Avalonia paints its *own* caption — title text plus its own fullscreen/minimize/
+maximize/close buttons — on top of our strip: two app-drawn captions stacked, which is
+exactly what the first live test showed. **Do not set the hint.** Ship a decorations theme
+that zeroes the default height instead (`MainWindow.axaml`):
+
+```xml
+<Window.WindowDecorationsTheme>
+    <ControlTheme TargetType="chrome:WindowDrawnDecorations"
+                  BasedOn="{StaticResource {x:Type chrome:WindowDrawnDecorations}}">
+        <Setter Property="DefaultTitleBarHeight" Value="0" />
+    </ControlTheme>
+</Window.WindowDecorationsTheme>
+```
+
+with `WindowDecorations="Full"` and `ExtendClientAreaToDecorationsHint="True"`. Avalonia
+keeps the frame (1px border, 8px shadow, the resize grip zones) and draws no caption.
+
+**Non-client input is routed by role** (`Avalonia.Controls.Chrome.WindowDecorationProperties.
+ElementRole`): the strip declares `TitleBar` (the drag area) and each caption button
+declares `MinimizeButton` / `MaximizeButton` / `CloseButton`, so a press on a button is a
+button press and not a window move. The theme's own caption buttons carry the same roles —
+a reason the caption parts must stay hidden: role routing hands the input to the topmost
+role owner in the chrome overlay.
+
+**Double-click to maximize is app code.** With X11 client-side decorations Avalonia 12.1
+does not maximize on a titlebar double-click (upstream avalonia#22239), and v12 removed
+`Tapped` / `DoubleTapped` and `ClickCount`, so `OnTitleBarPointerPressed` pairs two left
+presses itself (≤500 ms apart by `PointerEventArgs.Timestamp`, ≤8 px apart) and toggles
+`WindowState`. The maximize glyph follows `WindowStateProperty` through
+`AvaloniaObject.PropertyChanged` (v12 has no `Window.StateChanged` event).
+
+**Dev switches** (env, no rebuild needed):
+
+| Variable | Effect |
+| --- | --- |
+| `ACADSHARP_VIEWER_TITLEBAR=system` | hand the caption back to the OS (strip hidden, file name moves into `Window.Title`); `=custom` forces the app-drawn strip — the default on all platforms |
+| `ACADSHARP_VIEWER_X11_CSD=0` | drop `EnableDrawnDecorations` → the WM decorates again (A/B comparison, reproduces the old double bar) |

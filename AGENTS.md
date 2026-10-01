@@ -60,7 +60,7 @@ Topic docs for the areas that need more than the above (read on demand):
 | --- | --- | --- |
 | Evaluation engine — **our implementation** (value model, engine semantics, class hierarchy, value-semantics archetypes, per-class `Evaluate` formulas, verified sample results) | [`docs/articles/evaluation-engine.md`](docs/articles/evaluation-engine.md) | reason about engine behavior or a node's `Evaluate` formula |
 | Evaluation graph — **the AutoCAD specification** (on-disk format, node/edge records, the connection model, the lookup table, 2008 history) | [`docs/articles/evaluation-graph.md`](docs/articles/evaluation-graph.md) | decode or validate file-format fields |
-| UI design language — **Fluent 2 spec + local FluentAvalonia 3.0.2 tokens** (design principles, the seven signature experiences with concrete values, taste rules for a dense dev tool; the verified color table, core globals, accent mechanism, `FASymbol` catalog, gotchas) | [`docs/design/`](docs/design/index.md) | make any deliberate UI decision (color, size, weight, spacing, corner, shadow, motion, hierarchy) |
+| UI design language — **Fluent 2 spec + local FluentAvalonia 3.0.2 tokens** (design principles, the seven signature experiences with concrete values, taste rules for a dense dev tool; the verified color table, core globals, accent mechanism, `FASymbol` catalog, gotchas; **§10** = the app-drawn titlebar / Avalonia 12 client-side decorations on Linux) | [`docs/design/`](docs/design/index.md) | make any deliberate UI decision (color, size, weight, spacing, corner, shadow, motion, hierarchy) — or touch the window chrome |
 
 The two evaluation docs are complementary: the article documents **what AutoCAD writes**; `docs/articles/evaluation-engine.md` documents **what we do with it**.
 

@@ -17,6 +17,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace ACadSharp.Viewer;
@@ -58,9 +59,53 @@ public partial class MainWindow : Window
     // document is loaded.
     private readonly Dictionary<BlockRecord, BlockModel?> _blockModelCache = new();
 
+    // --- Titlebar ownership -------------------------------------------------
+    // The app owns the caption bar on every platform: the strip in MainWindow.axaml
+    // is the titlebar (glyph, title, file name, Fluent caption buttons) and
+    // ExtendClientAreaToDecorationsHint pulls the client area up into the frame.
+    //
+    // Windows and macOS do client-side decorations natively, so that hint is all
+    // that is needed. Linux runs on the X11 backend — inside a Wayland session too,
+    // via XWayland (the native Avalonia.Wayland backend is not referenced) — where
+    // window managers decorate the frame server-side and stacked their own caption
+    // on top of the strip. Avalonia 12 added the companion switch for exactly this:
+    // X11PlatformOptions.EnableDrawnDecorations (Program.cs) makes Avalonia draw the
+    // border, shadow and resize grips and stops it from asking the WM for a frame,
+    // so the app's strip is the only titlebar.
+    //
+    // Non-client input is routed by role (Avalonia 12's WindowDecorationProperties.
+    // ElementRole): the strip declares TitleBar, the caption buttons declare
+    // Minimize/Maximize/Close, so a press on a button is a button press and a press
+    // on the strip is a window move. OnTitleBarPointerPressed keeps the same
+    // behaviour as a fallback for backends without role routing (the headless
+    // renderer used by --screenshot).
+    //
+    // ACADSHARP_VIEWER_TITLEBAR=system hands the bar back to the OS (hides the strip,
+    // the file name moves into the window Title); =custom forces the app-drawn one.
+    private static bool UseSystemTitleBar
+    {
+        get
+        {
+            string? forced = Environment.GetEnvironmentVariable("ACADSHARP_VIEWER_TITLEBAR");
+            if (string.Equals(forced, "system", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (string.Equals(forced, "custom", StringComparison.OrdinalIgnoreCase))
+                return false;
+            return false;
+        }
+    }
+
     public MainWindow()
     {
         InitializeComponent();
+
+        if (UseSystemTitleBar)
+        {
+            // Let the WM/compositor own the caption: no client-area extension,
+            // no app-drawn strip, no app caption buttons.
+            ExtendClientAreaToDecorationsHint = false;
+            AppTitleStrip.IsVisible = false;
+        }
 
         // Window icon — Avalonia 12's Window.Icon is WindowIcon? (not IImage?), and the
         // string ctor routes through the platform icon loader, so load the embedded
@@ -73,6 +118,17 @@ public partial class MainWindow : Window
         DragDrop.SetAllowDrop(this, true);
         DragDrop.AddDragOverHandler(this, OnDragOver);
         DragDrop.AddDropHandler(this, OnDrop);
+
+        // The maximize glyph tracks the window state, which the window manager (or
+        // a keyboard/tiling action) can change without going through our button.
+        // Avalonia 12 has no Window.StateChanged event, so watch the property.
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property == WindowStateProperty)
+            {
+                UpdateMaximizeGlyph();
+            }
+        };
 
         // First-run teaching tip: anchored to the property grid (where the
         // info buttons live), shown once, then a flag is persisted in the
@@ -196,12 +252,51 @@ public partial class MainWindow : Window
         await ReloadAsync();
     }
 
-    // --- Custom titlebar (ExtendClientAreaToDecorationsHint) -------------------
-    // The OS window frame is extended into the client area, so we draw our own
-    // title strip + caption buttons. The whole strip is draggable; the caption
-    // buttons swallow the press (so the drag doesn't start) and perform the action.
+    // --- Custom titlebar (app-drawn caption) ---------------------------------
+    // The strip declares ElementRole=TitleBar, so Avalonia routes a press on it to a
+    // window move; the caption buttons declare their own roles and get their clicks.
+    // OnTitleBarPointerPressed below is the same behaviour for the backends that do
+    // not route by role (the headless renderer used by --screenshot).
+    //
+    // Avalonia 12 dropped the Tapped/DoubleTapped events, so the caption's
+    // double-click (maximize/restore) is detected by pairing the presses here.
+    // Windows and macOS do it themselves; X11 client-side decorations do not
+    // (avalonia#22239).
+    private const ulong TitleBarDoubleClickUs = 500_000;
+    private const double TitleBarDoubleClickRadius = 8;
+
+    private ulong _titleBarLastPressUs;
+    private Point _titleBarLastPressPoint;
+
     private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        if (!e.Properties.IsLeftButtonPressed)
+        {
+            return;
+        }
+
+        Point point = e.GetPosition(this);
+        ulong us = e.Timestamp;
+
+        bool isDoubleClick = _titleBarLastPressUs != 0
+            && us - _titleBarLastPressUs <= TitleBarDoubleClickUs
+            && Math.Abs(point.X - _titleBarLastPressPoint.X) <= TitleBarDoubleClickRadius
+            && Math.Abs(point.Y - _titleBarLastPressPoint.Y) <= TitleBarDoubleClickRadius;
+
+        _titleBarLastPressUs = us;
+        _titleBarLastPressPoint = point;
+
+        if (isDoubleClick
+            && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            && !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            WindowState = WindowState == WindowState.Maximized
+                ? WindowState.Normal
+                : WindowState.Maximized;
+            UpdateMaximizeGlyph();
+            return;
+        }
+
         BeginMoveDrag(e);
     }
 
@@ -319,7 +414,12 @@ public partial class MainWindow : Window
         ReloadButton.IsEnabled = true;
         TablesButton.IsEnabled = true;
         LoadingRing.IsVisible = true;
-        FileNameText.Text = path;
+        // Win11 caption convention: the strip carries the file *name*; the full path
+        // goes to its tooltip. (The old system-titlebar mode is gone by default, and
+        // the window Title carries the same name for the taskbar / WM menu.)
+        FileNameText.Text = Path.GetFileName(path);
+        ToolTip.SetTip(FileNameText, path);
+        Title = $"ACadSharp Viewer — {Path.GetFileName(path)}";
         SetStatus($"Loading {Path.GetFileName(path)}…", StatusKind.Neutral);
 
         try
