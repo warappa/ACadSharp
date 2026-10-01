@@ -1605,6 +1605,34 @@ null/version fields, after which the stream is a mix of 16-bit and 32-bit (two p
   (two related strings? a name + its category?); (c) whether the offset list is the BPT's
   own row/column metadata (26 rows × 4-name groups) or a global file string-index table.
 
+### Offset resolution (preliminary): the 16-bit values point at global file structures, not the BPT's strings
+
+Resolving all 30 distinct 16-bit values as file offsets into the 74687-byte DWG and
+dumping the target bytes:
+
+| target type | offsets |
+| --- | --- |
+| file header / version marker (`AC1032`) | 0 |
+| global C++ symbol (`kRoundTripPurgePrevent…`, UTF-16BE) | 36131 |
+| CJK characters | 8312, 15116, 32767 |
+| Thai characters | 42337 |
+| small-value tables (repeating 2-byte period) | 533, 1154, 15116, 2851, 39522, 42337, 51329 |
+| opaque binary | the remainder (22815, 24977, 25551, 30223, 32946, 36863, 49635, 53268, 55360, 58288, 58311, 63032, 63429, 65510, 65511, 65534, 10336, 7556) |
+
+**Key negative (preliminary):** *no* header offset points at the BPT's own 126 strings
+(`UserVariable`, `Custom`, `UpdatedDistance`, `VisibilityState`, `1kV Keet`, `Klassiek`,
+`Dubbelzijdig`, …). Those strings are **not present in the file as 8-bit, UTF-16LE, or
+UTF-16BE** — they are decoded by the extraction tool from the object's **binary**
+on-disk region (the "string region" bytes, e.g. `90 b4 20 06 c0 06 f0 06 …`, are
+bit-packed, not text). So:
+
+- The 544-bit header is **not** a pointer table into the BPT's string pool.
+- The 16-bit values are valid file offsets, but they reference **global file structures**
+  (the file header, a `kRoundTripPurgePrevent` symbol) and **character/localization
+  tables**, not the BPT's own data.
+- The BPT's actual strings live in a **separately-encoded** (binary/bit-packed) region of
+  the object that a specialized decoder resolves — the exact string encoding is still open.
+
 ### CORRECTION (preliminary): the 2-bit string-region model is disconfirmed; the 26th record is whole
 
 Re-deriving the string-region arithmetic from the verified 126-string content (1639 chars
