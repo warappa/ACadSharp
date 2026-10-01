@@ -1,0 +1,158 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Window-level Fluent 2 styles: the chrome the FluentAvaloniaTheme does NOT
+         style for us (caption buttons, pane cards, the DataGrid's density, the
+         status bar). Keyed by CLASS (`.caption`, `.pane`, …) so the theme's own
+         control styles stay untouched everywhere else.
+
+         Resource keys are the verified FA 3.0.2 ones: `*Brush` keys are
+         SolidColorBrushes (use them for Background/BorderBrush/Foreground), the
+         unsuffixed keys are Colors. See docs/design/fluentavalonia3-tokens.md. -->
+
+    <!-- === Caption buttons (the app-drawn title strip) =====================
+         Win11 caption geometry: 46x32 hot zone, squared-off corners (they touch
+         the window edge, so the corner scale says 0), a 10px glyph, hover =
+         subtle fill, pressed = the deeper subtle fill, and the close button's
+         hover is the Win11 red (#C42B1C) with a white glyph. -->
+    <Style Selector="Button.caption">
+        <Setter Property="Width" Value="46" />
+        <Setter Property="Height" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="CornerRadius" Value="0" />
+        <Setter Property="VerticalAlignment" Value="Top" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="HorizontalContentAlignment" Value="Center" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Style>
+    <Style Selector="Button.caption:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.caption:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorTertiaryBrush}" />
+        <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- The close button is the one caption button with a colored hover. -->
+    <Style Selector="Button.captionClose:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CaptionCloseHoverBrush}" />
+    </Style>
+    <Style Selector="Button.captionClose:pressed /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource CaptionClosePressedBrush}" />
+        <Setter Property="Opacity" Value="0.7" />
+    </Style>
+    <Style Selector="Button.captionClose:pointerover">
+        <Setter Property="Foreground" Value="{DynamicResource CaptionCloseGlyphBrush}" />
+    </Style>
+    <Style Selector="Button.captionClose:pressed">
+        <Setter Property="Foreground" Value="{DynamicResource CaptionCloseGlyphBrush}" />
+    </Style>
+
+    <!-- === Pane cards =====================================================
+         The two content panes: the Fluent *card* (a lightness step + a 1px
+         contour + the 8px top-level corner), no drop shadow — the design
+         language reserves real elevation for floating surfaces. -->
+    <Style Selector="Border.pane">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="{DynamicResource OverlayCornerRadius}" />
+    </Style>
+
+    <!-- A hairline divider (Fluent separates by lightness, not by heavy rules). -->
+    <Style Selector="Border.divider">
+        <Setter Property="Background" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+    </Style>
+
+    <!-- === Command bar buttons ============================================
+         Icon-only utility buttons (theme toggle, settings): 44x32 hot zone, the
+         4px in-page corner, tooltip required. Primary commands keep the themed
+         FA Button (icon + label) untouched. -->
+    <Style Selector="Button.iconCommand">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Focusable" Value="False" />
+    </Style>
+
+    <!-- === DataGrid (the value table) =====================================
+         Win11 GridView density: 36px header, 32px rows, no gridlines in the body,
+         a 1px header rule + column separators, caption-size secondary header text,
+         transparent background so the card's fill is what reads. -->
+    <Style Selector="DataGrid">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="GridLinesVisibility" Value="None" />
+        <Setter Property="HeadersVisibility" Value="Column" />
+        <Setter Property="RowHeight" Value="32" />
+        <Setter Property="ColumnHeaderHeight" Value="36" />
+        <Setter Property="RowBackground" Value="Transparent" />
+        <Setter Property="HorizontalScrollBarVisibility" Value="Auto" />
+    </Style>
+    <Style Selector="DataGridColumnHeader">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,0,1,1" />
+        <Setter Property="SeparatorBrush" Value="Transparent" />
+        <Setter Property="Height" Value="36" />
+        <!-- 6px, not the usual 8: the header template reserves width for the sort
+             indicator + the resize gripper, and at 8px the longer labels
+             ("Outputs", "Info") were being clipped. -->
+        <Setter Property="Padding" Value="6,0" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}" />
+        <Setter Property="Foreground" Value="{DynamicResource DataGridColumnHeaderForegroundBrush}" />
+    </Style>
+    <Style Selector="DataGridColumnHeader:pointerover /template/ ContentPresenter">
+        <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+    </Style>
+    <Style Selector="DataGridRow">
+        <Setter Property="Height" Value="32" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+    </Style>
+    <Style Selector="DataGridCell">
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <!-- === TreeView density ==============================================
+         Win11 list density: 32px rows, and the selection/hover pill keeps the 4px
+         in-page corner (the theme paints it). -->
+    <Style Selector="TreeViewItem">
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Padding" Value="6,0" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- === Status bar ====================================================
+         A 28px caption-size slot: 16px left inset so its text aligns with the
+         panes' inner text, and a top hairline. -->
+    <Style Selector="Border.statusBar">
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="16,0" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
+
+    <!-- === Empty state ===================================================
+         The Win11 empty-state pattern: a large muted glyph, a Subtitle title, a
+         Caption description — hierarchy by size + contrast, never by weight. -->
+    <Style Selector="TextBlock.emptyTitle">
+        <Setter Property="FontSize" Value="{StaticResource SubtitleFontSize}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="TextBlock.emptyDesc">
+        <Setter Property="FontSize" Value="{StaticResource CaptionFontSize}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorTertiaryBrush}" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="TextAlignment" Value="Center" />
+    </Style>
+</Styles>

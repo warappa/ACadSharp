@@ -15,5 +15,7 @@
     </Application.Resources>
     <Application.Styles>
         <sty:FluentAvaloniaTheme />
+        <!-- Window-chrome styles AFTER the theme, so the class-keyed setters win. -->
+        <StyleInclude Source="avares://ACadSharp.Viewer/FluentStyles.axaml" />
     </Application.Styles>
 </Application>

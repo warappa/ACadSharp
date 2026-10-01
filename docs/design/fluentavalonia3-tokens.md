@@ -305,13 +305,17 @@ confirming the shadows actually render. This is the pattern the Viewer should fo
 ### App token values (current, in `ACadSharp.Viewer/DesignTokens.axaml` + `DesignTokenShadows.cs`)
 
 The app's own keys, normalized onto the NuGet's scales (the design language's
-"8/4/0 corners, 12–72 type ramp, 4–48 spacing"). Keep in sync with the source:
+"8/4/0 corners, 12–72 type ramp, 4–48 spacing"). Keep in sync with the source.
+The chrome styles that consume them live in
+[`ACadSharp.Viewer/FluentStyles.axaml`](../../src/ACadSharp.Viewer/FluentStyles.axaml)
+— class-keyed styles (`.caption`, `.pane`, `.statusBar`, `.emptyTitle`, the DataGrid
+density) merged in `App.axaml` **after** `<sty:FluentAvaloniaTheme />`.
 
 | Token | Value | Scale it sits on |
 | --- | --- | --- |
 | `CaptionFontSize` | **12** | type ramp (12 14 16 18 20 …) |
 | `BodyFontSize` | **14** | type ramp |
-| `SubtitleFontSize` | **16** | type ramp |
+| `SubtitleFontSize` | **20** | type ramp (the ramp's Subtitle is 20/28 SemiBold; 16 was off-ramp) |
 | `CodeFontSize` | **12** | type ramp |
 | `CardCornerRadius` | **4** | corner scale (8 4 0), in-page |
 | `OverlayCornerRadius` | **8** | corner scale, top-level surfaces |

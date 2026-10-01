@@ -8,68 +8,84 @@
         Width="1100" Height="700"
         MinWidth="700" MinHeight="400"
         KeyDown="OnKeyDown"
-        ExtendClientAreaToDecorationsHint="True">
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="34"
+        Background="{DynamicResource SolidBackgroundFillColorBase}">
     <Window.Resources>
         <conv:ValueForegroundConverter x:Key="ValueForeground" />
     </Window.Resources>
     <DockPanel>
-        <!-- App-drawn titlebar. With ExtendClientAreaToDecorationsHint the OS window
-             frame is extended into the client area, so we draw our own title strip +
-             caption buttons. The whole strip is draggable (OnTitleBarPointerPressed);
-             the caption buttons swallow the press (OnCaptionPointerPressed) and perform
-             the window action. The file name lives here (moved off the command bar). -->
-        <Border DockPanel.Dock="Top" Height="36" Background="{DynamicResource SolidBackgroundFillColorBase}"
+        <!-- ============ App-drawn title strip (Windows 11 caption geometry) ========
+             With ExtendClientAreaToDecorationsHint the OS frame is extended into the
+             client area, so we draw the strip ourselves. Win11 caption facts applied
+             here: 34px strip, 16px left inset, the app glyph, title + (de-emphasized)
+             file name, 46x32 caption buttons flush right with squared corners (they
+             touch the window edge → corner scale 0) and the red close hover.
+             The whole strip is draggable (OnTitleBarPointerPressed); the caption
+             buttons swallow the press (OnCaptionPointerPressed) and do the action. -->
+        <Border DockPanel.Dock="Top" Height="34" Background="{DynamicResource SolidBackgroundFillColorBase}"
                 PointerPressed="OnTitleBarPointerPressed">
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" Margin="12,0,0,0"
-                           VerticalAlignment="Center">
-                    <TextBlock Text="ACadSharp Viewer" FontWeight="SemiBold" FontSize="12"
-                               Foreground="{DynamicResource TextFillColorSecondary}" VerticalAlignment="Center" />
-                    <TextBlock x:Name="FileNameText" FontSize="12"
-                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="{StaticResource Space4}"
+                            Margin="16,0,0,0" VerticalAlignment="Center">
+                    <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="14"
+                                     Foreground="{DynamicResource AccentFillColorDefaultBrush}" VerticalAlignment="Center" />
+                    <TextBlock Text="ACadSharp Viewer" FontSize="{StaticResource CaptionFontSize}"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                    <Border Width="1" Height="12" Background="{DynamicResource ControlStrokeColorDefaultBrush}"
+                            VerticalAlignment="Center" Margin="2,0" />
+                    <TextBlock x:Name="FileNameText" FontSize="{StaticResource CaptionFontSize}"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" MaxWidth="480" />
                 </StackPanel>
-                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <Button x:Name="MinimizeButton" Click="OnMinimizeClick" PointerPressed="OnCaptionPointerPressed"
-                            Width="46" Padding="0" Background="Transparent" BorderThickness="0" ToolTip.Tip="Minimize">
-                        <ui:FASymbolIcon Symbol="FullScreenMinimize" FontSize="12" Foreground="{DynamicResource TextFillColorSecondary}" />
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top">
+                    <Button x:Name="MinimizeButton" Classes="caption" Click="OnMinimizeClick"
+                            PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Minimize">
+                        <ui:FASymbolIcon Symbol="FullScreenMinimize" FontSize="10" />
                     </Button>
-                    <Button x:Name="MaximizeButton" Click="OnMaximizeClick" PointerPressed="OnCaptionPointerPressed"
-                            Width="46" Padding="0" Background="Transparent" BorderThickness="0" ToolTip.Tip="Maximize / Restore">
-                        <ui:FASymbolIcon x:Name="MaximizeIcon" Symbol="FullScreenMaximize" FontSize="12" Foreground="{DynamicResource TextFillColorSecondary}" />
+                    <Button x:Name="MaximizeButton" Classes="caption" Click="OnMaximizeClick"
+                            PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Maximize / Restore">
+                        <ui:FASymbolIcon x:Name="MaximizeIcon" Symbol="FullScreenMaximize" FontSize="10" />
                     </Button>
-                    <Button x:Name="CloseButton" Click="OnCloseClick" PointerPressed="OnCaptionPointerPressed"
-                            Width="46" Padding="0" Background="Transparent" BorderThickness="0" ToolTip.Tip="Close">
-                        <ui:FASymbolIcon Symbol="Dismiss" FontSize="12" Foreground="{DynamicResource TextFillColorSecondary}" />
+                    <Button x:Name="CloseButton" Classes="caption captionClose" Click="OnCloseClick"
+                            PointerPressed="OnCaptionPointerPressed" ToolTip.Tip="Close">
+                        <ui:FASymbolIcon Symbol="Dismiss" FontSize="12" />
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
-        <Border DockPanel.Dock="Top" Padding="8,8" BorderBrush="{DynamicResource ControlStrokeColorDefault}" BorderThickness="0,0,0,1">
+
+        <!-- ============ Command bar (Win11 CommandBar: primary left, utility right)
+             No divider rule: Fluent separates the base layer from the content layer by
+             *lightness* (the cards sit on the base background), not by contour. -->
+        <Border DockPanel.Dock="Top" Padding="16,10,16,10">
             <DockPanel>
                 <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Spacing="{StaticResource Space4}">
-                    <Button x:Name="OpenButton" Click="OnOpenClick" Padding="10,0" MinHeight="32">
+                    <Button x:Name="OpenButton" Click="OnOpenClick" Padding="11,0,11,0" MinHeight="32">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
-                            <ui:FASymbolIcon Symbol="OpenFile" />
-                            <TextBlock Text="Open…" />
+                            <ui:FASymbolIcon Symbol="OpenFile" FontSize="16" />
+                            <TextBlock Text="Open…" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="ReloadButton" Click="OnReloadClick" IsEnabled="False" Padding="10,0" MinHeight="32">
+                    <Button x:Name="ReloadButton" Click="OnReloadClick" IsEnabled="False" Padding="11,0,11,0" MinHeight="32">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
-                            <ui:FASymbolIcon Symbol="Refresh" />
-                            <TextBlock Text="Reload" />
+                            <ui:FASymbolIcon Symbol="Refresh" FontSize="16" />
+                            <TextBlock Text="Reload" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
-                    <Button x:Name="TablesButton" Click="OnTablesClick" IsEnabled="False" Padding="10,0" MinHeight="32"
-                           ToolTip.Tip="Block properties tables — the decoded display tables of this document">
+                    <Button x:Name="TablesButton" Click="OnTablesClick" IsEnabled="False" Padding="11,0,11,0" MinHeight="32"
+                            ToolTip.Tip="Block properties tables — the decoded display tables of this document">
                         <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
-                            <ui:FASymbolIcon Symbol="View" />
-                            <TextBlock Text="Tables" />
+                            <ui:FASymbolIcon Symbol="View" FontSize="16" />
+                            <TextBlock Text="Tables" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
                 </StackPanel>
-                <Button x:Name="SettingsButton" DockPanel.Dock="Right" Padding="10,0" MinHeight="32" Focusable="False"
-                       ToolTip.Tip="Appearance — theme and accent">
-                    <ui:FASymbolIcon Symbol="Settings" />
+                <!-- Utility group, right-aligned: icon-only 44px hot zones + tooltips
+                     (Fitts: the labels are dropped, the tooltips carry them back). -->
+                <Button x:Name="SettingsButton" Classes="iconCommand" DockPanel.Dock="Right"
+                        ToolTip.Tip="Appearance — theme and accent">
+                    <ui:FASymbolIcon Symbol="Settings" FontSize="16" />
                     <Button.Flyout>
                         <!-- Avalonia 12: FAMenuFlyout (FlyoutBase) has no Name property,
                              so it cannot be x:Named; MainWindow holds a reference
@@ -95,237 +111,250 @@
                         </ui:FAMenuFlyout>
                     </Button.Flyout>
                 </Button>
-                <!-- De-accented theme toggle: a plain Button (the ToggleButton's
-                     checked state paints the accent, which made the top row shouty).
-                     It shows the current theme (icon + label) and switches
-                     dark<->light on click; high-contrast lives in the settings
-                     flyout. -->
-                <Button x:Name="DarkThemeToggle" DockPanel.Dock="Right" Click="OnThemeToggleClick" Padding="10,0" MinHeight="32">
+                <!-- De-accented theme toggle: a plain Button (the ToggleButton's checked
+                     state paints the accent, which made the top row shouty). Icon-only;
+                     it shows the current theme and switches dark<->light. -->
+                <Button x:Name="DarkThemeToggle" Classes="iconCommand" DockPanel.Dock="Right"
+                        Click="OnThemeToggleClick" ToolTip.Tip="Switch between the light and dark theme">
                     <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space4}">
-                        <ui:FASymbolIcon x:Name="ThemeIcon" Symbol="DarkTheme" />
-                        <TextBlock x:Name="ThemeLabel" Text="Dark" />
+                        <ui:FASymbolIcon x:Name="ThemeIcon" Symbol="DarkTheme" FontSize="16" />
+                        <!-- Kept for the code-behind (it sets the theme name); the
+                             icon-only button shows the glyph, the tooltip the words. -->
+                        <TextBlock x:Name="ThemeLabel" Text="Dark" IsVisible="False" />
                     </StackPanel>
                 </Button>
             </DockPanel>
         </Border>
-        <!-- Fixed status slot: a persistent bar (top separator) whose text changes
-             with state. It never appears/disappears, so it never shifts the layout. -->
-        <Border DockPanel.Dock="Bottom" Padding="10,5"
-                BorderBrush="{DynamicResource ControlStrokeColorDefault}"
-                BorderThickness="0,1,0,0">
-            <TextBlock x:Name="StatusText" Foreground="{DynamicResource TextFillColorTertiary}" Text="Open a .dwg or .dxf file (Ctrl+O) or drag &amp; drop one onto the window." />
+
+        <!-- ============ Fixed status slot (Nielsen #1: persistent system status) ====
+             A 28px caption-size bar that never appears/disappears, so it never shifts
+             the layout. 16px inset aligns its text with the panes' inner text. -->
+        <Border DockPanel.Dock="Bottom" Classes="statusBar">
+            <TextBlock x:Name="StatusText" FontSize="{StaticResource CaptionFontSize}"
+                       Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"
+                       Text="Open a .dwg or .dxf file (Ctrl+O) or drag &amp; drop one onto the window." />
         </Border>
+
         <!-- Status lives in a fixed bottom slot (StatusText) so it never shifts the
              layout; the transient InfoBar (which pushed the content when it opened)
              is gone. The outer row-0 slot is intentionally empty (0 height). -->
         <Grid RowDefinitions="Auto,*">
-            <!-- Panes are cards (a subtle fill + border + rounded corner) inset from the
-                 window edge and the command/status bars, so the layout reads as distinct
-                 grouped regions. -->
-            <Grid Grid.Row="1" ColumnDefinitions="360,Auto,*" Margin="12,10,12,10">
-                <Border Grid.Column="0" BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1"
-                        CornerRadius="8" Background="{DynamicResource CardBackgroundFillColorDefault}">
+            <!-- The content layer: two Fluent cards (fill + 1px contour + the 8px
+                 corner, no drop shadow) inset on the base background, separated by a
+                 hairline with 12px gutters instead of a heavy splitter bar. -->
+            <Grid Grid.Row="1" ColumnDefinitions="360,Auto,*" Margin="16,8,16,8">
+                <Border Grid.Column="0" Classes="pane">
                     <Grid RowDefinitions="Auto,*,Auto">
-                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="8,8,8,4">
-                            <!-- Real search affordance: a Find (magnifier) icon inside a rounded
-                                 field. 3.0.2 has no SearchBox control, so this is the idiomatic
-                                 composition; the TextBox is borderless/transparent and the Border
-                                 is the visual frame. -->
-                            <Border Grid.Column="0" Margin="0,0,8,0" MinHeight="32" CornerRadius="6"
-                                    Background="{DynamicResource ControlFillColorSecondary}"
-                                    BorderBrush="{DynamicResource ControlStrokeColorDefault}"
-                                    BorderThickness="1">
-                                <Grid ColumnDefinitions="Auto,*">
-                                    <ui:FASymbolIcon Grid.Column="0" Symbol="Find" FontSize="16"
-                                                      Foreground="{DynamicResource TextFillColorSecondary}"
-                                                      VerticalAlignment="Center" Margin="10,0,6,0" />
-                                    <TextBox Grid.Column="1" x:Name="TreeSearchBox" Background="Transparent"
-                                             BorderThickness="0" Padding="0"
-                                             PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged" />
-                                </Grid>
-                            </Border>
-                            <Button Grid.Column="1" Click="OnExpandAllClick" Padding="10,0" MinHeight="32" Focusable="False"
-                                   ToolTip.Tip="Expand all blocks">
-                                <ui:FASymbolIcon Symbol="ChevronDown" />
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" Margin="12,12,12,6">
+                            <!-- Win11 search box: the themed TextBox carries its own
+                                 focus underline + 4px corner, with the Find glyph as
+                                 InnerLeftContent. (3.0.2 ships no SearchBox control.) -->
+                            <TextBox Grid.Column="0" x:Name="TreeSearchBox" MinHeight="32" Margin="0,0,8,0"
+                                     PlaceholderText="Search blocks…" TextChanged="OnTreeSearchTextChanged">
+                                <TextBox.InnerLeftContent>
+                                    <ui:FASymbolIcon Symbol="Find" FontSize="16" Margin="9,0,0,0"
+                                                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                </TextBox.InnerLeftContent>
+                            </TextBox>
+                            <Button Grid.Column="1" Classes="iconCommand" Click="OnExpandAllClick"
+                                    ToolTip.Tip="Expand all blocks">
+                                <ui:FASymbolIcon Symbol="ChevronDown" FontSize="16" />
                             </Button>
-                            <Button Grid.Column="2" Click="OnCollapseAllClick" Padding="10,0" MinHeight="32" Focusable="False"
-                                   ToolTip.Tip="Collapse all blocks">
-                                <ui:FASymbolIcon Symbol="ChevronUp" />
+                            <Button Grid.Column="2" Classes="iconCommand" Click="OnCollapseAllClick"
+                                    ToolTip.Tip="Collapse all blocks">
+                                <ui:FASymbolIcon Symbol="ChevronUp" FontSize="16" />
                             </Button>
                         </Grid>
                         <Grid Grid.Row="1">
-                            <TreeView x:Name="BlockTree" Margin="4,0,4,4" SelectionChanged="OnTreeSelectionChanged">
+                            <TreeView x:Name="BlockTree" Margin="8,0,8,4" SelectionChanged="OnTreeSelectionChanged">
                                 <TreeView.ItemTemplate>
                                     <TreeDataTemplate DataType="svc:BlockTreeNode" ItemsSource="{Binding Children}">
                                         <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                            <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"
+                                                       TextTrimming="CharacterEllipsis" />
                                             <!-- dynamic block: real FASymbol (lightning), not an invented glyph -->
                                             <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="12" VerticalAlignment="Center"
-                                                             Foreground="{DynamicResource SystemFillColorCaution}"
+                                                             Foreground="{DynamicResource SystemFillColorCautionBrush}"
                                                              IsVisible="{Binding IsDynamic}" />
                                             <!-- reference-count badge (a number, not an icon) -->
                                             <TextBlock Text="{Binding ReferenceBadge}" FontSize="{StaticResource CaptionFontSize}"
-                                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondary}"
+                                                       VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                        IsVisible="{Binding ShowReferenceBadge}" />
                                             <!-- pure reference cycle root: real FASymbol (refresh) -->
                                             <ui:FASymbolIcon Symbol="Refresh" FontSize="12" VerticalAlignment="Center"
-                                                             Foreground="{DynamicResource SystemFillColorCaution}"
+                                                             Foreground="{DynamicResource SystemFillColorCautionBrush}"
                                                              IsVisible="{Binding IsCycleRoot}" />
                                         </StackPanel>
                                     </TreeDataTemplate>
                                 </TreeView.ItemTemplate>
                             </TreeView>
-                            <!-- Empty state: icon + title + description, centered over
-                                 the (empty) tree. The C# (ApplyTreeFilter) swaps the
-                                 title/description/icon per state and toggles visibility. -->
+                            <!-- Empty state: the Win11 pattern — a large muted glyph, a
+                                 Subtitle title, a Caption description. The C#
+                                 (ApplyTreeFilter) swaps the text/icon per state. -->
                             <StackPanel x:Name="TreeEmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        Spacing="{StaticResource Space2}">
-                                <ui:FASymbolIcon x:Name="TreeEmptyIcon" Symbol="OpenFile" FontSize="24"
-                                                 Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center" />
-                                <TextBlock x:Name="TreeEmptyTitle" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
-                                           Foreground="{DynamicResource TextFillColorSecondary}" HorizontalAlignment="Center" Text="No file loaded" />
-                                <TextBlock x:Name="TreeEmptyDesc" FontSize="{StaticResource BodyFontSize}"
-                                           Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center"
-                                           TextWrapping="Wrap" MaxWidth="240"
+                                        Spacing="{StaticResource Space4}" Margin="24">
+                                <ui:FASymbolIcon x:Name="TreeEmptyIcon" Symbol="OpenFile" FontSize="32"
+                                                 Foreground="{DynamicResource TextFillColorDisabledBrush}" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="TreeEmptyTitle" Classes="emptyTitle" Text="No file loaded" />
+                                <TextBlock x:Name="TreeEmptyDesc" Classes="emptyDesc" MaxWidth="220"
                                            Text="Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs." />
                             </StackPanel>
                         </Grid>
-                        <!-- Footer legend: a contained card (hard edge), not floating labels.
-                             The markers mirror the tree rows exactly (same FASymbols + ×N
-                             badge), so the legend explains what the rows actually show. -->
-                        <Border Grid.Row="2" Margin="8,4,8,8" Padding="8,6" CornerRadius="6"
-                                Background="{DynamicResource ControlFillColorSecondary}"
-                                BorderBrush="{DynamicResource ControlStrokeColorDefault}"
-                                BorderThickness="1">
+                        <!-- Footer legend: a flat row with a top hairline (the card-in-card
+                             box read as noise). The markers mirror the tree rows exactly
+                             (same FASymbols + the ×N badge), so it explains real rows. -->
+                        <Border Grid.Row="2" Margin="12,0,12,0" Padding="0,8" BorderThickness="0,1,0,0"
+                                BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}">
                             <StackPanel Orientation="Horizontal" Spacing="{StaticResource Space6}">
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <ui:FASymbolIcon Symbol="WeatherThunderstorm" FontSize="12"
-                                                     Foreground="{DynamicResource SystemFillColorCaution}" VerticalAlignment="Center" />
+                                                     Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
                                     <TextBlock Text="dynamic" FontSize="{StaticResource CaptionFontSize}"
-                                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <TextBlock Text="×N" FontSize="{StaticResource CaptionFontSize}"
-                                               Foreground="{DynamicResource TextFillColorSecondary}" VerticalAlignment="Center" />
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
                                     <TextBlock Text="referenced N times" FontSize="{StaticResource CaptionFontSize}"
-                                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <ui:FASymbolIcon Symbol="Refresh" FontSize="12"
-                                                     Foreground="{DynamicResource SystemFillColorCaution}" VerticalAlignment="Center" />
+                                                     Foreground="{DynamicResource SystemFillColorCautionBrush}" VerticalAlignment="Center" />
                                     <TextBlock Text="cycle root" FontSize="{StaticResource CaptionFontSize}"
-                                               Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                               Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center" />
                                 </StackPanel>
-                                <TextBlock x:Name="TreeSummary" Margin="8,0,0,0" FontSize="{StaticResource CaptionFontSize}"
-                                           Foreground="{DynamicResource TextFillColorTertiary}" VerticalAlignment="Center" />
+                                <TextBlock x:Name="TreeSummary" FontSize="{StaticResource CaptionFontSize}"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
                             </StackPanel>
                         </Border>
                     </Grid>
                 </Border>
-                <GridSplitter Grid.Column="1" Width="4" Background="{DynamicResource ControlStrokeColorDefault}" />
-                <Border Grid.Column="2" BorderBrush="{DynamicResource CardStrokeColorDefault}" BorderThickness="1"
-                        CornerRadius="8" Background="{DynamicResource CardBackgroundFillColorDefault}">
-                <Grid RowDefinitions="Auto,Auto,*">
-                    <TextBlock x:Name="BlockHeader" Grid.Row="0" Margin="12,8,12,0" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}" />
-                    <TextBlock x:Name="EvalStatus" Grid.Row="1" Margin="12,4,12,0" Foreground="{DynamicResource TextFillColorSecondary}" />
-                    <Grid Grid.Row="2">
-                        <!-- DataGrid: mouse-resizable columns (CanUserResizeColumns) and
-                             CharacterEllipsis on every text cell (DataGridTextColumn has no
-                             trimming property, so the cells are templates). Long values
-                             truncate with "…" instead of wrapping or overflowing. -->
-                        <DataGrid x:Name="PropertyGrid" x:DataType="svc:PropertyItem" AutoGenerateColumns="False" IsReadOnly="True"
-                                  CanUserResizeColumns="True" Margin="12,8">
-                            <DataGrid.Columns>
-                                <!-- Column widths are tuned so the fixed columns sum to well
-                                     under the pane width, leaving the flexible Description
-                                     column real room (it collapses to 0 if the fixed sum
-                                     exceeds the pane). The user can still drag any edge. -->
-                                <DataGridTemplateColumn Header="Name" Width="140">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Description" Width="*">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <TextBlock Text="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Type" Width="70">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <TextBlock Text="{Binding TypeText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Inputs" Width="110">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <TextBlock Text="{Binding InputsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Outputs" Width="110">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <TextBlock Text="{Binding OutputsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" Margin="6,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Value" Width="100">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <!-- Centered both ways; trims with an ellipsis when the
-                                                 value is wider than the (resizable) column. -->
-                                            <TextBlock Text="{Binding ValueOnlyText}"
-                                                       Foreground="{Binding HasValue, Converter={StaticResource ValueForeground}}"
-                                                       FontFamily="{StaticResource FontFamilyCode}"
-                                                       FontSize="{StaticResource CodeFontSize}"
-                                                       TextTrimming="CharacterEllipsis"
-                                                       HorizontalAlignment="Center"
-                                                       VerticalAlignment="Center" Margin="6,0" />
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                                <DataGridTemplateColumn Header="Info" Width="60">
-                                    <DataGridTemplateColumn.CellTemplate>
-                                        <DataTemplate x:DataType="svc:PropertyItem">
-                                            <Button Click="OnInfoClick" Tag="{Binding}" Padding="8,2" ToolTip.Tip="About this property">
-                                                <!-- Real Microsoft "info" i-in-circle. It is NOT in the 442-value
-                                                     FASymbol enum, so it is rendered straight from the bundled
-                                                     FluentAvalana font (code point 0xF05A) instead of the old
-                                                     ContactInfo (user) icon. (Avalonia 12 dropped the FontIcon
-                                                     control, so a TextBlock on the font is used.) -->
-                                                <TextBlock Text="&#xF05A;" FontFamily="avares://FluentAvalana/Fonts/FluentAvalana.ttf"
-                                                           FontSize="16" />
-                                            </Button>
-                                        </DataTemplate>
-                                    </DataGridTemplateColumn.CellTemplate>
-                                </DataGridTemplateColumn>
-                            </DataGrid.Columns>
-                        </DataGrid>
-                        <!-- Empty state: icon + title + description, centered over the
-                             (empty) property grid. The C# swaps the title/description/
-                             icon per state and toggles visibility. -->
-                        <StackPanel x:Name="PlaceholderPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    Spacing="{StaticResource Space2}">
-                            <ui:FASymbolIcon x:Name="PlaceholderIcon" Symbol="OpenFile" FontSize="24"
-                                             Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center" />
-                            <TextBlock x:Name="PlaceholderTitle" FontSize="{StaticResource SubtitleFontSize}" FontWeight="SemiBold"
-                                       Foreground="{DynamicResource TextFillColorSecondary}" HorizontalAlignment="Center" Text="No file loaded" />
-                            <TextBlock x:Name="PlaceholderDesc" FontSize="{StaticResource BodyFontSize}"
-                                       Foreground="{DynamicResource TextFillColorTertiary}" HorizontalAlignment="Center"
-                                       TextWrapping="Wrap" MaxWidth="320"
-                                       Text="Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs." />
-                        </StackPanel>
-                    </Grid>
+                <!-- Fluent separates by lightness: a 1px hairline with gutters, not a
+                     4px bar. The splitter is a 13px transparent hot zone over the
+                     hairline (its own template stays the theme's — the resize logic
+                     reads the control's bounds, so only the paint changes). -->
+                <Grid Grid.Column="1" Width="13">
+                    <Border Width="1" Height="120" Classes="divider" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <GridSplitter Width="13" Background="Transparent" />
                 </Grid>
+                <Border Grid.Column="2" Classes="pane">
+                    <Grid RowDefinitions="Auto,Auto,Auto,*">
+                        <!-- Content header: the Subtitle step (20 SemiBold) names the
+                             selected block, the Caption step carries the evaluation
+                             status, then one hairline. The block header is the loudest
+                             text in the pane (the data outranks the chrome). -->
+                        <StackPanel Grid.Row="0" Margin="16,12,16,0" Spacing="2">
+                            <TextBlock x:Name="BlockHeader" FontWeight="SemiBold" FontSize="{StaticResource SubtitleFontSize}"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="EvalStatus" FontSize="{StaticResource CaptionFontSize}"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <Border Grid.Row="1" Height="1" Margin="16,8,16,0" Classes="divider" />
+                        <Grid Grid.Row="3">
+                            <!-- Win11 GridView density (set by FluentStyles): no body
+                                 gridlines, 36px header, 32px rows, header rule only.
+                                 Column budget fits the pane at MinWidth (no clipped
+                                 headers): the fixed columns sum to 514 and Description
+                                 takes the slack from 150 up. Values are right-aligned
+                                 monospace (tabular) so digits column-align. -->
+                            <DataGrid x:Name="PropertyGrid" x:DataType="svc:PropertyItem" AutoGenerateColumns="False"
+                                      IsReadOnly="True" CanUserResizeColumns="True" CanUserSortColumns="False" Margin="8,0,8,0">
+                                <DataGrid.Columns>
+                                    <DataGridTemplateColumn Header="Name" Width="126" MinWidth="96">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Description" Width="*" MinWidth="120">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <TextBlock Text="{Binding Description}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Type" Width="74" MinWidth="74">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <TextBlock Text="{Binding TypeText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Inputs" Width="90" MinWidth="90">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <TextBlock Text="{Binding InputsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Outputs" Width="98" MinWidth="98">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <TextBlock Text="{Binding OutputsText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Value" Width="86" MinWidth="86">
+                                    <DataGridTemplateColumn.HeaderTemplate>
+                                        <!-- Header text follows the content alignment (Win11 GridView): the
+                                             numeric column reads as one right-aligned block. -->
+                                        <DataTemplate>
+                                            <TextBlock Text="Value" HorizontalAlignment="Right" TextAlignment="Right" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.HeaderTemplate>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <!-- Right-aligned: numerics scan as a column.
+                                                     Monospace + the tabular-nums setting keep
+                                                     digits aligned across rows. -->
+                                                <TextBlock Text="{Binding ValueOnlyText}"
+                                                           Foreground="{Binding HasValue, Converter={StaticResource ValueForeground}}"
+                                                           FontFamily="{StaticResource FontFamilyCode}"
+                                                           FontSize="{StaticResource CodeFontSize}"
+                                                           TextTrimming="CharacterEllipsis"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn Header="Info" Width="66" MinWidth="66">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate x:DataType="svc:PropertyItem">
+                                                <!-- Icon-only 32px target + tooltip. Uses the enum
+                                                     glyph (ContactInfo) through FASymbolIcon's own
+                                                     remap — the previous raw 0xF05A code point
+                                                     rendered as a clipped half-disc. -->
+                                                <Button Click="OnInfoClick" Tag="{Binding}" Width="32" Height="28" Padding="0"
+                                                        HorizontalAlignment="Center" ToolTip.Tip="About this property">
+                                                    <ui:FASymbolIcon Symbol="ContactInfo" FontSize="16" />
+                                                </Button>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <!-- Empty state (same Win11 pattern as the tree pane). -->
+                            <StackPanel x:Name="PlaceholderPanel" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Spacing="{StaticResource Space4}" Margin="24">
+                                <ui:FASymbolIcon x:Name="PlaceholderIcon" Symbol="OpenFile" FontSize="32"
+                                                 Foreground="{DynamicResource TextFillColorDisabledBrush}" HorizontalAlignment="Center" />
+                                <TextBlock x:Name="PlaceholderTitle" Classes="emptyTitle" Text="No file loaded" />
+                                <TextBlock x:Name="PlaceholderDesc" Classes="emptyDesc" MaxWidth="300"
+                                           Text="Open a .dwg or .dxf (Ctrl+O) to explore its dynamic blocks and evaluation graphs." />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
                 </Border>
                 <ui:FAProgressRing x:Name="LoadingRing" Grid.Column="2" IsVisible="False" Width="48" Height="48"
-                                  HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
             <!-- First-run teaching tip: its template root is a Left/Top-aligned
                  Border, so the element (spanning both rows) only intercepts
