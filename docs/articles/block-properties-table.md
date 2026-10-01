@@ -1110,3 +1110,68 @@ field model is invalid and explains all no-solution results. **Next step:** dump
 AC1032 file's section table (real R2025 header, not the R2004 layout) and check for
 an AcDs section whose size correlates with the body sizes; also finish the
 independent-type JointBPT search.
+
+## ODA spec + data-store verification (preliminary)
+
+The user provided the **Open Design Alliance "Specification for .dwg files"** PDF.
+Extracted (15,017 lines). Findings:
+
+- The ODA spec covers the general R2010+ object format (confirmed: the
+  `Has DS binary data` B flag at the common-object-header tail, R2013+) and
+  documents the **`AcDb:AcDsPrototype_1b` data-store section in full** (§24):
+  a **byte stream** (not a bit stream) of file segments (segidx / datidx /
+  `_data_` / schidx / schdat / search / blob01), each with a 64-byte header
+  (0xd5ac signature), indexed by **handle**. The file header (first ~52 bytes)
+  carries the segment-index offset/entry-count and the schema/data/search
+  segment indexes. A data record = `[dataSize u32][bytes]`; large values go
+  through a `0xbb106bb1` blob-reference (paged `blob01` segments).
+- **The ODA spec contains NO `BlockPropertiesTable` / BPT / EvalVariant**
+  content — it predates the feature (last content ~2013). So it cannot give
+  the BPT field layout, but it is the authoritative reference for the
+  data-store and confirms the R2010+ primitives.
+
+### Data-store check on L3-02 (negative for BPT)
+
+Ran the library's own `DwgPrototype1bReader` over L3-02's `AcDb:AcDsPrototype_1b`
+section (29,696 bytes). Result:
+
+- File header: sig 0x6472616a, version 2, rev 1152, 19 segment entries.
+- **5 schemas, all system**: `AcDb_Thumbnail_Schema`, `AcDbDs::TreatedAsObjectDataSchema`,
+  `AcDbDs::LegacySchema`, `AcDbDs::IndexedPropertySchema`, `AcDbDs::HandleAttributeSchema`.
+- **1 data record** (handle 0x22, 1,236 bytes) = a **PNG thumbnail**
+  (`89 50 4E 47 0D 0A 1A 0A` + IHDR). **No BPT data-store entry.**
+
+**Conclusion:** the BPT object's data is **inline** in the object section (the
+"body" region we extract), NOT in the data store. The data-store hypothesis is
+ruled out for these files. The body is a valid bit-packed stream (it segments
+cleanly into B/BL/BS/BD with plausible values) — the missing piece is the
+**field layout** (order + type of the table/column/cell fields).
+
+### 1kV row structure — confirmed
+
+The 104 cell strings form **26 rows × 4 string columns** (row-major), plus one
+numeric (double) column. Each row = 4-tuple `(a,b,c,d)`:
+- a = full oriented name ("1kV Keet", "1kV Keet - VPR", "1kV Keet - VPL", "Uitbreiding - …"),
+- b = base/subtype ("Klassiek", "Aanduiding omvormers", "Smeltveiligheden", "BIC/LIC/SEC", "IL Shelter", "Double Wide"),
+- c = orientation ("Dubbelzijdig" / "Rechts" / "Links"),
+- d = extended name.
+So **1kV = 26 rows × [4 string cols + 1 double col]**. Column string counts
+[4,4,4,3,2] → string variants [2,2,2,1,0], numeric variants [0,0,0,1,2].
+
+### Diophantine size solver (preliminary, unverified)
+
+Built a 2-stage solver over all 4 same-schema bodies. Model: a field = a type
+tag of `w` bits + a payload; string/empty payload = 0, int = I, double = D;
+column = 3 flag bits + 2 variants; body = T + defRow + flags + (nVariant·w) +
+(cI·I + cD·D). Stage 1 uses 1kV−t3 = 2649 → `di·I + dd·D = 2649 − 116w`;
+stage 2 verifies all 4 (solving R1, R2).
+
+Result: a family of solutions, **w=7–8, I≈36–57, D≈93–95**, R1≈9–15,
+R2≈17–20. The widths are **non-standard** (a double ≈ 93–95 bits, not 64) and
+the system is **under-constrained** (T+defRow is degenerate — only their sum
+is pinned). The clean `I∈{32,34,36}, D∈{64,66,68}` assumption is **not
+consistent** (1kV−t3=2649 has a parity/magnitude mismatch for those). This
+means either the double cell is a ~93-bit structure (e.g. 64-bit double + a
+~29–31-bit extra field per cell) or the model is missing a per-field component.
+**Open:** the exact double/cell on-disk width and whether there is an extra
+per-cell (or per-row) field.
