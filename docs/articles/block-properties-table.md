@@ -1487,3 +1487,139 @@ bitstream; no `[BS]` sequence parses from bit 0 or bit 1 — the walk yields
 12288/21999/negative values). Candidate models: a large bit-packed metadata struct
 (row/column counts, per-column type + name index — 1kV has 26 rows × 6 column-type
 names in its string pool), or a second record family with a 544-bit period.
+
+## Breakthrough (preliminary): the 544-bit header = 32×17 = 11×48+16 — a stream of file offsets
+
+Two exact factorizations of 544 both close, and the file-offset interpretation is now
+supported by direct evidence.
+
+### The 48-bit (6-byte) decomposition — exact
+
+Grouping the 68 header bytes into 6-byte (48-bit) fields gives **11 × 48 + 16 = 544
+exactly** (the earlier `F8 = 0xD840…?` uncertainty is resolved: byte 47 = `0xEB`, so
+`F8 = 0xD840591FFFEB`). Splitting each 48-bit field into three 16-bit chunks:
+
+| field | 48-bit | [16·16·16] (decimal) |
+| --- | --- | --- |
+| F1  | `0x800000000000` | 32768 · 0 · 0 |
+| F2  | `0x050C002157BE` | 1292 · 33 · 22462 |
+| F3  | `0x2A69899102A5` | 10857 · 35217 · 677 |
+| F4  | `0x61024163FFFD` | 24834 · 16739 · 65533 |
+| F5  | `0x8E3C76101647` | 36412 · 30224 · 5703 |
+| F6  | `0xFFFB1E78EC20` | 65531 · 7800 · 60448 |
+| F7  | `0x2C8FFFF640F1` | 11407 · 65510 · 16625 |
+| F8  | `0xD840591FFFEB` | 55360 · 22815 · 65515 |
+| F9  | `0xF1E3B078EC32` | 61923 · 45176 · 60466 |
+| F10 | `0x3FFFD143C760` | 16383 · 53571 · 50944 |
+| F11 | `0xF1D862348DA0` | 61912 · 25140 · 36256 |
+| tail| `0x280A` (16-bit)      | 10250 |
+
+7 of the 11 leading 16-bit chunks have bit 15 set (32768, 35217, 36412, 65531, 55360,
+61923, 61912) → the header is **not** a run of signed 16-bit `[BS]` fields on a 48-bit
+grid. (Matches the prior ODA-walk result: 6+ of the 16-bit values carry bit 15, valid
+only as *unsigned* 16-bit or 33-bit.)
+
+### The `[BS]` walk from bit 0 — 24 fields, sums to 552 (8 bits over)
+
+Parsing the 544-bit header as an ODA `[BS]` stream (tag 0 → 16-bit, tag 1 → 33-bit)
+from bit 0 gives **24 valid fields** (15 × 17-bit + 9 × 33-bit) that **sum to 552 bits —
+8 bits past the 544 header boundary** (the last 17-bit field, at bit 535, spans
+535..551 and straddles into record 0). So a pure `[BS]` stream does *not* cleanly tile
+544; the 32×17 factorization is a near-miss, not the true structure.
+
+The 24 fields (bit position, width, value; the 9 32-bit payloads shown as
+`[hi16 · lo16]`):
+
+| # | bit | width | value |
+| --- | --- | --- | --- |
+| 1 | 0 | 33 | 0 |
+| 2 | 33 | 16 | 0 |
+| 3 | 50 | 16 | 10336 |
+| 4 | 67 | 16 | 533 |
+| 5 | 84 | 16 | 63429 |
+| 6 | 101 | 16 | 39522 |
+| 7 | 118 | 16 | 51329 |
+| 8 | 135 | 16 | 42337 |
+| 9 | 152 | 16 | 1154 |
+| 10 | 169 | 33 | `0x8FFFF638` = [36863 · 63032] |
+| 11 | 202 | 33 | `0xE3B080B2` = [58288 · 32946] |
+| 12 | 235 | 16 | 32767 |
+| 13 | 252 | 33 | `0x63CF1D84` = [25551 · 7556] |
+| 14 | 285 | 16 | 2851 |
+| 15 | 302 | 33 | `0xFFF62078` = [65510 · 8312] |
+| 16 | 335 | 33 | `0xD840591F` = [55360 · 22815] |
+| 17 | 368 | 33 | `0xFFD7E3C7` = [65511 · 58311] |
+| 18 | 401 | 16 | 49635 |
+| 19 | 418 | 33 | `0x6191FFFE` = [24977 · 65534] |
+| 20 | 451 | 33 | `0x143C760F` = [5180 · 30223] |
+| 21 | 484 | 16 | 15116 |
+| 22 | 501 | 16 | 36131 |
+| 23 | 518 | 16 | 53268 |
+| 24 | 535 | 16 | 2562 (straddles into record 0) |
+
+The 32-bit `[BS]` payloads **each split into two 16-bit quantities that are both
+in-range file offsets** (≤ 65534 < 74687) — e.g. field 16 = `0xD840591F` is the exact
+leading 4 bytes of 48-bit field F8 above.
+
+### The 16-bit values are file offsets (the key new evidence)
+
+The 1kV DWG is **74687 bytes** long; a 16-bit offset spans 0..65535, so every 16-bit
+value above is a *valid in-range file offset*. Probing the 24 byte-offset targets:
+
+- **offset 36131** (field 22) → `00 6b 00 52 00 6f 00 75 00 6e 00 64 00 54 …` = UTF-16BE
+  `"kRoundTripPu…"` — a real readable symbol in the file.
+- **offset 2562** (field 24) → `74 00 20 00 73 00 61 00 76 00 65 00 64 00 20 00 62 00 79 …`
+  = UTF-16BE `"…t saved by a…"` — a version/“last saved by” banner fragment.
+- The other targets point to binary / non-printable data.
+
+So the 16-bit values behave as **file offsets** (at least the two that hit readable
+UTF-16BE strings), but they are *not* a uniform string table — most targets are binary.
+The leading `[BS] 0` (field 1, 33-bit) + `[BS] 0` (field 2, 16-bit) read as two leading
+null/version fields, after which the stream is a mix of 16-bit and 32-bit (two packed
+16-bit) file offsets.
+
+### Status
+
+- **Confirmed (exact):** 544 = 32×17 = 11×48+16; the 6-byte/48-bit decomposition and the
+  16-bit chunk table above.
+- **Supported (preliminary):** the 16-bit header values are in-range file offsets into
+  the 74687-byte DWG; two hit readable UTF-16BE strings (`"kRoundTripPu…"`, `"…t saved
+  by a…"`); the nine 32-bit `[BS]` payloads each = two packed 16-bit in-range offsets.
+- **Open:** (a) the `[BS]` walk overshoots 544 by 8 bits — the header is not a clean
+  `[BS]` stream from bit 0, and the true field framing (and why 544 = 32×17) is
+  unresolved; (b) what the 32-bit dual-offset fields semantically reference (two related
+  strings? a name + its category?); (c) whether the offset list is the BPT's own
+  row/column metadata (26 rows × 4-name groups) or a global file string-index table.
+
+### CORRECTION (preliminary): the 2-bit string-region model is disconfirmed; the 26th record is whole
+
+Re-deriving the string-region arithmetic from the verified 126-string content (1639 chars
+total) kills the prior "100% consumption at 2-bit chars" claim:
+
+- 126 strings = 1639 chars → **3278 char bits + 252 tag bits = 3530 bits**, but the
+  string region is **27366 bits** (P = 3820) / 27388 bits (P = 3798) — an **87% gap**.
+  No integer (T, C) solves `27388 = 126·T + 1639·C` for C ∈ {2, 8, 16}: the strings are
+  *not* 2-bit/8-bit/16-bit-chars-from-3798.
+- A `[BS]`-len + 16-bit-char walk from bit 3820 (and from 3798) **parses 0 strings**
+  (fails at the first field: the 33-bit value 0x8801B001 is in the signed-[BS] dead
+  zone; unsigned it = 4162201057, not a plausible length). The region is **not** a
+  `[BS]` string stream at either candidate boundary.
+- **The 26th record is a whole 126-bit record** (bits 3694..3819 = `02 94 00×6 04 88 08 0a
+  70 9C 24 2D 08 9C…`): 6-bit field 97..102 = `111000` = 56, bit 70 = 0 → index **56**
+  (the `Dubbelzijdig` string of group 14, matching the earlier truncated-view index).
+  The prior "truncated to 104 bits" was an artifact of the P = 3798 boundary; **P = 3820
+  (544 + 26×126) is the more likely table/string split** — the body is *not* 22 bits
+  short of 26 complete records.
+- Record 26's trailing 22 bits (104..125 = `10011100 00100100 001011` = 0x1C242B =
+  1860299 as 22-bit) **deviate from the 25-record template** (`10000000 10100000 001010`
+  = 0x00A02A = 40914) at bits 107, 108, 109, 112, 117, 125 (6 of 22) — so bits 104..125
+  are *not* constant across the 26 records; they carry per-record data the 25-record
+  sample could not expose (candidate: a 15-bit offset + 6-bit string index — the 22-bit
+  values 40914/1860299 are both valid 22-bit quantities; semantics unverified).
+- The `02 94` record markers appear only **8 times** in the full 31219-bit body (bits
+  544, 1048, 1552, 2056, 2520, 2560, 3064, 3568) = record starts k ∈ {0, 4, 8, 12, 16,
+  20, 24} (only the byte-aligned ones, since 126k ≡ 0 mod 8 ⇔ k ≡ 0 mod 4) + one
+  anomaly at 2520 (40 bits before the k=16 start). Consistent with the 26-record model.
+- `02 9X` (90..9F) appears 13 times; other BPT bodies (l302) share none of the 1kV
+  record-template bits (3-way per-bit diff: 1106 runs, 553 constant — no shared
+  template), so cross-BPT diffing is a dead end for the header.
