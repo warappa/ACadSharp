@@ -239,8 +239,12 @@ public static class BptBodyDecoder
 		return bit >= 97 && bit <= 102;
 	}
 
-	/// <summary>The constant 126-bit record template (bit 70 and bits 97..102 are variable).</summary>
-	static int TemplateBit126(int bit)
+	/// <summary>
+	/// The constant 126-bit record template (bit 70 and bits 97..102 are the variable
+	/// 7-bit string index). Public so tests and tools can build synthetic record data
+	/// with the exact template the decoder validates.
+	/// </summary>
+	public static int TemplateBit126(int bit)
 	{
 		if (bit >= 0 && bit < 8) return (0x02 >> (7 - bit)) & 1;
 		if (bit >= 8 && bit < 16) return (0x94 >> (15 - bit)) & 1;

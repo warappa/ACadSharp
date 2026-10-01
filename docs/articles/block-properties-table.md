@@ -1901,3 +1901,87 @@ does not consume it. The decoded BPT body (the `Strings` + `RecordIndices`) is t
 **dead end for the evaluation engine**: it is read + written (lossless round-trip) but not
 used for evaluation. Its practical value is **diagnostic** (a human-readable "properties
 table") and **lossless round-trip** (the `RawTail` is preserved verbatim).
+
+> **CORRECTION (later in this doc):** the "display-only, dead end" conclusion is in
+> **tension** with the decompiled AutoCAD 2021 `Audit()` (below), and is now **superseded**
+> by the engine integration that makes the pair **do real work** (also below).
+
+## The decompiled `Audit()` (the "display-only" conclusion in tension)
+
+The decompiled AutoCAD 2021 .NET (ObjectARX analog) `AcDbBlockPropertiesTable::Audit()`
+reports these errors — **`NoMatchingRow`, `InvalidCell`, `NotInValueSet`,
+`CellEvalError`, `DuplicateRows`, `ExprExternRef`, `InvalidUnmatchedValue`,
+`NonConstAttDef`** — plus the table's `DefaultActiveRowIndex` (int, −1 = unset),
+`MustMatch`, `ContainsRuntimeParametersOnly`, `IsDisabledInDrawingEditor`, and per-column
+`DefaultValue`/`UnmatchedValue` (`AcDbEvalVariant` = a resbuf entry). This **confirms the
+table matches parameter values against its rows and evaluates cells** (the first column is
+the key — 2013 Autodesk forum). It contradicts the "display/UI only" reading of the class
+docs above: the class docs describe the *UI feature* the object serves, but the object's
+own error model is a **lookup**. (Note the distinction for the engine: the
+`BlockLookupAction` is the *computation* table; the BPT is the *properties* table whose
+rows carry the display strings — "Rechts", "Klassiek", … — and the `Audit()` error types
+show the engine also **validates** those rows.)
+
+## Engine integration (implemented): the pair does real work
+
+The BPT subgraph (the table + its grip) is an **evaluation island** before this change:
+the grip is not a `BlockGrip` (not activated), the table has zero `EvalConnection`s
+(no incoming edges), and its 5 flag-4 lookup outputs stay skipped (no activated
+endpoint). The integration makes it evaluate:
+
+- **`EvaluationExpression.IsActivatable`** (new, `false` by default; `true` on
+  `BlockGrip` + `BlockPropertiesTableGrip`) — the activation seeds are the nodes the
+  *user can touch* (the parameter grips + the properties-table grip; a table is reached
+  from its grip, not touched). The 6 call sites (Viewer `BlockModel.Create` +
+  `Program.cs`, the Examples, `tools/eval-probe`, `tools/eval-regression`) filter
+  `graph.Nodes.Where(n => n.Expression is { } e && e.IsActivatable)` — **null-safe**: a
+  node's `Expression` can be null (an unparseable node record — the TEE3000 sample has 2
+  such nodes; the old `is BlockGrip` filter was null-safe while a bare
+  `n.Expression.IsActivatable` NREs — the first non-null-safe version crashed the
+  regression sweep on TEE3000).
+- **`BlockPropertiesTableGrip.Evaluate`** writes its stored `Location` (Point) to its
+  `Value` port (+ `base.CurrentValue`); `GetDefaultValue` = `FromPoint(Location)`.
+  Activating it adds {BPTGrip, BPT} to the forward pass (the BPT is reached through the
+  non-flag-4 value edge) and {BPTGrip} to the reverse (a leaf). The BPT's flag-4
+  outputs stay skipped (the BPT is reached, not a seed — `activated` = the seeds only).
+- **`BlockPropertiesTable.Evaluate`** writes the **active row's key** (String) to both
+  the `Value` **and** `Displacement` ports (+ `base.CurrentValue`);
+  `GetDefaultValue` = the same value. The active row is **preliminary**: the on-disk
+  `DefaultActiveRowIndex` is not yet decodable (the 544-bit header = "file offsets",
+  open), so the **1kV schema (RecordSchema == 1)** takes the **first record's** pool
+  string as the active row, the **L3-02 schema (RecordSchema == 2)** yields **no value**
+  (the 96-bit entries are table metadata — a name-group label index + a value index —
+  not row keys), and a body matching no schema (TEE3000) yields no value. Both port names
+  are written because the table has no `EvalConnection`s of its own: `Value` is the
+  table's fallback port name and `Displacement` is the linear-parameter targets'
+  fallback port name (the per-parameter `EvalConnection` bindings live in the undecoded
+  handle stream).
+
+**Verified** (1kV `*Model_Space`, before → after): the merged context grows 6 → **8**
+entries — `[88] Value=(-64, 163.08, 0)` (the grip's Location) and
+`[87] Value="Rechts", Displacement="Rechts"` (record 0's pool string, index 28); the 5
+BPT→parameter lookup edges (7/16/24/25/26) all show `= "Rechts"` in the provenance dump,
+and the existing 6 entries are byte-identical. L3-02 (28 blocks): 3 blocks each gain
+**exactly one** new entry — the BPTGrip's Location as a Point (`[10] (-1.96,0,0)`,
+`[123] (3.6,0,0)`, `[26] (0,0,0)`) — and **no BPT table entry** (schema 2/0 → unset).
+TEE3000: unchanged (no BPT match). The viewer's provenance feature (pick a node → see
+its value + the upstream chain + each edge's value) lights up with **zero viewer
+changes** — the `GraphModel` `GetPortNames` fallback already resolves the 5 edges to the
+`Value`/`Displacement` ports the `Evaluate` writes.
+
+## The 4×26 partition hypothesis (preliminary)
+
+The 1kV string pool's 104 **cell** strings (indices 19..124; the leading 19 are the
+table-level name group + the 5 column headers) = **4 × 26** = the 4 string columns
+(3 `UserVariable` + `VisibilityState`; `UpdatedDistance` is numeric, outside the pool)
+× 26 rows. The 26 record indices ({28,29,53,118,119,94,31..49,56}) are **scattered**
+across the 104 (18 in [21..46], 5 in [47..72], 1 in [73..98], 2 in [99..124]) → **not**
+row- or column-major → the record→row/cell mapping is **not decodable from the indices
+alone**. Working hypothesis: the 26 records are **per-row key-cell pointers** scattered
+over the 4 columns (the column roles — which record points at which column — are
+undecodable without a reference decode of the column headers' order). Arithmetic
+support: 26 rows × 5 cols = 130 cells; the 104 cell strings = 78 (3
+`UserVariable` × 26) + 26 (`VisibilityState` × 26) exactly, with the 26
+`UpdatedDistance` doubles outside the pool. **Status: preliminary** — recorded per the
+"document breakthroughs immediately" policy; needs a second 1kV-family sample (or a
+reference decode) to confirm.

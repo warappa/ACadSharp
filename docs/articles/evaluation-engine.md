@@ -59,12 +59,12 @@ EvaluationExpression  (≡ AcDbEvalExpr)  — abstract; holds CurrentValue + abs
             └── 8 concrete leaves (Move, Scale, Rotation, Stretch, Flip, Array, PolarStretch, Lookup)
 + EvaluationExpression's direct children (single concrete classes, NOT under BlockElement):
     ├── BlockGripLocationComponent  (≡ AcDbBlockGripExpr)
-    ├── BlockPropertiesTable        (≡ AcDbBlockPropertiesTable)      — data-only; reads/writes RowCount only (opaque tail)
-    ├── BlockPropertiesTableGrip    (≡ AcDbBlockPropertiesTableGrip)  — data-only; reads/writes GripId only (opaque tail)
+    ├── BlockPropertiesTable        (≡ AcDbBlockPropertiesTable)      — the active row's key value (String; 1kV schema: the first record's pool string — the active row is *preliminary*; the L3-02 metadata schema and unknown bodies → unset)
+    ├── BlockPropertiesTableGrip    (≡ AcDbBlockPropertiesTableGrip)  — the stored Location (Point); an **activatable seed** (user-touchable) that feeds the table through its value edge
     └── BlockDynamicBlockProxyNode  (≡ AcDbDynamicBlockProxyNode)     — full DWG + DXF (ProxyName 300, ProxyData 309)
 ```
 
-**IO completeness:** the **User / HorizontalConstraint / VerticalConstraint** parameters now read and write their **full DWG + DXF** records (value, value set, and — for the constraints — label, description, label offset). The on-disk layout is decoded in [evaluation-graph.md](evaluation-graph.md) ("The evaluation object's DWG layout"). The `BLOCKPROPERTIESTABLE` row and `BLOCKPROPERTIESTABLEGRIP` payloads remain an opaque, undecoded tail (data-only objects, not part of the evaluation graph).
+**IO completeness:** the **User / HorizontalConstraint / VerticalConstraint** parameters now read and write their **full DWG + DXF** records (value, value set, and — for the constraints — label, description, label offset). The on-disk layout is decoded in [evaluation-graph.md](evaluation-graph.md) ("The evaluation object's DWG layout"). The `BLOCKPROPERTIESTABLE` and `BLOCKPROPERTIESTABLEGRIP` DWG records are **read and written in full**; their class-specific tails are **partially decoded** by `BptBodyDecoder` (1kV family: 544-bit header + 126-bit records + a string pool + a 33-bit tail; L3-02: 96-bit metadata entries) — see [block-properties-table.md](block-properties-table.md).
 
 ## The three value-semantics archetypes
 
@@ -74,9 +74,12 @@ Grouped by *what a node's value means before the graph has been evaluated*, the 
 |---|---|---|---|
 | **Stateful — parameter** | the 16 `BlockParameter` leaves | a stored value/geometry, but the *shape and initial value differ per type* (stored value, zero displacement, `atan2` of stored points, …) | **abstract** — each leaf implements its own |
 | **Stateful — grip** | the 8 `BlockGrip` leaves | the stored `Displacement` (zero initially) | **shared at the archetype**: `BlockGrip` overrides it to `FromPoint(Displacement)`; leaves inherit |
-| **Stateless** | the 8 `BlockAction` leaves, the component, the 2 table stubs, the proxy | none — pure computation / data-only / placeholder | **shared at the archetype**: `BlockAction` overrides it to `EvaluationValue.None`; the 4 single-class children each carry an explicit, documented `=> None` |
+| **Stateful — table** | the `BlockPropertiesTableGrip`, the `BlockPropertiesTable` | the grip's stored `Location`; the table's active-row key (unset when the body schema is unknown) | explicit on each (no shared intermediate class): `FromPoint(Location)` / `ActiveValue` or `None` |
+| **Stateless** | the 8 `BlockAction` leaves, the component, the proxy | none — pure computation / placeholder | **shared at the archetype**: `BlockAction` overrides it to `EvaluationValue.None`; the 2 single-class children (the component, the proxy) each carry an explicit, documented `=> None` |
 
-`EvaluationExpression.GetDefaultValue()` is **`protected abstract`**, so the decision is *compile-time-enforced*: a new concrete node that forgets a default is a `CS0534` build error. `BlockParameter` stays abstract (propagating the requirement to every parameter leaf); `BlockGrip` and `BlockAction` supply a shared default their leaves inherit; the 4 single-class direct children of `EvaluationExpression` cannot share an intermediate class (ARX has none for them), so each states `=> None` explicitly.
+`EvaluationExpression.GetDefaultValue()` is **`protected abstract`**, so the decision is *compile-time-enforced*: a new concrete node that forgets a default is a `CS0534` build error. `BlockParameter` stays abstract (propagating the requirement to every parameter leaf); `BlockGrip` and `BlockAction` supply a shared default their leaves inherit; the 4 single-class direct children of `EvaluationExpression` cannot share an intermediate class (ARX has none for them), so each states its default explicitly — `None` for the component and the proxy, and the stored value (Location / active-row key) for the 2 table classes.
+
+**Activation (`IsActivatable`):** the forward pass seeds the nodes the user can *touch* — the parameter grips and the properties-table grip (both are user-touchable handles). `EvaluationExpression.IsActivatable` is `false` by default and overridden to `true` on `BlockGrip` and `BlockPropertiesTableGrip`; the call sites filter `graph.Nodes.Where(n => n.Expression is { } e && e.IsActivatable)` (null-safe: a node's `Expression` can be null for an unparseable node record). The table *itself* is not activatable — it is reached from its grip through the value edge (a flag-4 edge is followed only *away from* an activated endpoint, so the table's lookup outputs stay skipped in the forward pass; see `SkipEdge` in `Topology.cs`).
 
 The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not yet been evaluated, so a node exposes its meaningful initial value *before* `Evaluate()` runs — this is what makes the viewer render a stored parameter value (or `<unset>` for a stateless node) rather than a blank.
 
@@ -105,6 +108,8 @@ The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not 
 | `BlockArrayAction` | the base value (Scalar) | reads the `Base` port |
 | `BlockFlipAction` | the **flip** state (Scalar) | reads the `Flip` port |
 | `BlockLookupAction` | the **matched row** index (−1 = none, Scalar) | reads each column's input value, finds the matching row (simplified; chained lookups / default-on-no-match not implemented) |
+| `BlockPropertiesTableGrip` | the stored **Location** (Point) | `Value` = the stored `Location` (the grip is a user-touchable handle; there is no displacement to apply — it feeds the table's `Value` port through the value edge) |
+| `BlockPropertiesTable` | the **active row's key** (String; unset when the body schema is unknown) | `Value` **and** `Displacement` = the active-row key — the 1kV schema's first record (preliminary: `DefaultActiveRowIndex` is not yet decodable on disk; L3-02 metadata and unknown bodies stay unset, `Evaluate` is a no-op). Both port names are written because the table has no `EvalConnection`s of its own: the `Value` name is the `BlockPropertiesTable`'s fallback port and `Displacement` is the linear-parameter targets' fallback port (the per-parameter `EvalConnection` bindings live in an undecoded handle stream) |
 
 **Notes:**
 - **Lookup actions** are **excluded from the forward evaluation**: they are only reachable via `flag=4` (reverse) edges, which the forward topological order skips — and they are also excluded from the **reverse** pass when their flag-4 edge has no activated endpoint (the edge is inactive in both directions; see `EvaluateReverse` above). So a lookup action's `CurrentValue` can stay unset after both passes.
@@ -112,7 +117,7 @@ The **`CurrentValue` fallback** reads `GetDefaultValue()` when the node has not 
 
 ## Verified results (all 10 samples)
 
-Running the evaluator on all 10 samples (`dotnet run --project src/ACadSharp.Examples -- eval <file>`, activating all grips with zero displacement) produces consistent values:
+Running the evaluator on all 10 samples (`dotnet run --project src/ACadSharp.Examples -- eval <file>`, activating all **activatable** nodes — the parameter grips with zero displacement, plus the properties-table grip at its stored location) produces consistent values:
 
 | Sample | Parameter value | Interpretation |
 |--------|----------------|---------------|
