@@ -1838,6 +1838,26 @@ Findings (preliminary):
     type/sentinel block shared by all 9 entries.
   - **None of the three variable fields is a direct index into the 21-string pool**, so
     the record→string link is **indirect / multi-level** (not a single index field).
+
+**The indirect record→string mechanism (VERIFIED in C#, `verify_l302`):** each 96-bit
+entry references **two** pool strings — a *label* and a *value*:
+
+- **`byte3 = (k << 4) | 4`** (k = 1…10, the entry's own index). The **high 4 bits are a
+  direct pool index → the label** `pool[k]`: `Block Table`, `Block Table1`,
+  `UserVariable`, `Custom`, `UpdatedDistanceX`, or empty (the empty-pool slots).
+- **`byte11` is a count N** (0…3 observed), and **the pool index is `10 + N`** → the
+  **value**, an *offset-based* index into the "N Spaces" group at `pool[10..20]`
+  (empty, "1 Space", "2 Spaces", … "10 Spaces"). The record stores the **count**, not
+  the index — the group base (`10`) is implicit in the block's "value" type.
+
+So the (label, value) pairs decode coherently (C body): `(Block Table, —)`,
+`(Block Table1, 1 Space)`, `(UserVariable, 1 Space)`, `(Custom, 2 Spaces)`,
+`(UpdatedDistanceX, 3 Spaces)`, plus value-only entries. **The "value" link is genuinely
+indirect (offset/count-based), while the "label" link is a direct pool index** — a mix of
+the two. The **10th entry is truncated (29 bits)** — `byte3 = 0xa4` (index 10), `byte0 =
+0x24` (the counter continues 35 → 36) — the same "last entry truncated" pattern as the
+1kV's 26th record. The group base (`10`) is specific to this body's "value" strings; a
+different block with a different "value" group would use a different base.
 - **The other L3-02 bodies (A: 10 strings, B: 16 strings) use a sparser layout**
   (many-zero 32-bit values, e.g. `0038404a 00000000 00000284 …`), so even within L3-02
   the record layout varies per BPT (likely by the block's property-table shape).
