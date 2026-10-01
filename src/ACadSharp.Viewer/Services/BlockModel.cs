@@ -187,6 +187,8 @@ public class BlockModel
             .ToList();
         graph.Activate(gripIndices);
         bool ok = graph.Evaluate();
+        // Snapshot the forward pass before the reverse pass clears the context.
+        EvaluationContext forward = graph.Context.Clone();
         // The forward pass leaves the table-driven lookup actions unset (they are
         // only reachable via the flag-4 edges the forward order does not follow).
         // The reverse pass evaluates them from the stored parameter values, so a
@@ -194,6 +196,15 @@ public class BlockModel
         // stored value in the as-drawn state — instead of "<unset>". The downstream
         // nodes are not re-evaluated by the reverse pass, so the geometry is unchanged.
         graph.EvaluateReverse();
+        // The reverse pass only re-evaluates the upstream producers (the grips and
+        // the parameters they drive); the table-driven actions it skips (the lookup
+        // table's selection, the lookup actions, the stretch/move actions) keep their
+        // forward-pass values. The context after the merge is the complete final
+        // state: the reverse pass's values (the latest — the lookup-resolved state)
+        // plus the forward pass's values for the nodes the reverse pass did not
+        // re-evaluate. Provenance lookups (a node's per-port values, the value
+        // flowing along an edge) read this merged context.
+        graph.Context.AddMissingFrom(forward);
 
         List<PropertyItem> properties = new();
         foreach (EvaluationGraph.Node node in graph.Nodes.OrderBy(n => n.Index))

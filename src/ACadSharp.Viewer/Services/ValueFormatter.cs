@@ -55,6 +55,34 @@ public static class ValueFormatter
     }
 
     /// <summary>
+    /// Formats a bare <see cref="EvaluationValue"/> for display (without any type prefix and
+    /// without the expression's type-specific interpretation): scalars as "0.##", points as
+    /// "(x, y, z)" / "(x, y)", strings quoted, the rest via <see cref="EvaluationValue.ToString"/>.
+    /// Used for the per-port / per-edge values in the provenance view, where the value is read
+    /// from the evaluation context (there is no owning expression to interpret it with). Returns
+    /// the empty string for an unset value.
+    /// </summary>
+    public static string Format(EvaluationValue value)
+    {
+        if (value.Type == EvaluationValueType.None)
+        {
+            return string.Empty;
+        }
+
+        return value.Type switch
+        {
+            EvaluationValueType.Double => (value.DoubleValue ?? 0.0).ToString("0.##"),
+            EvaluationValueType.Int => (value.IntValue ?? 0).ToString(),
+            EvaluationValueType.String => value.StringValue is { } s ? $"\"{s}\"" : string.Empty,
+            EvaluationValueType.Point => value.PointValue is { } p ? $"({p.X:0.##}, {p.Y:0.##}, {p.Z:0.##})" : string.Empty,
+            EvaluationValueType.Point2d => value.Point2dValue is { } p2 ? $"({p2.X:0.##}, {p2.Y:0.##})" : string.Empty,
+            EvaluationValueType.Char => value.CharValue is { } c ? c.ToString() : string.Empty,
+            EvaluationValueType.ObjectId => (value.ObjectIdValue ?? 0).ToString(),
+            _ => value.ToString(),
+        };
+    }
+
+    /// <summary>
     /// Formats the value itself (without the type prefix).
     /// </summary>
     private static string FormatValue(EvaluationExpression expression, EvaluationValue value)

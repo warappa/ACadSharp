@@ -103,8 +103,16 @@ public static class GraphDrawing
 
     /// <summary>
     /// A multi-line dump of a node's element (type / name / value / id, plus
-    /// the grip location and displacement when it is a grip) — the node's
+    /// the grip location and displacement when it is a grip, and the named
+    /// ports the node reads / writes with their current values) — the node's
     /// click details and hover tooltip.
+    /// <para>
+    /// The <c>value:</c> line is the node's <em>CurrentValue</em> (one
+    /// representative shape, e.g. a grip's displacement Point); the <em>ports</em>
+    /// section breaks it down into the individual named values the edges carry
+    /// (a grip's DisplacementX / UpdatedX doubles), which is what actually flows
+    /// to the next node — the divergence between the node's value and its ports.
+    /// </para>
     /// </summary>
     public static string BuildTooltip(GraphNodeInfo node)
     {
@@ -123,6 +131,29 @@ public static class GraphDrawing
             sb.AppendLine($"location: {grip.Location}  displacement: {grip.Displacement}");
         }
 
+        AppendPorts(sb, "output", node.OutputPorts);
+        AppendPorts(sb, "input", node.InputPorts);
+
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Appends the node's ports of the given kind (input or output), each with
+    /// its current value ("name = value"), or nothing when the node has no
+    /// ports of that kind. The value is the value read from the evaluation
+    /// context for that port (the value flowing along the connected edge).
+    /// </summary>
+    private static void AppendPorts(StringBuilder sb, string label, List<PortInfo> ports)
+    {
+        if (ports.Count == 0)
+        {
+            return;
+        }
+        sb.AppendLine($"{label} ports:");
+        foreach (PortInfo port in ports)
+        {
+            string valuePart = port.HasValue ? $" = {port.ValueText}" : "";
+            sb.AppendLine($"  {port.Name}{valuePart}");
+        }
     }
 }

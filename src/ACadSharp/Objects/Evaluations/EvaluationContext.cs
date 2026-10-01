@@ -106,4 +106,37 @@ public sealed class EvaluationContext
 	/// Clears all stored values (for example between evaluations of the same block).
 	/// </summary>
 	public void Clear() => _values.Clear();
+
+	/// <summary>
+	/// A copy of this context: the top-level structure and the nested port
+	/// dictionaries are copied; the (immutable) <see cref="EvaluationValue"/>
+	/// instances are shared.
+	/// </summary>
+	public EvaluationContext Clone()
+	{
+		EvaluationContext copy = new EvaluationContext();
+		foreach (KeyValuePair<int, Dictionary<string, EvaluationValue>> entry in _values)
+		{
+			copy._values[entry.Key] = new Dictionary<string, EvaluationValue>(entry.Value);
+		}
+		return copy;
+	}
+
+	/// <summary>
+	/// Adds the entries the given context holds that this one is missing: for every
+	/// node id the other context holds but this one does not, the other's ports are
+	/// added as-is. Entries this context already holds are left untouched — the
+	/// existing values win, so the caller can merge an older pass's values (the
+	/// nodes that a later pass did not re-evaluate) into the current pass.
+	/// </summary>
+	public void AddMissingFrom(EvaluationContext other)
+	{
+		foreach (KeyValuePair<int, Dictionary<string, EvaluationValue>> entry in other._values)
+		{
+			if (!_values.ContainsKey(entry.Key))
+			{
+				_values[entry.Key] = new Dictionary<string, EvaluationValue>(entry.Value);
+			}
+		}
+	}
 }

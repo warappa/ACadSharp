@@ -21,11 +21,20 @@ public class PortInfo
     /// </summary>
     public int WireIndex { get; }
 
-    public PortInfo(string name, int peerIndex, int wireIndex)
+    /// <summary>
+    /// The value currently flowing through this port (read from the evaluation
+    /// context under the port's raw name), or null when the value is unknown / unset.
+    /// </summary>
+    public string? ValueText { get; }
+
+    public bool HasValue => this.ValueText is not null;
+
+    public PortInfo(string name, int peerIndex, int wireIndex, string? valueText = null)
     {
         Name = name;
         PeerIndex = peerIndex;
         WireIndex = wireIndex;
+        ValueText = valueText;
     }
 }
 
@@ -110,7 +119,16 @@ public class GraphEdgeInfo
     /// </summary>
     public int WireCount { get; }
 
-    public GraphEdgeInfo(int fromIndex, int toIndex, string label, bool isDashed, bool isFeedback = false, int wireIndex = 0, int wireCount = 1)
+    /// <summary>
+    /// The value currently flowing along this edge (the source node's output
+    /// port, or the target's port for a lookup edge), or null when the value
+    /// is unknown / unset. Baked into <see cref="Label"/> for display.
+    /// </summary>
+    public string? ValueText { get; }
+
+    public bool HasValue => this.ValueText is not null;
+
+    public GraphEdgeInfo(int fromIndex, int toIndex, string label, bool isDashed, bool isFeedback = false, int wireIndex = 0, int wireCount = 1, string? valueText = null)
     {
         FromIndex = fromIndex;
         ToIndex = toIndex;
@@ -119,6 +137,7 @@ public class GraphEdgeInfo
         IsFeedback = isFeedback;
         WireIndex = wireIndex;
         WireCount = wireCount;
+        ValueText = valueText;
     }
 }
 
@@ -237,16 +256,24 @@ public static class GraphModel
             // An edge goes right-to-left when the source is in a lower-depth
             // column (more to the right) than the target.
             bool isFeedback = depth[edge.FromNodeIndex] < depth[edge.ToNodeIndex];
-            var (outputNames, inputNames) = GetPortNames(byIndex, edge);
+            var (outputNames, inputNames, rawOutputNames) = GetPortNames(byIndex, edge);
+
+            // The source's expression (object) id — the key the evaluation
+            // context stores the source's written values under.
+            int sourceExprId = GetExpression(byIndex, edge.FromNodeIndex)?.Id ?? -1;
 
             // One edge line + one port pair per wire. The output port keeps
             // the source's stored port name; the input port is named after
-            // the target's C# property, so the two ends differ.
+            // the target's C# property, so the two ends differ. The value
+            // flowing on the wire is read from the evaluation context the
+            // same way the engine reads it (context[sourceExprId][portName])
+            // and is shared by the edge label and both port ends.
             for (int wire = 0; wire < outputNames.Count; wire++)
             {
-                result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback, outputNames[wire], wire, outputNames.Count));
-                outputPorts[edge.FromNodeIndex].Add(new PortInfo(outputNames[wire], edge.ToNodeIndex, wire));
-                inputPorts[edge.ToNodeIndex].Add(new PortInfo(inputNames[wire], edge.FromNodeIndex, wire));
+                string? valueText = LookupValue(graph, sourceExprId, rawOutputNames[wire]);
+                result.Edges.Add(BuildEdgeLabel(byIndex, edge, isFeedback, outputNames[wire], wire, outputNames.Count, valueText));
+                outputPorts[edge.FromNodeIndex].Add(new PortInfo(outputNames[wire], edge.ToNodeIndex, wire, valueText));
+                inputPorts[edge.ToNodeIndex].Add(new PortInfo(inputNames[wire], edge.FromNodeIndex, wire, valueText));
             }
         }
 
@@ -260,19 +287,23 @@ public static class GraphModel
     }
 
     /// <summary>
-    /// The display names for a logical edge's wires: one (output, input) pair
-    /// per wire (<c>TrackedCount</c>). The <em>output</em> name is the
-    /// <c>Name</c> field of the corresponding connection on the target node
-    /// that references the source node (the source's stored port), humanized;
-    /// the <em>input</em> name is the target's C# property that holds the
-    /// connection (its semantic role), humanized with the "Connection" suffix
-    /// stripped. Both are display-only (the stored value is untouched). Falls
-    /// back to a type-specific default (indexed for the surplus wires) when
-    /// fewer connections than wires are found (the EvalConnection entries are
-    /// not always populated by the file reader); the input then falls back to
-    /// the same name.
+    /// The display names and the raw context keys for a logical edge's wires:
+    /// one (output, input, rawOutput) triple per wire (<c>TrackedCount</c>).
+    /// The <em>output</em> name is the <c>Name</c> field of the corresponding
+    /// connection on the target node that references the source node (the
+    /// source's stored port), humanized; the <em>input</em> name is the
+    /// target's C# property that holds the connection (its semantic role),
+    /// humanized with the "Connection" suffix stripped; the <em>rawOutput</em>
+    /// name is that same stored port <em>unhumanized</em> — the exact key the
+    /// source wrote its value to the evaluation context under, so the value
+    /// flowing on the wire is looked up as <c>context[output.Source][rawOutput]</c>.
+    /// The names are display-only (the stored value is untouched). Falls back
+    /// to a type-specific default (indexed for the surplus wires) when fewer
+    /// connections than wires are found (the EvalConnection entries are not
+    /// always populated by the file reader); the input and the raw key then
+    /// fall back to the same (fallback) name.
     /// </summary>
-    private static (List<string> Output, List<string> Input) GetPortNames(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
+    private static (List<string> Output, List<string> Input, List<string> RawOutput) GetPortNames(Dictionary<int, EvaluationGraph.Node> byIndex, EvaluationGraph.Edge edge)
     {
         int count = Math.Max(1, edge.TrackedCount);
 
@@ -311,15 +342,21 @@ public static class GraphModel
             }
         }
 
-        // Build exactly `count` (output, input) pairs: use the connection
-        // names in order, padding with indexed fallbacks when there are fewer
-        // names than wires.
+        // Build exactly `count` (output, input, rawOutput) triples: use the
+        // connection names in order, padding with indexed fallbacks when there
+        // are fewer names than wires. `rawOutput[i]` is the unhumanized port
+        // name — the exact key the value was written to the evaluation context
+        // under. It equals the humanized name for the fallback cases (the
+        // fallback is already a display string) and is the source's stored port
+        // name for the real connections.
         List<string> output = new();
         List<string> input = new();
+        List<string> rawOutput = new();
         for (int i = 0; i < count; i++)
         {
             if (i < names.Count)
             {
+                rawOutput.Add(names[i].PortName);
                 output.Add(Humanize(names[i].PortName));
                 input.Add(Humanize(names[i].PropertyName));
             }
@@ -328,6 +365,7 @@ public static class GraphModel
                 // No explicit connections: one fallback for the first wire,
                 // indexed for the rest.
                 string f = i == 0 ? fallback : $"{fallback} {i + 1}";
+                rawOutput.Add(f);
                 output.Add(f);
                 input.Add(f);
             }
@@ -335,12 +373,13 @@ public static class GraphModel
             {
                 // Fewer names than wires: index the surplus wires.
                 string f = $"{names[^1].PortName} {i + 1}";
+                rawOutput.Add(f);
                 output.Add(f);
                 input.Add(f);
             }
         }
 
-        return (output, input);
+        return (output, input, rawOutput);
     }
 
     /// <summary>
@@ -356,7 +395,8 @@ public static class GraphModel
         bool isFeedback,
         string portName,
         int wireIndex,
-        int wireCount)
+        int wireCount,
+        string? valueText)
     {
         EvaluationExpression? toExpr = GetExpression(byIndex, edge.ToNodeIndex);
         EvaluationExpression? fromExpr = GetExpression(byIndex, edge.FromNodeIndex);
@@ -371,7 +411,15 @@ public static class GraphModel
             ? (portName.Length == 0 ? "lookup" : $"lookup ({portName})")
             : portName;
 
-        return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup, isFeedback, wireIndex, wireCount);
+        // Append the value flowing on this wire ("name = value"), so the
+        // edge reads as a data-flow trace: the port the value came through
+        // plus the value itself (a lookup edge: 'lookup (lookup String) = "Custom"').
+        if (valueText is not null)
+        {
+            label += $" = {valueText}";
+        }
+
+        return new GraphEdgeInfo(edge.FromNodeIndex, edge.ToNodeIndex, label, isLookup, isFeedback, wireIndex, wireCount, valueText);
     }
 
     // O(1) lookup via the pre-built index (was a linear scan of graph.Nodes
@@ -381,6 +429,36 @@ public static class GraphModel
         if (byIndex.TryGetValue(nodeIndex, out EvaluationGraph.Node? node) && node is not null)
         {
             return node.Expression;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The value flowing along the wire from the source (expression id
+    /// <paramref name="sourceExprId"/>) to the target under the raw port name
+    /// <paramref name="rawName"/>.
+    /// <para>
+    /// This is exactly what the target reads at evaluation time
+    /// (<see cref="EvaluationContext.TryGetValue"/> on
+    /// <c>context[connection.Id][connection.Name]</c>, the engine's
+    /// <c>ReadConnectionValue</c>): the source node writes its result to
+    /// <c>context[sourceExprId][port]</c> (the context is keyed by the node's
+    /// expression object id — the same id the file stores in the target's
+    /// <c>EvalConnection</c>), so the value the target consumes is the value
+    /// flowing on the wire. A lookup action's write-back (the matched cell)
+    /// lands in the same location, so this also resolves the lookup result.
+    /// Returns the formatted value, or null when the source never wrote the
+    /// port (the engine's read then falls back to its default, so the wire
+    /// carries no value to display).
+    /// </para>
+    /// </summary>
+    private static string? LookupValue(EvaluationGraph graph, int sourceExprId, string rawName)
+    {
+        EvaluationContext context = graph.Context;
+        if (context.TryGetValue(sourceExprId, rawName, out EvaluationValue value) && value.Type != EvaluationValueType.None)
+        {
+            return ValueFormatter.Format(value);
         }
 
         return null;

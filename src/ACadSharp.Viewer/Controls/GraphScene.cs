@@ -349,14 +349,18 @@ public sealed class GraphScene
             // Permanent label: to the left of input ports, to the right of
             // output ports. Opaque (token) white, caption size, with a
             // background mask. Added to the node container so it moves with
-            // the node.
+            // the node. The value (when known) is appended — the value flowing
+            // along this wire: the source node's output for this port, which
+            // is exactly what the target reads (the value provenance: how the
+            // node's value is built up from the upstream nodes).
             if (port.Name.Length > 0)
             {
+                string text = port.HasValue ? $"{port.Name} = {port.ValueText}" : port.Name;
                 var label = new TextBlock
                 {
                     FontSize = DesignTokens.CaptionFontSize,
                     Foreground = ThemeResources.Port,
-                    Text = port.Name,
+                    Text = text,
                     IsHitTestVisible = false,
                 };
                 var mask = new Border
@@ -369,7 +373,7 @@ public sealed class GraphScene
                 };
                 if (isInput)
                 {
-                    Canvas.SetLeft(mask, edgeX - radius - port.Name.Length * 6.5 - 4);
+                    Canvas.SetLeft(mask, edgeX - radius - text.Length * 6.5 - 4);
                 }
                 else
                 {
