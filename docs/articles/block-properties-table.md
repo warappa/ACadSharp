@@ -1175,3 +1175,34 @@ means either the double cell is a ~93-bit structure (e.g. 64-bit double + a
 ~29–31-bit extra field per cell) or the model is missing a per-field component.
 **Open:** the exact double/cell on-disk width and whether there is an extra
 per-cell (or per-row) field.
+
+## R2010+ primitive widths — the missing piece (preliminary)
+
+The ODA spec §2.2–2.5 (authoritative, covers R2010+) defines the object-section
+bit primitives. **The tag is 2 bits** (not 1), and the width is value-dependent:
+
+- **BS** (bitshort): `00`→2-byte LE short, `01`→1-byte, `10`→0, `11`→256.
+  ⇒ a string field = **18 bits** (non-empty, 16-bit offset) or **2 bits** (empty).
+- **BL** (bitlong): `00`→4-byte LE long, `01`→1-byte, `10`→0.
+  ⇒ an int field = **34** (large) / **10** (small) / **2** (zero) bits.
+- **BD** (bitdouble): `00`→8-byte IEEE, `01`→1.0, `10`→0.0.
+  ⇒ a double field = **66** (non-zero) / **2** (0.0 or 1.0) bits.
+
+### 1kV fits the model (preliminary, single body)
+
+With these widths, 1kV (3800 bits, 4 string cols + 1 double col, 26 rows):
+
+| region | count | bits each | subtotal |
+|---|---|---|---|
+| 4 string columns (name18+fmt10+3flags+unm2+def2) | 4 | 35 | 140 |
+| 1 double column (name18+fmt2+3flags+unm2+def2) | 1 | 27 | 27 |
+| 104 string cells | 104 | 18 | 1872 |
+| 26 double cells (non-zero) | 26 | 66 | 1716 |
+| header (T flags + defRow) | — | — | ≈45 |
+| **total** | | | **3800** ✓ |
+
+140 + 27 + 1872 + 1716 + 45 = **3800**. The earlier solver's "double ≈ 93–95 bits"
+was an artifact of a fixed-width model that ignored the R2010+ 2-bit-tag +
+value-dependent-payload structure. **Open:** the other 3 bodies (t1/t2/t3) do not
+fit this assignment cleanly (their implied header is ~200 bits) — the cell
+string/numeric assignment per body needs empirical decoding, not assumption.
