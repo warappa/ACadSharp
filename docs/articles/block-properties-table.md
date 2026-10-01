@@ -1350,3 +1350,140 @@ the header layout (name, numColumns, numRows, flags) before the cell matrix.
 by `BlockPropertiesTableTests`); the writer re-emits it. The DXF reader/writer is a
 stub (the class has no public ObjectARX property API — only the current value is
 addressable), which is consistent with the table data still being undecoded.
+
+### CORRECTION (verified): the record is 126 bits; the 504-bit period was 4×126
+The earlier "63-byte (504-bit) repeating record" hypothesis is **retired**: 504 = 8×63
+but is also **4×126**, and the authoritative 8-bit-chunk diff tool (`TDecide`, built to
+eliminate the `long` overflow / shift-wrap corruption that corrupted the earlier
+`TPattern`/`TCheck2` dumps) shows the true period is **126 bits**: the `02 94 00 00 00 00
+00 00` marker repeats at exact 504-bit intervals (= 4 record periods), which was the
+source of the 504 illusion.
+
+**The 126-bit record layout (verified: 25 full records + the 26th, all constant-except
+7 bits; bit-level diff via 3-chunk 41/41/44-bit extraction, no overflow):**
+
+```
+bits  0..7:    00000010  (0x02)   constant
+bits  8..15:   10010100  (0x94)   constant
+bits 16..63:   00000000 × 6 bytes constant
+bits 64..71:   0000010X            X = bit 70  (VARIES: 1 in 3 of 25 records)
+bits 72..79:   10001000  (0x88)   constant
+bits 80..87:   00001000  (0x08)   constant
+bits 88..95:   00001010  (0x0a)   constant
+bits 96..103:  00 FF 00 00        6-bit field at bits 97..102 (97 = MSB)  (VARIES)
+bits 104..111: 10000000  (0x80)   constant
+bits 112..119: 10100000  (0xa0)   constant
+bits 120..125: 001010            constant
+```
+
+(Constant 1-bits: 69, 72, 75, 84, 91, 93, 104, 112, 114, 122, 124 — verified by the
+rawest direct byte-level read `TBits2`, which supersedes the earlier TSplit/TFinal
+bit-alignment: e.g. the `0x04` byte 8 has its 1 at bit 69, and the 0x28 byte 15
+contributes `001010`, not `000010`.)
+
+Only **7 bits vary** across the 25 full records: bit 70 and bits 97..102 — together they
+form a **7-bit index** (`bit70 << 6 | 6b[97..102]`) into the 126-string pool. There are
+no per-record flags in the full records (earlier "flags" at bits 107/115/117 were
+contamination: the 26th window at bit 3694 extends 22 bits into the string region, and
+its string-region bits were misread as record bits).
+
+**1kV record table (26 records, verified; 7-bit index → string content from the 126-string
+pool):** k0=28 "Rechts", k1=29 "1kV Keet - VPR", k2=53 "1kV Keet aanduiding omvormers -
+VPR", k3=118 "IL Shelter", k4=119 "Double Wide", k5=94 "IL Shelter", k6..k24 = the
+consecutive run 31..49 (Klassiek, Links, 1kV-VPL, 1kV Keet, Klassiek, Dubbelzijdig,
+Uitbreiding-keet, 1kV Keet, Klassiek, Rechts, Uitbreiding-VPR, 1kV Keet, Klassiek,
+Links, Uitbreiding-VPL, 1kV Keet, Aanduiding omvormers, Rechts,
+"1kV Keet aanduiding omvormers"), k25=120 "Rechts".
+
+**The 26th record is truncated:** the table data is `544-bit header + 25×126 + 104 bits`,
+and the 104-bit trailer is the first 104 bits of a 26th 126-bit record
+(`02 94 00 00 00 00 00 00 04 88 08 0a 70`, 7-bit index = 120) — its last 22 bits are
+absent. A 522-bit-header / 26-full-records alternative (`522 + 26×126 = 3798` exactly)
+is **disconfirmed** by the `02 94` marker at bit 544 (with a 522 start, bits 544..551
+would be record byte 3 = `00 00`, but they are `02 94`).
+
+**Open:** the 544-bit header layout; whether the truncated 26th record is a writer
+truncation or a variable record length; the record's semantic role (a row reference? a
+column option list?).
+
+### CORRECTION: the string region starts at bit 3798 (largest-P rule, re-verified); the tail is 33 bits
+The earlier "3816-bit table data" (from `RawTail − S − 16 − 1`) and the subsequent
+"bit 3800" figure are **retired**. The authoritative rule (`TExtract`, re-run and
+re-verified on the 1kV body): decode a `[BS len][len×2 bits]` sequence from candidate
+start `P`, require **100% consumption** of `rawBits − 33 − P` bits plus all-printable
+content, and take the **LARGEST** valid `P`. For the 1kV body this yields **P = 3798**
+(`3800` is also a valid parse; `3820` — the 26-record boundary — is NOT valid):
+
+```
+[ table data: 3798 bits ][ string region: 27388 bits ][ 33-bit tail ]
+    (0..3798)            (3798..31186)               (31186..31219)
+```
+
+Table data = `544-bit header + 25×126-bit records + 104-bit truncated 26th record`
+(see the record section above) = 3798 bits.
+
+- The **33-bit tail** = `32-bit value + 1 flag bit`. The 32-bit value (LE) at bit 31186
+  = `1627870815` (0x6129978F) — NOT the string-region size 27388, so the "size field = S"
+  assumption is **disconfirmed** (likely a hash/checksum). The last bit (31218) = `0`.
+- The L302Dump "body end" figure differs from 3798 by a 2-bit `handleStart` offset
+  (a known sensitivity of that extraction path) — the largest-P consumption rule is the
+  anchor, not the L302Dump figure.
+
+**String region (verified):** 126 strings (including a leading empty string), each
+`[BS len][len×2 bits]`, MSB-first, 16-bit chars big-endian, with the **characters in
+reversed order** in the bit stream (the first non-empty string decodes to `"elbaT
+kcolB"` = `"Block Table"` reversed). 100% region consumption at P = 3798.
+
+### CORRECTION: 126-bit record — rawest verification (TBits2), the truncated 26th record, cross-BPT scan
+The record layout above is now verified by the **rawest possible read** (`TBits2`: direct
+`(raw[b/8] >> (7 - b%7)) & 1` byte-level bit extraction, no reader class, no multi-byte
+shifts — superseding every earlier tool). One correction: bits 120..125 = **`001010`**
+(1s at 122 and 124), not `000010` (the TFinal-era figure was a shift-wrap artifact).
+
+- The 7 variable bits are confirmed at **70 and 97..102**; constant 1-bits at
+  69, 72, 75, 84, 91, 93, 104, 112, 114, 122, 124. k0 = `02 94 00 00 00 00 00 00 04 88 08 0a
+  38 80 a0 28` + `001010` (raw bytes 68..83 = `02 94 00×6 04 88 08 0a 38 80 a0 28`, raw[84]
+  = `0a` already belongs to record 1).
+- Per-record 7-bit indices (bit70 = 1 only for k3..k5): **28, 29, 53, 118, 119, 94,
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49** — i.e. a
+  run of 19 consecutive indices (31..49) plus four out-of-run values (28, 29, 53, 94, 118, 119).
+  All fall inside the string region's 26 four-string groups (bits 22..125): the 126
+  strings = 22 leading (table name `"Block Table"`, `"Block Table1"`, 4× the column-type
+  names `UserVariable`/`Custom`/`UpdatedDistance`/`VisibilityState`, empties) + 26 × 4
+  per-group strings (full name, short name, category, direction).
+- **The 26th record is truncated to 104 bits** (bits 3694..3797 = `02 94 00×6 04 88 08 0a 70`):
+  its first 104 bits give index **56** (`000001` + `111000` = 56 = the `"Dubbelzijdig"`
+  string of group 14), and its last 22 bits are simply not stored. The body is 22 bits
+  short of 26 complete records (31219 + 22 = 31241 = 544 + 26×126 + S + 33): the writer
+  cut the stream after the 13th byte of the 26th record. The body is NOT byte-padded at
+  the end (31219 = 3902×8 + 3: a 33-bit tail, value 0x6129978F + flag 0, precedes 5 pad
+  bits in the file).
+- **The 0-start period hypothesis is disconfirmed** (`THead0`): 126-bit windows at
+  0, 126, 252, 378, 504, 630, 756, 882 share no template (w0 alone varies 110 of 126
+  bits). The 544-bit header region is a genuine separate bit-packed struct; the record
+  period begins exactly at 544.
+
+**Cross-BPT scan (TScan / TApply, all candidate bodies):** the `02 94 00×6` 126-bit record
+model is **not shared** by the other BPT bodies — the record model appears to be
+per-BPT (at least per-AutoCAD-version) in its constant 119-bit template:
+
+| body | rawBits | leading 68 bytes (first) | 126-bit `02 94 00×6` markers |
+| --- | --- | --- | --- |
+| 1kV BPT | 31219 | `80 00 00 00 00 00 05 0c 00 21 57 be …` | **26 (truncated)** at 544, 670, …, 3694 |
+| l302 BPT#1 | 2596 | `aa a4 29 02 40 a3 ff fd 05 3c 76 0f 1d 86 47 ff fa …` | none |
+| l302 BPT#2 | 6533 | `8e 0c cc cc cc cc c0 c4 00×7 44 f6 a5 ed 02 40 e3 ff fd …` | 16 loose `XX 94 00×6` hits (byte 0 = `0x80`), at 464, 864, 1016, … with **400/400/152-bit spacing** (no 126 period — 58 varying bits in a 126-window) |
+| l302 BPT#3 | 3536 | `aa a4 69 02 40 a3 ff fd 1d 3c 76 10 16 47 ff fa …` | none |
+| TEE3000 / DYN--TEE--3000--1 | 12972 | `c6 f6 36 b2 05 46 16 26 c6 50 04 65 68 a8 a8 aa aa aa aa aa da bf a9 3e 40 90 d4 26 c6 f6 36 b2 05 46 16 26 c6 53 10 09 07 8f ff f9 0d` then **inline ASCII** `UserVariable\0`, `Cust…` | none — a different schema with **inline (non-trailing) strings**; a 9-byte `c6 f6 36 b2 05 46 16 26 c6` prefix repeats at 28-byte spacing |
+| GRIP objects | 107 | `41 11 c0 1c 80 1a 40 1c 00 12 80 38 22 20 …` | none — a small fixed layout, identical across all 4 GRIP objects found |
+
+Shared motifs across the 1kV and l302 BPT#2 bodies (`ff fd`, `3c 76`, `8f ff`, `f1 d8`,
+the `02 40 …` region) indicate a common bit-packed struct family with per-instance
+fields; the l302 BPT#2 `80 94` region is the closest analog of the 1kV record but with
+a 400/152-bit record cadence and a different constant template (byte 8 = `00`/`08`
+instead of `04`, byte 9 = `08` instead of `88`).
+
+**Open:** the 544-bit header (bit 0 = 1, bits 1..36 = 0, then a sparse→dense
+bitstream; no `[BS]` sequence parses from bit 0 or bit 1 — the walk yields
+12288/21999/negative values). Candidate models: a large bit-packed metadata struct
+(row/column counts, per-column type + name index — 1kV has 26 rows × 6 column-type
+names in its string pool), or a second record family with a 544-bit period.
